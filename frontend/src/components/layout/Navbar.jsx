@@ -12,7 +12,7 @@ export default function Navbar({ cartCount = 0, onSearchClick }) {
             setScrolled(window.scrollY > 20);
         };
 
-        handleScroll(); // Check on initial load
+        handleScroll(); // Check on initial load 
         window.addEventListener("scroll", handleScroll);
 
         return () => window.removeEventListener("scroll", handleScroll);
