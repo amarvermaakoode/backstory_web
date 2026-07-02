@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -55,52 +55,15 @@ export default function Collections() {
 
     // Carousel Ref
     const carouselRef = useRef(null);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(true);
-
-    const checkScrollButtons = () => {
-        if (carouselRef.current) {
-            const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
-            setCanScrollLeft(scrollLeft > 1);
-            setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
-        }
-    };
-
-    useEffect(() => {
-        const carousel = carouselRef.current;
-        if (carousel) {
-            checkScrollButtons();
-            carousel.addEventListener("scroll", checkScrollButtons);
-            window.addEventListener("resize", checkScrollButtons);
-            return () => {
-                carousel.removeEventListener("scroll", checkScrollButtons);
-                window.removeEventListener("resize", checkScrollButtons);
-            };
-        }
-    }, [products]);
 
     const scroll = (direction) => {
         if (carouselRef.current) {
-            const firstChild = carouselRef.current.firstElementChild;
-            if (firstChild) {
-                const cardWidth = firstChild.offsetWidth;
-                // Get the computed gap style of the container
-                const style = window.getComputedStyle(carouselRef.current);
-                const gap = parseFloat(style.columnGap) || 0;
-
-                const scrollAmount = direction === "left" ? -(cardWidth + gap) : (cardWidth + gap);
-                carouselRef.current.scrollBy({
-                    left: scrollAmount,
-                    behavior: "smooth",
-                });
-            } else {
-                const cardWidth = 380;
-                const scrollAmount = direction === "left" ? -cardWidth : cardWidth;
-                carouselRef.current.scrollBy({
-                    left: scrollAmount,
-                    behavior: "smooth",
-                });
-            }
+            const cardWidth = 380; // card width + gap
+            const scrollAmount = direction === "left" ? -cardWidth : cardWidth;
+            carouselRef.current.scrollBy({
+                left: scrollAmount,
+                behavior: "smooth",
+            });
         }
     };
 
@@ -109,7 +72,7 @@ export default function Collections() {
             <div className=" max-w-full flex flex-col md:flex-row gap-12 md:gap-16 items-start">
 
                 {/* Left Content (Static) */}
-                <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch md:pb-4">
+                <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
                         <h2 className="font-clashDisplay text-4xl md:text-5xl font-semibold tracking-tight text-black leading-[1.1]">
                             Shop our<br />Latest Collection
@@ -123,34 +86,6 @@ export default function Collections() {
                         >
                             Shop Now
                         </a>
-                    </div>
-
-                    {/* Carousel Navigation Buttons */}
-                    <div className="flex gap-4 mt-12 md:mt-0 md:mb-0">
-                        <button
-                            onClick={() => scroll("left")}
-                            disabled={!canScrollLeft}
-                            className={`flex items-center justify-center w-12 h-12 rounded-full bg-[#F4F0EA] text-black transition-all duration-300 ${
-                                canScrollLeft
-                                    ? "hover:bg-black hover:text-white cursor-pointer"
-                                    : "opacity-40 cursor-not-allowed"
-                            }`}
-                            aria-label="Previous slide"
-                        >
-                            <ChevronLeft className="h-7 stroke-3 w-7" />
-                        </button>
-                        <button
-                            onClick={() => scroll("right")}
-                            disabled={!canScrollRight}
-                            className={`flex items-center justify-center w-12 h-12 rounded-full bg-[#F4F0EA] text-black transition-all duration-300 ${
-                                canScrollRight
-                                    ? "hover:bg-black hover:text-white cursor-pointer"
-                                    : "opacity-40 cursor-not-allowed"
-                            }`}
-                            aria-label="Next slide"
-                        >
-                            <ChevronRight className="h-7 stroke-3 w-7" />
-                        </button>
                     </div>
                 </div>
 
@@ -173,7 +108,7 @@ export default function Collections() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group w-[22vw] shrink-0 flex flex-col cursor-pointer"
+                                className="group w-[24vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
                                 <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
