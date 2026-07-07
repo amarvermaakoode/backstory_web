@@ -33,41 +33,43 @@ export default function Hero() {
                         priority
                         className="object-cover object-top select-none"
                     />
+                    {/* Gradient Overlay for Tablet and Mobile */}
+                    <div
+                        className="absolute inset-0 lg:hidden pointer-events-none"
+                        style={{ background: "linear-gradient(180deg, rgba(0, 0, 0, 0) 48%, #000000 100%)" }}
+                    />
                 </div>
 
 
 
                 {/* Grid Overlay Content */}
-                <div className="relative z-10 mx-auto max-w-[83%] px-6 sm:px-8 h-full flex flex-col justify-between mt-12">
-                    <div className="flex-grow flex flex-col md:flex-row md:items-center justify-between gap-8 md:gap-4 my-auto">
-                        {/* Left Header Title */}
-                        <div className="md:w-1/3 flex items-center">
-                            <h1 className="font-clashDisplay text-6xl font-semibold tracking-wide text-[#C5B9AC]  leading-[1] text-left select-none">
+                <div className="relative z-10 mx-auto max-w-[90%] md:max-w-[83%] px-4 sm:px-8 h-full flex flex-col justify-end pb-12 md:pb-20">
+                    <div className="flex flex-row items-end justify-between md:items-center gap-4 md:gap-4 w-full">
+                        {/* Left Title */}
+                        <div className="w-1/2 md:w-1/3 flex items-end">
+                            <h1 className="font-clashDisplay text-[32px] xs:text-[38px] sm:text-5xl md:text-6xl font-semibold tracking-wide text-[#C5B9AC] leading-[0.95] text-left select-none">
                                 WEAR<br />YOUR<br />STORY
                             </h1>
                         </div>
 
-
                         {/* Right Subtitle & Action */}
-                        <div className="md:w-1/3 flex items-center md:justify-end">
-                            <div className="max-w-xs space-y-6 md:text-left">
-                                <p className="text-xl sm:text-2xl text-white  font-geist font-normal leading-snug tracking-wide">
+                        <div className="w-1/2 md:w-1/3 flex items-end justify-end">
+                            <div className="max-w-[180px] xs:max-w-xs space-y-4 md:space-y-6 text-left">
+                                <p className="text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl text-white font-geist font-light md:font-normal leading-snug tracking-wide">
                                     Crafted as apparel.<br />Worn as identity.
                                 </p>
                                 <a
                                     href="#shop"
-                                    className="group inline-flex items-center gap-4 bg-white text-black font-bold rounded-full pl-4 pr-2 py-1 hover:bg-neutral-200 transition-all text-md cursor-pointer shadow-lg shadow-white/5"
+                                    className="group inline-flex items-center gap-2 md:gap-4 bg-white text-black font-bold rounded-full pl-2 pr-1.5 py-0.5 md:pl-4 md:pr-2 md:py-1 hover:bg-neutral-200 transition-all text-xs md:text-md cursor-pointer shadow-lg shadow-white/5 w-fit"
                                 >
-                                    Shop Now
-                                    <span className="flex items-center justify-center w-8 h-8 rounded-full bg-black text-white group-hover:translate-x-0.5 transition-transform">
-                                        <ArrowRight className="h-4 w-4" />
+                                    <span className="font-bold">Shop Now</span>
+                                    <span className="flex items-center justify-center w-5 h-5 md:w-8 md:h-8 rounded-full bg-black text-white group-hover:translate-x-0.5 transition-transform">
+                                        <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
                                     </span>
                                 </a>
                             </div>
                         </div>
                     </div>
-
-
                 </div>
             </section>
 
