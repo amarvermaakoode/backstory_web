@@ -108,7 +108,7 @@ export default function Collections() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group md:w-[24vw] w-[34vw] shrink-0 flex flex-col cursor-pointer"
+                                className="group md:w-[24vw] w-[38vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
                                 <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
