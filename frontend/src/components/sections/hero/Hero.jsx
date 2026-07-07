@@ -25,7 +25,7 @@ export default function Hero() {
         <>
             <section className="relative h-screen mt-0 w-full overflow-hidden bg-[#050505]">
                 {/* Background Image Container */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute w-[100%] md:w-[85%] h-[85%] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 lg:inset-0 lg:w-full lg:h-full lg:translate-x-0 lg:translate-y-0 flex items-center justify-center overflow-hidden rounded-2xl lg:rounded-none">
                     <Image
                         src="/images/landing-page/hero-image2.png"
                         alt="Model wearing Bacstory QR T-Shirt"
@@ -54,7 +54,7 @@ export default function Hero() {
 
                         {/* Right Subtitle & Action */}
                         <div className="w-1/2 md:w-1/3 flex items-end justify-end">
-                            <div className="max-w-[180px] xs:max-w-xs space-y-4 md:space-y-6 text-left">
+                            <div className="max-w-[280px] xs:max-w-xs space-y-4 md:space-y-6 text-left">
                                 <p className="text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl text-white font-geist font-light md:font-normal leading-snug tracking-wide">
                                     Crafted as apparel.<br />Worn as identity.
                                 </p>
