@@ -108,10 +108,10 @@ export default function Collections() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group w-[60vh] shrink-0 flex flex-col cursor-pointer"
+                                className="group w-[24vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
-                                <div className="relative w-full h-[60vh] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
+                                <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
                                     <div className="relative w-[90%] h-[90%] transition-transform duration-500 ease-out group-hover:scale-105">
                                         <Image
                                             src={product.image}
