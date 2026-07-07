@@ -108,7 +108,7 @@ export default function Collections() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group md:w-[24vw] w-[34vw] shrink-0 flex flex-col cursor-pointer"
+                                className="group md:w-[24vw] w-[38vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
                                 <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
@@ -165,24 +165,25 @@ export default function Collections() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Right Edge Gradient Overlay & Next Button */}
+                    <div
+                        className="absolute hidden md:block right-0 top-0 w-28 z-20 pointer-events-none"
+                        style={{
+                            height: "24vw",
+                            background: "linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.21) 100%)"
+                        }}
+                    >
+                        <button
+                            onClick={() => scroll("right")}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-white text-black hover:bg-neutral-200 transition-colors shadow-lg cursor-pointer"
+                            aria-label="Scroll right"
+                        >
+                            <ChevronRight className="h-6 w-6 stroke-[2]" />
+                        </button>
+                    </div>
                 </div>
 
-            </div>
-
-            {/* Right Edge Gradient Overlay & Next Button */}
-            <div
-                className="absolute hidden md:block right-0 top-0 bottom-0 w-28 z-20 pointer-events-none flex items-center justify-end pr-4"
-                style={{
-                    background: "linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.21) 100%)"
-                }}
-            >
-                <button
-                    onClick={() => scroll("right")}
-                    className="pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-white text-black hover:bg-neutral-200 transition-colors shadow-lg cursor-pointer"
-                    aria-label="Scroll right"
-                >
-                    <ChevronRight className="h-6 w-6 stroke-[2]" />
-                </button>
             </div>
         </section>
     );

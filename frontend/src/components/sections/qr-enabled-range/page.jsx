@@ -45,7 +45,7 @@ export default function QrEnabledRange() {
             </div>
 
             {/* Grid of Categories */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 w-full h-[80vh] gap-px bg-neutral-900 border-t border-b border-neutral-900">
+            <div className="grid grid-cols-2 lg:grid-cols-4 w-full h-[80vh] gap-px bg-neutral-900 ">
                 {categories.map((category) => (
                     <a
                         key={category.id}
