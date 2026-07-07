@@ -68,21 +68,21 @@ export default function Collections() {
     };
 
     return (
-        <section className="relative w-full bg-[#FFFFFF] py-16 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%] select-none">
+        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%] select-none">
             <div className=" max-w-full flex flex-col md:flex-row gap-12 md:gap-16 items-start">
 
                 {/* Left Content (Static) */}
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
-                        <h2 className="font-clashDisplay text-4xl md:text-5xl font-semibold tracking-tight text-black leading-[1.1]">
+                        <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight text-[#030303] select-none">
                             Shop our<br />Latest Collection
                         </h2>
-                        <p className="text-black font-geist text-base md:text-xl mt-4 leading-relaxed font-medium">
+                        <p className="text-black font-geist text-base md:text-xl md:mt-4 mt-2 leading-relaxed font-medium">
                             Inspired by journeys.<br />Designed to be remembered.
                         </p>
                         <a
                             href="#shop"
-                            className="inline-block mt-8 border-2 border-black text-black font-semibold rounded-full px-6 py-2.5 hover:bg-black hover:text-white transition-colors duration-300 text-sm cursor-pointer"
+                            className="inline-block md:mt-8 mt-4 border-2 border-black text-black font-semibold rounded-full px-6 py-2.5 hover:bg-black hover:text-white transition-colors duration-300 text-sm cursor-pointer"
                         >
                             Shop Now
                         </a>
@@ -103,12 +103,12 @@ export default function Collections() {
 
                     <div
                         ref={carouselRef}
-                        className="flex gap-6 overflow-x-auto scroll-smooth no-scrollbar pb-4"
+                        className="flex md:gap-6 gap-4 overflow-x-auto scroll-smooth no-scrollbar pb-4"
                     >
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group w-[24vw] shrink-0 flex flex-col cursor-pointer"
+                                className="group md:w-[24vw] w-[34vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
                                 <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
@@ -142,7 +142,7 @@ export default function Collections() {
                                 </div>
 
                                 {/* Product Info (Below Card) */}
-                                <div className="mt-4 flex justify-between items-start">
+                                <div className="md:mt-4 mt-2 flex justify-between items-start">
                                     <div>
                                         <h3 className="font-sans text-base md:text-lg font-medium text-black">
                                             {product.name}
@@ -171,7 +171,7 @@ export default function Collections() {
 
             {/* Right Edge Gradient Overlay & Next Button */}
             <div
-                className="absolute right-0 top-0 bottom-0 w-28 z-20 pointer-events-none flex items-center justify-end pr-4"
+                className="absolute hidden md:block right-0 top-0 bottom-0 w-28 z-20 pointer-events-none flex items-center justify-end pr-4"
                 style={{
                     background: "linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.21) 100%)"
                 }}
