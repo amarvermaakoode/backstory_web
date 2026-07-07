@@ -22,7 +22,7 @@ export default function QrEnabledRange() {
 
     return (
         <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 select-none">
-            <div className="mx-auto max-w-[92%] grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+            <div className="mx-auto max-w-[98%] grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 {collections.map((collection) => (
                     <a
                         key={collection.id}
@@ -51,7 +51,7 @@ export default function QrEnabledRange() {
                         {/* Content (Title & Button) */}
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-12 px-6 text-center">
                             {/* Main Collection Title */}
-                            <h3 className="font-clashDisplay text-2xl md:text-3xl font-medium tracking-wide text-white mb-5 transition-transform duration-500 group-hover:scale-[0.98]">
+                            <h3 className="font-geist text-2xl md:text-3xl font-normal tracking-wide text-white mb-5 transition-transform duration-500 group-hover:scale-[0.98]">
                                 {collection.name}
                             </h3>
 
