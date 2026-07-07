@@ -43,11 +43,11 @@ export default function Hero() {
 
 
                 {/* Grid Overlay Content */}
-                <div className="relative z-10 mx-auto max-w-[90%] md:max-w-[83%] px-4 sm:px-8 h-full flex flex-col justify-end pb-12 md:pb-20">
+                <div className="relative z-10 mx-auto max-w-[90%] md:max-w-[83%] px-4 sm:px-8 h-full flex flex-col justify-end pb-16 md:pb-20">
                     <div className="flex flex-row items-end justify-between md:items-center gap-4 md:gap-4 w-full">
                         {/* Left Title */}
                         <div className="w-1/2 md:w-1/3 flex items-end">
-                            <h1 className="font-clashDisplay text-[32px] xs:text-[38px] sm:text-5xl md:text-6xl font-semibold tracking-wide text-[#C5B9AC] leading-[0.95] text-left select-none">
+                            <h1 className="font-clashDisplay text-[34px] xs:text-[38px] sm:text-5xl md:text-6xl font-semibold tracking-wide text-[#C5B9AC] leading-[0.95] text-left select-none">
                                 WEAR<br />YOUR<br />STORY
                             </h1>
                         </div>
@@ -55,7 +55,7 @@ export default function Hero() {
                         {/* Right Subtitle & Action */}
                         <div className="w-1/2 md:w-1/3 flex items-end justify-end">
                             <div className="max-w-[280px] xs:max-w-xs space-y-4 md:space-y-6 text-left">
-                                <p className="text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl text-white font-geist font-light md:font-normal leading-snug tracking-wide">
+                                <p className="text-sm xs:text-sm sm:text-base md:text-xl lg:text-2xl text-white font-geist font-light md:font-normal leading-snug tracking-wide">
                                     Crafted as apparel.<br />Worn as identity.
                                 </p>
                                 <a
