@@ -71,8 +71,9 @@ export default function FeaturedProducts() {
                         }
                     `}</style>
                     {products.map((product) => (
-                        <div
+                        <Link
                             key={product.id}
+                            href={`/products/${product.id}`}
                             className="group w-[50vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
                         >
                             {/* Image Container Card */}
@@ -134,7 +135,7 @@ export default function FeaturedProducts() {
                                     <Plus className="h-4 w-4 stroke-[2]" />
                                 </button>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             </div>

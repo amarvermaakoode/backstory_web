@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Collections() {
@@ -106,8 +107,9 @@ export default function Collections() {
                         className="flex md:gap-6 gap-4 overflow-x-auto scroll-smooth no-scrollbar pb-4"
                     >
                         {products.map((product) => (
-                            <div
+                            <Link
                                 key={product.id}
+                                href={`/products/${product.id}`}
                                 className="group md:w-[24vw] w-[50vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
@@ -162,7 +164,7 @@ export default function Collections() {
                                         <Plus className="h-4 w-4 stroke-[2]" />
                                     </button>
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
 
