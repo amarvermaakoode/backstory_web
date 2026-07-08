@@ -108,7 +108,7 @@ export default function Collections() {
                         {products.map((product) => (
                             <div
                                 key={product.id}
-                                className="group md:w-[24vw] w-[38vw] shrink-0 flex flex-col cursor-pointer"
+                                className="group md:w-[24vw] w-[50vw] shrink-0 flex flex-col cursor-pointer"
                             >
                                 {/* Card Body (Image Container) */}
                                 <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
@@ -129,7 +129,7 @@ export default function Collections() {
                                             e.stopPropagation();
                                             toggleFavorite(product.id);
                                         }}
-                                        className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+                                        className="absolute top-2 md:top-4 right-2 md:right-4 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                                         aria-label="Add to favorites"
                                     >
                                         <Heart
