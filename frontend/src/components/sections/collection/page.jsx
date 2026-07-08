@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
+import ExploreButton from "@/components/ui/ExploreButton";
 
 export default function QrEnabledRange() {
     const collections = [
@@ -57,12 +58,7 @@ export default function QrEnabledRange() {
 
 
                             {/* Explore Pill Button */}
-                            <div className="inline-flex items-center gap-3 bg-[#101820]/40 backdrop-blur-md text-white border border-white/20 rounded-full pl-6 pr-2 py-2 hover:bg-[#101820]/60 hover:border-white/40 transition-all duration-300">
-                                <span className="text-sm font-medium tracking-wider">Explore</span>
-                                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#C5B9AC] text-[#101820] transition-transform duration-350 group-hover:rotate-45">
-                                    <ArrowUpRight className="h-4 w-4 stroke-[2.5]" />
-                                </span>
-                            </div>
+                            <ExploreButton text="Explore" />
                         </div>
                     </a>
                 ))}
