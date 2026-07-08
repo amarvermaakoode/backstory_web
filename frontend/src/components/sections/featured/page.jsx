@@ -72,7 +72,7 @@ export default function FeaturedProducts() {
                     {products.map((product) => (
                         <div
                             key={product.id}
-                            className="group w-[38vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
+                            className="group w-[50vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
                         >
                             {/* Image Container Card */}
                             <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
@@ -88,7 +88,7 @@ export default function FeaturedProducts() {
                                         e.stopPropagation();
                                         toggleFavorite(product.id);
                                     }}
-                                    className="absolute top-4 right-4 z-10 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+                                    className="absolute top-2 md:top-4 right-2 md:right-4 z-10 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                                     aria-label="Add to favorites"
                                 >
                                     <Heart
