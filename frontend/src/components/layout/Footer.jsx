@@ -31,7 +31,7 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="w-full bg-[#101820] text-white pt-20 pb-10 px-6 sm:px-10 md:px-16 lg:px-[7%] select-none overflow-hidden">
+        <footer className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-16 lg:px-[7%] select-none overflow-hidden">
             <div className="mx-auto max-w-[1600px] space-y-16">
 
                 {/* Top Section */}
@@ -39,7 +39,7 @@ export default function Footer() {
                     {/* Left Column (Brand Slogan & Socials) */}
                     <div className="flex flex-col justify-between max-w-sm space-y-8">
                         <div className="space-y-6">
-                            <h2 className="font-clashDisplay text-2xl md:text-3xl font-medium leading-snug tracking-wide">
+                            <h2 className="font-geist text-2xl md:text-3xl font-medium leading-snug tracking-wide">
                                 Every person has a story worth wearing.
                             </h2>
                             {/* Social Icons */}
