@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Heart, Plus } from "lucide-react";
+import Link from "next/link";
 
 export default function FeaturedProducts() {
     const products = [
@@ -50,12 +51,12 @@ export default function FeaturedProducts() {
                     <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight">
                         Featured Products
                     </h2>
-                    <a
-                        href="#shop"
+                    <Link
+                        href="/featured-products"
                         className="border-2 border-black text-black font-semibold rounded-full px-5 py-1.5 hover:bg-black whitespace-nowrap hover:text-white transition-colors duration-300 text-sm cursor-pointer"
                     >
                         See All
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
