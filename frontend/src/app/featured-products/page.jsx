@@ -310,7 +310,11 @@ export default function FeaturedListingPage() {
                     {displayedProducts.length > 0 ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-12 mt-10">
                             {displayedProducts.map((product) => (
-                                <div key={product.id} className="group flex flex-col cursor-pointer">
+                                <Link
+                                    key={product.id}
+                                    href={`/products/${product.id}`}
+                                    className="group flex flex-col cursor-pointer"
+                                >
                                     {/* Image Container Card */}
                                     <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
 
@@ -393,7 +397,7 @@ export default function FeaturedListingPage() {
                                             <Plus className="h-4 w-4 stroke-[2]" />
                                         </button>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     ) : (
