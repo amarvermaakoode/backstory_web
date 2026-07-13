@@ -4,8 +4,13 @@ import React, { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { allProducts } from "@/app/products/products";
 
 export default function Collections() {
+    const { addToCart } = useCart();
+    const { toggleWishlist, wishlistItems } = useWishlist();
     const products = [
         {
             id: "built-in-public",
@@ -43,16 +48,6 @@ export default function Collections() {
             link: "#shop",
         },
     ];
-
-    // State for favorites
-    const [favorites, setFavorites] = useState({});
-
-    const toggleFavorite = (id) => {
-        setFavorites((prev) => ({
-            ...prev,
-            [id]: !prev[id],
-        }));
-    };
 
     // Carousel Ref
     const carouselRef = useRef(null);
@@ -129,15 +124,21 @@ export default function Collections() {
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            toggleFavorite(product.id);
+                                            const fullProduct = allProducts.find(
+                                                p => p.id === product.id || 
+                                                     p.id.replace("-1", "") === product.id || 
+                                                     p.name.toLowerCase() === product.name.toLowerCase()
+                                            ) || allProducts[0];
+                                            toggleWishlist(fullProduct);
                                         }}
-                                        className="absolute top-2 md:top-4 right-2 md:right-4 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+                                        className="absolute top-4 right-4 z-10 p-2 bg-white/80 hover:bg-white backdrop-blur-xs rounded-full hover:scale-110 transition-all duration-300 cursor-pointer"
                                         aria-label="Add to favorites"
                                     >
                                         <Heart
-                                            className={`h-5 w-5 transition-all ${favorites[product.id]
-                                                ? "fill-red-500 text-red-500"
-                                                : "text-black stroke-[1.5]"
+                                            className={`h-5 w-5 transition-colors ${
+                                                wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                                    ? "fill-red-500 text-red-500 stroke-red-500"
+                                                    : "text-black stroke-[1.5]"
                                                 }`}
                                         />
                                     </button>
@@ -157,6 +158,12 @@ export default function Collections() {
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
+                                            const fullProduct = allProducts.find(
+                                                p => p.id === product.id || 
+                                                     p.id.replace("-1", "") === product.id || 
+                                                     p.name.toLowerCase() === product.name.toLowerCase()
+                                            ) || allProducts[0];
+                                            addToCart(fullProduct, 1);
                                         }}
                                         className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                         aria-label="Add to cart"
