@@ -1,5 +1,9 @@
 import { GeistSans } from "geist/font/sans";
 import "./globals.css";
+import { CartProvider } from "@/context/CartContext";
+import { WishlistProvider } from "@/context/WishlistContext";
+import CartDrawer from "@/components/layout/CartDrawer";
+import WishlistDrawer from "@/components/layout/WishlistDrawer";
 
 export const metadata = {
   title: "BACSTORY | Premium Narrative & Backstory Generator",
@@ -12,7 +16,15 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${GeistSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <CartProvider>
+          <WishlistProvider>
+            {children}
+            <CartDrawer />
+            <WishlistDrawer />
+          </WishlistProvider>
+        </CartProvider>
+      </body>
     </html>
   );
 }

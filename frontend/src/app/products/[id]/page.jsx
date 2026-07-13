@@ -7,11 +7,15 @@ import { Heart, Plus, Minus, Star, ChevronDown, ChevronLeft, ChevronRight } from
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { getProductById, allProducts } from "../products";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export default function ProductDetailPage({ params }) {
     // Unwrap route parameter promise
     const { id } = use(params);
     const product = getProductById(id);
+    const { addToCart } = useCart();
+    const { toggleWishlist, isInWishlist } = useWishlist();
 
     // States for interactive elements
     const [selectedSize, setSelectedSize] = useState(
@@ -25,7 +29,7 @@ export default function ProductDetailPage({ params }) {
             : null
     );
     const [quantity, setQuantity] = useState(1);
-    const [isFavorite, setIsFavorite] = useState(false);
+    const isFavorite = isInWishlist(product?.id || "");
     const [expandedFaq, setExpandedFaq] = useState(null);
 
     if (!product) {
@@ -120,7 +124,7 @@ export default function ProductDetailPage({ params }) {
                                         {product.name}
                                     </h1>
                                     <button
-                                        onClick={() => setIsFavorite(!isFavorite)}
+                                        onClick={() => toggleWishlist(product)}
                                         className="p-2 border border-neutral-200 rounded-full hover:border-black transition-colors duration-200 cursor-pointer ml-4 mt-1"
                                         aria-label="Add to favorites"
                                     >
@@ -219,13 +223,19 @@ export default function ProductDetailPage({ params }) {
                                 </div>
 
                                 {/* Add to Cart */}
-                                <button className="flex-1 h-12 bg-[#DFD7CC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer">
+                                <button 
+                                    onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
+                                    className="flex-1 h-12 bg-[#DFD7CC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
+                                >
                                     Add to Cart
                                 </button>
                             </div>
 
                             {/* Buy Now */}
-                            <button className="w-full h-12 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer">
+                            <button 
+                                onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
+                                className="w-full h-12 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
+                            >
                                 Buy Now
                             </button>
 
