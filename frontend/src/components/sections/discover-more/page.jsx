@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Button from "@/components/ui/Button";
 
 export default function DiscoverMore() {
     return (
@@ -23,12 +24,9 @@ export default function DiscoverMore() {
                     Every piece carries a story.<br />
                     Scan to uncover it.
                 </h2>
-                <a
-                    href="#discover"
-                    className="inline-block border border-white text-white font-semibold rounded-full px-2 md:px-6 py-0.5 md:py-2 hover:bg-white hover:text-black transition-colors duration-300 text-xs md:text-lg cursor-pointer"
-                >
+                <Button href="#discover" variant="outline-white" hasArrow={false}>
                     Discover more
-                </a>
+                </Button>
             </div>
         </section>
     );

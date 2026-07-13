@@ -7,6 +7,7 @@ import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { allProducts } from "@/app/products/products";
+import Button from "@/components/ui/Button";
 
 export default function Collections() {
     const { addToCart } = useCart();
@@ -76,12 +77,9 @@ export default function Collections() {
                         <p className="text-black font-geist text-base md:text-xl md:mt-4 mt-2 leading-relaxed font-medium">
                             Inspired by journeys.<br />Designed to be remembered.
                         </p>
-                        <a
-                            href="#shop"
-                            className="inline-block md:mt-8 mt-4 border-2 border-black text-black font-semibold rounded-full px-6 py-2.5 hover:bg-black hover:text-white transition-colors duration-300 text-sm cursor-pointer"
-                        >
+                        <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-8 mt-4">
                             Shop Now
-                        </a>
+                        </Button>
                     </div>
                 </div>
 
