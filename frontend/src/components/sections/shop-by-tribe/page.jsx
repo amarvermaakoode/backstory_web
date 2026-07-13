@@ -32,11 +32,11 @@ export default function ShopByTribe() {
     ];
 
     return (
-        <section className="w-full bg-[#F4F0EA] py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header */}
                 <div>
-                    <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight">
+                    <h2 className="font-clashDisplay text-3xl md:text-[3.5vw] font-semibold tracking-tight">
                         Shop by Tribe
                     </h2>
                 </div>

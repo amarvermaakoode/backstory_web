@@ -38,7 +38,7 @@ export default function QrEnabledRange() {
             <div className="bg-[#EFECE7] py-5 lg:py-10 px-4 sm:px-8 flex items-center">
 
                 <div className="mx-auto max-w-[98%] w-full">
-                    <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight text-[#030303] select-none">
+                    <h2 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-[#030303] select-none">
                         Explore our<br className="lg:hidden" /> QR-Enabled Range
                     </h2>
                 </div>

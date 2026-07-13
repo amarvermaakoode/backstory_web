@@ -41,11 +41,11 @@ export default function FeaturedProducts() {
     ];
 
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-20 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-10 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
             <div className="mx-auto max-w-[1600px] space-y-12">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
-                    <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight">
+                    <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
                         Featured Products
                     </h2>
                     <Button href="/featured-products" hasArrow={false} variant="outline">
@@ -83,9 +83,9 @@ export default function FeaturedProducts() {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const fullProduct = allProducts.find(
-                                            p => p.id === product.id || 
-                                                 p.id.replace("-1", "") === product.id || 
-                                                 p.name.toLowerCase() === product.name.toLowerCase()
+                                            p => p.id === product.id ||
+                                                p.id.replace("-1", "") === product.id ||
+                                                p.name.toLowerCase() === product.name.toLowerCase()
                                         ) || allProducts[0];
                                         toggleWishlist(fullProduct);
                                     }}
@@ -93,10 +93,9 @@ export default function FeaturedProducts() {
                                     aria-label="Add to favorites"
                                 >
                                     <Heart
-                                        className={`h-5 w-5 transition-all ${
-                                            wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
-                                                ? "fill-red-500 text-red-500 stroke-red-500"
-                                                : "text-black stroke-[1.5]"
+                                        className={`h-5 w-5 transition-all ${wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                            ? "fill-red-500 text-red-500 stroke-red-500"
+                                            : "text-black stroke-[1.5]"
                                             }`}
                                     />
                                 </button>
@@ -104,9 +103,8 @@ export default function FeaturedProducts() {
                                 {/* Product Image */}
                                 <div className="relative w-full h-full flex items-center justify-center">
                                     {/* Default Image */}
-                                    <div className={`relative w-[85%] h-[85%] transition-all duration-500 ease-out group-hover:scale-105 ${
-                                        product.hoverImage ? "opacity-100 group-hover:opacity-0" : ""
-                                    }`}>
+                                    <div className={`relative w-[85%] h-[85%] transition-all duration-500 ease-out group-hover:scale-105 ${product.hoverImage ? "opacity-100 group-hover:opacity-0" : ""
+                                        }`}>
                                         <Image
                                             src={product.image}
                                             alt={product.name}
@@ -146,9 +144,9 @@ export default function FeaturedProducts() {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         const fullProduct = allProducts.find(
-                                            p => p.id === product.id || 
-                                                 p.id.replace("-1", "") === product.id || 
-                                                 p.name.toLowerCase() === product.name.toLowerCase()
+                                            p => p.id === product.id ||
+                                                p.id.replace("-1", "") === product.id ||
+                                                p.name.toLowerCase() === product.name.toLowerCase()
                                         ) || allProducts[0];
                                         addToCart(fullProduct, 1);
                                     }}
