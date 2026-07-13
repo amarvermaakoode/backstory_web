@@ -18,6 +18,7 @@ export default function FeaturedProducts() {
             name: "Lost on Purpose",
             price: "Rs 1100",
             image: "/images/landing-page/featured3.png",
+            hoverImage: "/images/person-image-3.png",
             tag: "Travel Series",
             link: "#shop",
         },
@@ -101,20 +102,37 @@ export default function FeaturedProducts() {
                                 </button>
 
                                 {/* Product Image */}
-                                <div className="relative w-[85%] h-[85%] transition-transform duration-500 ease-out group-hover:scale-105">
-                                    <Image
-                                        src={product.image}
-                                        alt={product.name}
-                                        fill
-                                        sizes="(max-width: 768px) 38vw, 33vw"
-                                        className="object-contain select-none"
-                                        priority
-                                    />
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                    {/* Default Image */}
+                                    <div className={`relative w-[85%] h-[85%] transition-all duration-500 ease-out group-hover:scale-105 ${
+                                        product.hoverImage ? "opacity-100 group-hover:opacity-0" : ""
+                                    }`}>
+                                        <Image
+                                            src={product.image}
+                                            alt={product.name}
+                                            fill
+                                            sizes="(max-width: 768px) 38vw, 33vw"
+                                            className="object-contain select-none"
+                                            priority
+                                        />
+                                    </div>
+                                    {/* Hover Image */}
+                                    {product.hoverImage && (
+                                        <div className="absolute inset-0 transition-all duration-500 ease-out group-hover:scale-105 opacity-0 group-hover:opacity-100">
+                                            <Image
+                                                src={product.hoverImage}
+                                                alt={product.name}
+                                                fill
+                                                sizes="(max-width: 768px) 38vw, 33vw"
+                                                className="object-cover object-center select-none"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Product Info (Below Card) */}
-                            <div className="mt-2 md:mt-4 flex justify-between items-start">
+                            <div className="mt-2 md:mt-4 flex justify-between items-end">
                                 <div>
                                     <h3 className="font-sans text-base md:text-lg font-medium text-black">
                                         {product.name}

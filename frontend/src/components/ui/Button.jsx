@@ -23,16 +23,16 @@ export default function Button({
     let paddingStyles = "";
 
     if (variant === "primary") {
-        variantStyles = "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/5 border border-transparent text-xs md:text-sm";
+        variantStyles = "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/5 border border-transparent text-xs md:text-lg";
         // Specific padding from mockup when arrow is present
         paddingStyles = hasArrow
             ? "pl-2 pr-1.5 py-0.5 md:pl-4 md:pr-2 md:py-1"
             : "px-6 py-2.5";
     } else if (variant === "outline") {
-        variantStyles = "border-2 border-black text-black hover:bg-black hover:text-white transition-colors text-sm";
+        variantStyles = "border-2 border-black text-black hover:bg-black hover:text-white transition-colors text-sm md:text-lg";
         paddingStyles = hasArrow
-            ? "pl-5 pr-2 py-2 md:pl-6 md:pr-3 md:py-2.5"
-            : "px-5 py-1.5 md:px-6 md:py-2.5";
+            ? "pl-5 pr-2 py-2 md:pl-6 md:pr-3 md:py-2"
+            : "px-5 py-1.5 md:px-4 md:py-2";
     } else if (variant === "outline-white") {
         variantStyles = "border border-white text-white hover:bg-white hover:text-black transition-colors text-xs md:text-md";
         paddingStyles = hasArrow
@@ -47,7 +47,7 @@ export default function Button({
 
     const arrowIcon = (
         <span className={`flex items-center justify-center rounded-full transition-transform group-hover:translate-x-0.5
-            ${variant === "primary" ? "w-5 h-5 md:w-8 md:h-8 bg-black text-white ml-2 md:ml-4" : "ml-2"}
+            ${variant === "primary" ? "w-5 h-5 md:w-8 md:h-8 bg-black text-white ml-2" : "ml-2"}
             ${variant === "outline-white" ? "w-5 h-5 bg-white text-black group-hover:bg-black group-hover:text-white" : ""}
             ${variant === "outline" ? "w-5 h-5 bg-black text-white group-hover:bg-white group-hover:text-black" : ""}
             ${variant === "dark" ? "w-4 h-4 text-white" : ""}
