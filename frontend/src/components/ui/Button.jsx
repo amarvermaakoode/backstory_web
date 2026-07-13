@@ -29,10 +29,10 @@ export default function Button({
             ? "pl-2 pr-1.5 py-0.5 md:pl-4 md:pr-2 md:py-1"
             : "px-6 py-2.5";
     } else if (variant === "outline") {
-        variantStyles = "border-2 border-black text-black hover:bg-black hover:text-white transition-colors text-sm";
+        variantStyles = "border-2 border-black text-black hover:bg-black hover:text-white transition-colors text-sm md:text-lg";
         paddingStyles = hasArrow
-            ? "pl-5 pr-2 py-2 md:pl-6 md:pr-3 md:py-2.5"
-            : "px-5 py-1.5 md:px-6 md:py-2.5";
+            ? "pl-5 pr-2 py-2 md:pl-6 md:pr-3 md:py-2"
+            : "px-5 py-1.5 md:px-4 md:py-2";
     } else if (variant === "outline-white") {
         variantStyles = "border border-white text-white hover:bg-white hover:text-black transition-colors text-xs md:text-md";
         paddingStyles = hasArrow

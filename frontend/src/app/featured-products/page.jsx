@@ -365,7 +365,7 @@ export default function FeaturedListingPage() {
                                     </div>
 
                                     {/* Product Info (Below Card) */}
-                                    <div className="mt-3 flex justify-between items-start">
+                                    <div className="mt-3 flex justify-between items-end">
                                         <div className="space-y-1">
                                             <h3 className="font-sans text-sm md:text-base font-semibold text-black leading-tight">
                                                 {product.name}
