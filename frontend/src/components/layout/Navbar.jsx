@@ -52,16 +52,18 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                 </div>
 
                 {/* Logo (Centered on mobile, static on desktop) */}
-                <div className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center">
+                <Link href="/" className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center cursor-pointer">
                     <Image
                         src="/images/logo.png"
                         alt="bacstory logo"
+                        href="/"
+                        cursor="pointer"
                         width={120}
                         height={26}
                         className={`h-6 sm:h-7 w-auto object-contain ${light ? "invert" : ""}`}
                         priority
                     />
-                </div>
+                </Link>
 
                 {/* Navigation (Desktop) */}
                 <nav className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
