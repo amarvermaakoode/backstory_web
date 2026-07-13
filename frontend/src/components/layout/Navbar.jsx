@@ -65,16 +65,16 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
 
                 {/* Navigation (Desktop) */}
                 <nav className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
-                    <Link href="/#tribe" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#tribe" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Tribe
                     </Link>
-                    <Link href="/#identity" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#identity" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Identity
                     </Link>
-                    <Link href="/#shop" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#shop" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Shop
                     </Link>
-                    <Link href="/#brand" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#brand" className={`text-[1.2vw]  font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         The Brand
                     </Link>
                 </nav>
