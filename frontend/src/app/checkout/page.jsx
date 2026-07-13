@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Lock, Check, ShoppingBag, User, ArrowRight, CheckCircle2, ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import Button from "@/components/ui/Button";
 
 // Fallback items matching the mockup exactly
 const mockCheckoutItems = [
@@ -416,13 +417,14 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Continue to Payment Button */}
-                            <button
+                            <Button
                                 type="submit"
-                                className="w-full py-4 bg-[#0F172A] hover:bg-black text-white rounded-full font-semibold text-sm tracking-wide transition-colors mt-10 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-black/5"
+                                variant="dark"
+                                hasArrow={true}
+                                className="w-full mt-10"
                             >
-                                <span>Continue to Payment</span>
-                                <ArrowRight className="w-4 h-4" />
-                            </button>
+                                Continue to Payment
+                            </Button>
                         </div>
                     </div>
 

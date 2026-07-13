@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { allProducts } from "@/app/products/products";
+import Button from "@/components/ui/Button";
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
@@ -46,12 +47,9 @@ export default function FeaturedProducts() {
                     <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight">
                         Featured Products
                     </h2>
-                    <Link
-                        href="/featured-products"
-                        className="border-2 border-black text-black font-semibold rounded-full px-5 py-1.5 hover:bg-black whitespace-nowrap hover:text-white transition-colors duration-300 text-sm cursor-pointer"
-                    >
+                    <Button href="/featured-products" hasArrow={false} variant="outline">
                         See All
-                    </Link>
+                    </Button>
                 </div>
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
