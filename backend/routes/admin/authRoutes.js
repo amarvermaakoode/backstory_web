@@ -8,5 +8,4 @@ router.post("/login", loginAdmin);
 
 // Admin Logout
 router.post("/logout", protect, adminOnly, logoutAdmin);
-
 module.exports = router;
