@@ -8,7 +8,21 @@ import WishlistDrawer from "@/components/layout/WishlistDrawer";
 export const metadata = {
   title: "BACSTORY | Premium Narrative & Backstory Generator",
   description: "Craft deep, rich character backstories and lore with AI-powered narrative design tools.",
+  icons: {
+    icon: [
+      {
+        url: "/images/light-theme-icon.svg",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/images/dark-theme-icon.svg",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+  }
 };
+
+
 
 export default function RootLayout({ children }) {
   return (
