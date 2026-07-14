@@ -4,8 +4,14 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { Heart, Plus } from "lucide-react";
 import Link from "next/link";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { allProducts } from "@/app/products/products";
+import Button from "@/components/ui/Button";
 
 export default function FeaturedProducts() {
+    const { addToCart } = useCart();
+    const { toggleWishlist, wishlistItems } = useWishlist();
     const products = [
         {
             id: "lost-on-purpose",
@@ -33,30 +39,17 @@ export default function FeaturedProducts() {
         },
     ];
 
-    // State for favorites
-    const [favorites, setFavorites] = useState({});
-
-    const toggleFavorite = (id) => {
-        setFavorites((prev) => ({
-            ...prev,
-            [id]: !prev[id],
-        }));
-    };
-
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-20 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-10 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
             <div className="mx-auto max-w-[1600px] space-y-12">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
-                    <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight">
+                    <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
                         Featured Products
                     </h2>
-                    <Link
-                        href="/featured-products"
-                        className="border-2 border-black text-black font-semibold rounded-full px-5 py-1.5 hover:bg-black whitespace-nowrap hover:text-white transition-colors duration-300 text-sm cursor-pointer"
-                    >
+                    <Button href="/featured-products" hasArrow={false} variant="outline">
                         See All
-                    </Link>
+                    </Button>
                 </div>
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
@@ -88,14 +81,19 @@ export default function FeaturedProducts() {
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        toggleFavorite(product.id);
+                                        const fullProduct = allProducts.find(
+                                            p => p.id === product.id ||
+                                                p.id.replace("-1", "") === product.id ||
+                                                p.name.toLowerCase() === product.name.toLowerCase()
+                                        ) || allProducts[0];
+                                        toggleWishlist(fullProduct);
                                     }}
                                     className="absolute top-2 md:top-4 right-2 md:right-4 z-10 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                                     aria-label="Add to favorites"
                                 >
                                     <Heart
-                                        className={`h-5 w-5 transition-all ${favorites[product.id]
-                                            ? "fill-red-500 text-red-500"
+                                        className={`h-5 w-5 transition-all ${wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                            ? "fill-red-500 text-red-500 stroke-red-500"
                                             : "text-black stroke-[1.5]"
                                             }`}
                                     />
@@ -115,7 +113,7 @@ export default function FeaturedProducts() {
                             </div>
 
                             {/* Product Info (Below Card) */}
-                            <div className="mt-2 md:mt-4 flex justify-between items-start">
+                            <div className="mt-2 md:mt-4 flex justify-between items-end">
                                 <div>
                                     <h3 className="font-sans text-base md:text-lg font-medium text-black">
                                         {product.name}
@@ -128,6 +126,12 @@ export default function FeaturedProducts() {
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
+                                        const fullProduct = allProducts.find(
+                                            p => p.id === product.id ||
+                                                p.id.replace("-1", "") === product.id ||
+                                                p.name.toLowerCase() === product.name.toLowerCase()
+                                        ) || allProducts[0];
+                                        addToCart(fullProduct, 1);
                                     }}
                                     className="flex items-center justify-center w-8 h-8 mr-2 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                     aria-label="Add to cart"

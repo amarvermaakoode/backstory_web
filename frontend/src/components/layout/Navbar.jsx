@@ -3,11 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, Heart, ShoppingBag, User, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
-export default function Navbar({ cartCount = 0, onSearchClick, solid = false, light = false }) {
+export default function Navbar({ onSearchClick, solid = false, light = false }) {
     const [scrolled, setScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { cartCount, openCart } = useCart();
+    const { wishlistCount, openWishlist } = useWishlist();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -48,47 +52,81 @@ export default function Navbar({ cartCount = 0, onSearchClick, solid = false, li
                 </div>
 
                 {/* Logo (Centered on mobile, static on desktop) */}
-                <div className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center">
+                <Link href="/" className="absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0 flex items-center cursor-pointer">
                     <Image
                         src="/images/logo.png"
                         alt="bacstory logo"
+                        href="/"
+                        cursor="pointer"
                         width={120}
                         height={26}
                         className={`h-6 sm:h-7 w-auto object-contain ${light ? "invert" : ""}`}
                         priority
                     />
-                </div>
+                </Link>
 
                 {/* Navigation (Desktop) */}
                 <nav className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
-                    <Link href="/#tribe" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#tribe" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Tribe
                     </Link>
-                    <Link href="/#identity" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#identity" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Identity
                     </Link>
-                    <Link href="/#shop" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#shop" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Shop
                     </Link>
-                    <Link href="/#brand" className={`text-[15px] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/#brand" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         The Brand
                     </Link>
                 </nav>
 
                 {/* Header Action Icons */}
-                <div className={`flex items-center gap-4 sm:gap-6 ${light ? "text-neutral-700" : "text-white/90"}`}>
+                <div className={`flex items-center gap-4 ${light ? "text-neutral-700" : "text-white/90"}`}>
                     <button
                         onClick={onSearchClick}
                         className={`hidden md:block transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
                         aria-label="Search"
                     >
-                        <Search className="h-5 w-5 stroke-[1.25]" />
+                        <Image
+                            src="/images/landing-page/search.svg"
+                            alt="Search"
+                            width={22}
+                            height={22}
+                            className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                        />
                     </button>
-                    <button className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Favorites">
-                        <Heart className="h-5 w-5 stroke-[1.25]" />
+                    <button
+                        onClick={openWishlist}
+                        className={`relative transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
+                        aria-label="Favorites"
+                    >
+                        <Image
+                            src="/images/landing-page/like.svg"
+                            alt="Favorites"
+                            width={22}
+                            height={22}
+                            className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                        />
+                        {wishlistCount > 0 && (
+                            <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center ${light ? "bg-black text-white" : "bg-white text-black"
+                                }`}>
+                                {wishlistCount}
+                            </span>
+                        )}
                     </button>
-                    <button className={`relative transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Cart">
-                        <ShoppingBag className="h-5 w-5 stroke-[1.25]" />
+                    <button
+                        onClick={openCart}
+                        className={`relative transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
+                        aria-label="Cart"
+                    >
+                        <Image
+                            src="/images/landing-page/bag.svg"
+                            alt="Cart"
+                            width={22}
+                            height={22}
+                            className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                        />
                         {cartCount > 0 && (
                             <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 text-[9px] font-bold rounded-full flex items-center justify-center ${light ? "bg-black text-white" : "bg-white text-black"
                                 }`}>
@@ -97,7 +135,13 @@ export default function Navbar({ cartCount = 0, onSearchClick, solid = false, li
                         )}
                     </button>
                     <button className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
-                        <User className="h-5 w-5 stroke-[1.25]" />
+                        <Image
+                            src="/images/landing-page/user.svg"
+                            alt="Account"
+                            width={22}
+                            height={22}
+                            className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                        />
                     </button>
                 </div>
             </div>

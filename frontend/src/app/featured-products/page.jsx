@@ -6,8 +6,13 @@ import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Link from "next/link";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { allProducts as dbProducts } from "@/app/products/products";
 
 export default function FeaturedListingPage() {
+    const { addToCart } = useCart();
+    const { toggleWishlist, wishlistItems } = useWishlist();
     // 12 mock products mapping to available local image assets
     const allProducts = [
         {
@@ -145,7 +150,6 @@ export default function FeaturedListingPage() {
     ];
 
     // Page, filter, and sort states
-    const [favorites, setFavorites] = useState({});
     const [activeCategory, setActiveCategory] = useState("ALL");
     const [sortBy, setSortBy] = useState("featured");
     const [isSortOpen, setIsSortOpen] = useState(false);
@@ -153,13 +157,6 @@ export default function FeaturedListingPage() {
     const sortDropdownRef = useRef(null);
 
     const ITEMS_PER_PAGE = 8;
-
-    const toggleFavorite = (id) => {
-        setFavorites((prev) => ({
-            ...prev,
-            [id]: !prev[id],
-        }));
-    };
 
     // Close sort dropdown when clicking outside
     useEffect(() => {
@@ -328,15 +325,21 @@ export default function FeaturedListingPage() {
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                toggleFavorite(product.id);
+                                                const fullProduct = dbProducts.find(
+                                                    p => p.id === product.id || 
+                                                         p.id.replace("-1", "") === product.id.replace("-1", "") || 
+                                                         p.name.toLowerCase() === product.name.toLowerCase()
+                                                ) || dbProducts[0];
+                                                toggleWishlist(fullProduct);
                                             }}
                                             className="absolute top-3 right-3 z-10 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                                             aria-label="Add to favorites"
                                         >
                                             <Heart
-                                                className={`h-4.5 w-4.5 transition-all ${favorites[product.id]
-                                                    ? "fill-red-500 text-red-500 stroke-red-500"
-                                                    : "text-black stroke-[1.5]"
+                                                className={`h-4.5 w-4.5 transition-all ${
+                                                    wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                                        ? "fill-red-500 text-red-500 stroke-red-500"
+                                                        : "text-black stroke-[1.5]"
                                                     }`}
                                             />
                                         </button>
@@ -362,7 +365,7 @@ export default function FeaturedListingPage() {
                                     </div>
 
                                     {/* Product Info (Below Card) */}
-                                    <div className="mt-3 flex justify-between items-start">
+                                    <div className="mt-3 flex justify-between items-end">
                                         <div className="space-y-1">
                                             <h3 className="font-sans text-sm md:text-base font-semibold text-black leading-tight">
                                                 {product.name}
@@ -390,6 +393,12 @@ export default function FeaturedListingPage() {
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
+                                                const fullProduct = dbProducts.find(
+                                                    p => p.id === product.id || 
+                                                         p.id.replace("-1", "") === product.id.replace("-1", "") || 
+                                                         p.name.toLowerCase() === product.name.toLowerCase()
+                                                ) || dbProducts[0];
+                                                addToCart(fullProduct, 1);
                                             }}
                                             className="flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                             aria-label="Add to cart"

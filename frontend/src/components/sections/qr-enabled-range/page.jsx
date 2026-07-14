@@ -29,6 +29,7 @@ export default function QrEnabledRange() {
             name: "More...",
             image: "/images/landing-page/pants.png",
             link: "#shop",
+            className: "block md:hidden"
         },
     ];
 
@@ -38,19 +39,19 @@ export default function QrEnabledRange() {
             <div className="bg-[#EFECE7] py-5 lg:py-10 px-4 sm:px-8 flex items-center">
 
                 <div className="mx-auto max-w-[98%] w-full">
-                    <h2 className="font-clashDisplay text-3xl md:text-4xl font-semibold tracking-tight text-[#030303] select-none">
+                    <h2 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-[#030303] select-none">
                         Explore our<br className="lg:hidden" /> QR-Enabled Range
                     </h2>
                 </div>
             </div>
 
             {/* Grid of Categories */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 w-full h-[80vh] gap-px bg-neutral-900 ">
+            <div className="grid grid-cols-2 md:grid-cols-3 w-full h-[80vh] gap-px bg-neutral-900 ">
                 {categories.map((category) => (
                     <a
                         key={category.id}
                         href={category.link}
-                        className="group relative h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black"
+                        className={`group relative h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black ${category.className || ""}`}
                     >
                         {/* Background Image */}
                         <div className="absolute inset-0 overflow-hidden">
@@ -59,7 +60,7 @@ export default function QrEnabledRange() {
                                 alt={category.name}
                                 fill
                                 priority
-                                className={`object-cover object-center select-none transition-transform duration-1000 ease-out ${category.id === "t-shirts" ? "scale-200" : category.id === "hoodies"
+                                className={`object-cover object-center select-none transition-transform duration-1000 ease-out ${category.id === "t-shirts" ? "scale-200 group-hover:scale-205" : category.id === "hoodies"
                                     ? "scale-160 group-hover:scale-165"
                                     : "scale-100 group-hover:scale-105"
                                     }`}
