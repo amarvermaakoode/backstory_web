@@ -326,9 +326,9 @@ export default function FeaturedListingPage() {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const fullProduct = dbProducts.find(
-                                                    p => p.id === product.id || 
-                                                         p.id.replace("-1", "") === product.id.replace("-1", "") || 
-                                                         p.name.toLowerCase() === product.name.toLowerCase()
+                                                    p => p.id === product.id ||
+                                                        p.id.replace("-1", "") === product.id.replace("-1", "") ||
+                                                        p.name.toLowerCase() === product.name.toLowerCase()
                                                 ) || dbProducts[0];
                                                 toggleWishlist(fullProduct);
                                             }}
@@ -336,8 +336,7 @@ export default function FeaturedListingPage() {
                                             aria-label="Add to favorites"
                                         >
                                             <Heart
-                                                className={`h-4.5 w-4.5 transition-all ${
-                                                    wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                                className={`h-4.5 w-4.5 transition-all ${wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
                                                         ? "fill-red-500 text-red-500 stroke-red-500"
                                                         : "text-black stroke-[1.5]"
                                                     }`}
@@ -394,9 +393,9 @@ export default function FeaturedListingPage() {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 const fullProduct = dbProducts.find(
-                                                    p => p.id === product.id || 
-                                                         p.id.replace("-1", "") === product.id.replace("-1", "") || 
-                                                         p.name.toLowerCase() === product.name.toLowerCase()
+                                                    p => p.id === product.id ||
+                                                        p.id.replace("-1", "") === product.id.replace("-1", "") ||
+                                                        p.name.toLowerCase() === product.name.toLowerCase()
                                                 ) || dbProducts[0];
                                                 addToCart(fullProduct, 1);
                                             }}
