@@ -52,7 +52,7 @@ export default function QrEnabledRange() {
                         {/* Content (Title & Button) */}
                         <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-12 px-6 text-center">
                             {/* Main Collection Title */}
-                            <h3 className="font-geist text-2xl md:text-3xl font-normal tracking-tight text-white mb-5 transition-transform duration-500 group-hover:scale-[0.98]">
+                            <h3 className="font-geist text-2xl md:text-3xl font-normal tracking-tight text-white mb-5">
                                 {collection.name}
                             </h3>
 

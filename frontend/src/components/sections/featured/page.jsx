@@ -41,7 +41,7 @@ export default function FeaturedProducts() {
 
     return (
         <section className="w-full bg-[#FFFFFF] py-10 md:py-10 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
-            <div className="mx-auto max-w-[1600px] space-y-12">
+            <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
                     <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
@@ -72,7 +72,7 @@ export default function FeaturedProducts() {
                             {/* Image Container Card */}
                             <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
                                 {/* Tag label on top-left */}
-                                <div className="absolute top-4 left-4 z-10 bg-[#101820] text-white text-[10px] md:text-sm font-normal tracking-wider px-3 py-1 rounded-full uppercase">
+                                <div className="absolute top-4 left-4 z-10 bg-[#101820] text-white text-[10px] md:text-xs font-light tracking-tight px-2 py-1 rounded-full uppercase">
                                     {product.tag}
                                 </div>
 
@@ -88,7 +88,7 @@ export default function FeaturedProducts() {
                                         ) || allProducts[0];
                                         toggleWishlist(fullProduct);
                                     }}
-                                    className="absolute top-2 md:top-4 right-2 md:right-4 z-10 p-1.5 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
+                                    className="absolute top-2 md:top-4 right-2 md:right-4 z-10 transition-colors cursor-pointer"
                                     aria-label="Add to favorites"
                                 >
                                     <Heart
@@ -113,12 +113,12 @@ export default function FeaturedProducts() {
                             </div>
 
                             {/* Product Info (Below Card) */}
-                            <div className="mt-2 md:mt-4 flex justify-between items-end">
+                            <div className="mt-2 md:mt-4 ml-3 flex justify-between items-end">
                                 <div>
                                     <h3 className="font-sans text-base md:text-lg font-medium text-black">
                                         {product.name}
                                     </h3>
-                                    <p className="font-sans text-lg md:text-xl font-bold text-black mt-1">
+                                    <p className="font-clashDisplay text-lg md:text-[2vw] leading-[1.3] font-semibold text-black">
                                         {product.price}
                                     </p>
                                 </div>
@@ -133,7 +133,7 @@ export default function FeaturedProducts() {
                                         ) || allProducts[0];
                                         addToCart(fullProduct, 1);
                                     }}
-                                    className="flex items-center justify-center w-8 h-8 mr-2 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors cursor-pointer"
+                                    className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                     aria-label="Add to cart"
                                 >
                                     <Plus className="h-4 w-4 stroke-[2]" />

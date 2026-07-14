@@ -32,9 +32,9 @@ export default function Button({
         variantStyles = "border-2 border-black text-black hover:bg-black hover:text-white transition-colors text-sm md:text-lg";
         paddingStyles = hasArrow
             ? "pl-5 pr-2 py-2 md:pl-6 md:pr-3 md:py-2"
-            : "px-5 py-1.5 md:px-4 md:py-2";
+            : "px-5 py-1.5 md:px-4 md:py-1";
     } else if (variant === "outline-white") {
-        variantStyles = "border border-white text-white hover:bg-white hover:text-black transition-colors text-xs md:text-md";
+        variantStyles = "border border-white text-white hover:bg-white hover:text-black transition-colors text-xs md:text-[1.3vw]";
         paddingStyles = hasArrow
             ? "pl-5 pr-2 py-1 md:pl-6 md:pr-3 md:py-2"
             : "px-3 py-1 md:px-6 md:py-2";

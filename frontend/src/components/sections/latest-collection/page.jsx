@@ -161,12 +161,12 @@ export default function Collections() {
                                 </div>
 
                                 {/* Product Info (Below Card) */}
-                                <div className="md:mt-4 mt-2 mr-4 flex justify-between items-end">
+                                <div className="md:mt-4 mt-2 mr-4 ml-3 flex justify-between items-end">
                                     <div>
                                         <h3 className="font-sans text-base md:text-lg font-medium text-black">
                                             {product.name}
                                         </h3>
-                                        <p className="font-sans text-lg md:text-xl font-bold text-black mt-1">
+                                        <p className="font-sans text-lg md:text-[2vw] leading-[1.3] font-bold text-black">
                                             {product.price}
                                         </p>
                                     </div>
