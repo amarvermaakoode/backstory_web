@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 import { getProductById, allProducts } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import ProductCard from "@/components/ui/ProductCard";
 
 export default function ProductDetailPage({ params }) {
     // Unwrap route parameter promise
@@ -472,41 +473,9 @@ export default function ProductDetailPage({ params }) {
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                             {relatedProducts.map((p) => (
-                                <Link key={p.id} href={`/products/${p.id}`} className="group flex flex-col cursor-pointer">
-                                    <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-
-                                        {/* Tag */}
-                                        <div className="absolute top-3 left-3 z-10 bg-[#101820] text-white text-[8px] sm:text-[10px] font-normal tracking-wider px-2.5 py-1 rounded-full uppercase">
-                                            {p.tag}
-                                        </div>
-
-                                        {/* Image */}
-                                        <div className="relative w-[80%] h-[80%] transition-transform duration-500 ease-out group-hover:scale-105">
-                                            <Image
-                                                src={p.image}
-                                                alt={p.name}
-                                                fill
-                                                sizes="(max-width: 640px) 50vw, 25vw"
-                                                className="object-contain select-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="mt-3 flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-sans text-sm md:text-base font-semibold text-black leading-tight">
-                                                {p.name}
-                                            </h3>
-                                            <p className="font-sans text-base font-bold text-black mt-1">
-                                                {p.price}
-                                            </p>
-                                        </div>
-                                        <span className="flex items-center justify-center w-7 h-7 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors">
-                                            <Plus className="h-3.5 h-3.5 stroke-[2]" />
-                                        </span>
-                                    </div>
-                                </Link>
+                                <div key={p.id} className="w-full">
+                                    <ProductCard product={p} isHome={false} isSmall={true} />
+                                </div>
                             ))}
                         </div>
                     </section>

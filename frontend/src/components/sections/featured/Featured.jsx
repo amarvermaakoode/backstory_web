@@ -1,20 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
-import { Heart, Plus } from "lucide-react";
-import Link from "next/link";
-import { useCart } from "@/context/CartContext";
-import { useWishlist } from "@/context/WishlistContext";
+import React from "react";
 import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
+import ProductCard from "@/components/ui/ProductCard";
 
 export default function FeaturedProducts() {
-    const { addToCart } = useCart();
-    const { toggleWishlist, wishlistItems } = useWishlist();
     const products = [
         {
-            id: "lost-on-purpose",
+            id: "lost-on-purpose-1",
             name: "Lost on Purpose",
             price: "Rs 1100",
             image: "/images/landing-page/featured3.png",
@@ -22,7 +16,7 @@ export default function FeaturedProducts() {
             link: "#shop",
         },
         {
-            id: "miles-over-words",
+            id: "miles-over-words-1",
             name: "Miles Over Words",
             price: "Rs 1090",
             image: "/images/landing-page/biker-tshirt.png",
@@ -30,7 +24,7 @@ export default function FeaturedProducts() {
             link: "#shop",
         },
         {
-            id: "coding-t-shirt",
+            id: "coding-tshirt-1",
             name: "Coding T-Shirt",
             price: "Rs 990",
             image: "/images/landing-page/coding-tshirt.png",
@@ -40,7 +34,7 @@ export default function FeaturedProducts() {
     ];
 
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-10 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
@@ -54,7 +48,7 @@ export default function FeaturedProducts() {
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
                 <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0">
-                    <style>{`
+                    <style jsx global>{`
                         .no-scrollbar::-webkit-scrollbar {
                             display: none;
                         }
@@ -63,84 +57,20 @@ export default function FeaturedProducts() {
                             scrollbar-width: none;
                         }
                     `}</style>
-                    {products.map((product) => (
-                        <Link
-                            key={product.id}
-                            href={`/products/${product.id}`}
-                            className="group w-[50vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
-                        >
-                            {/* Image Container Card */}
-                            <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                                {/* Tag label on top-left */}
-                                <div className="absolute top-4 left-4 z-10 bg-[#101820] text-white text-[10px] md:text-xs font-light tracking-tight px-2 py-1 rounded-full uppercase">
-                                    {product.tag}
-                                </div>
-
-                                {/* Favorite Heart Button */}
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const fullProduct = allProducts.find(
-                                            p => p.id === product.id ||
-                                                p.id.replace("-1", "") === product.id ||
-                                                p.name.toLowerCase() === product.name.toLowerCase()
-                                        ) || allProducts[0];
-                                        toggleWishlist(fullProduct);
-                                    }}
-                                    className="absolute top-2 md:top-4 right-2 md:right-4 z-10 transition-colors cursor-pointer"
-                                    aria-label="Add to favorites"
-                                >
-                                    <Heart
-                                        className={`h-5 w-5 transition-all ${wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
-                                            ? "fill-red-500 text-red-500 stroke-red-500"
-                                            : "text-black stroke-[1.5]"
-                                            }`}
-                                    />
-                                </button>
-
-                                {/* Product Image */}
-                                <div className="relative w-[85%] h-[85%] transition-transform duration-500 ease-out group-hover:scale-105">
-                                    <Image
-                                        src={product.image}
-                                        alt={product.name}
-                                        fill
-                                        sizes="(max-width: 768px) 38vw, 33vw"
-                                        className="object-contain select-none"
-                                        priority
-                                    />
-                                </div>
+                    {products.map((localProduct) => {
+                        const product = allProducts.find(
+                            p => p.id === localProduct.id || p.name.toLowerCase() === localProduct.name.toLowerCase()
+                        ) || localProduct;
+                        return (
+                            <div key={product.id} className="w-[50vw] md:w-auto shrink-0">
+                                <ProductCard 
+                                    product={product} 
+                                    isHome={true} 
+                                    showTag={true} 
+                                />
                             </div>
-
-                            {/* Product Info (Below Card) */}
-                            <div className="mt-2 md:mt-4 ml-3 flex justify-between items-end">
-                                <div>
-                                    <h3 className="font-sans text-base md:text-lg font-medium text-black">
-                                        {product.name}
-                                    </h3>
-                                    <p className="font-clashDisplay text-lg md:text-[2vw] leading-[1.3] font-semibold text-black">
-                                        {product.price}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const fullProduct = allProducts.find(
-                                            p => p.id === product.id ||
-                                                p.id.replace("-1", "") === product.id ||
-                                                p.name.toLowerCase() === product.name.toLowerCase()
-                                        ) || allProducts[0];
-                                        addToCart(fullProduct, 1);
-                                    }}
-                                    className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer"
-                                    aria-label="Add to cart"
-                                >
-                                    <Plus className="h-4 w-4 stroke-[2]" />
-                                </button>
-                            </div>
-                        </Link>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>
