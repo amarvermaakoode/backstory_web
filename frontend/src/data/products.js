@@ -6,6 +6,12 @@ export const allProducts = [
         price: "Rs 1,100",
         priceNum: 1100,
         image: "/images/landing-page/featured3.png",
+        images: [
+            "/images/landing-page/featured3.png",
+            "/images/landing-page/first.png",
+            "/images/landing-page/second.png",
+            "/images/landing-page/third.png"
+        ],
         tag: "Biker Series",
         offer: "50% OFF",
         rating: "4.7",
