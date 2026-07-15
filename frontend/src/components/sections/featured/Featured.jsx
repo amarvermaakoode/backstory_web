@@ -10,7 +10,7 @@ import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
 const defaultProducts = [
     {
@@ -104,7 +104,8 @@ export default function FeaturedProducts() {
         if (!path) return "/images/placeholder.png";
         if (path.startsWith("http") || path.startsWith("data:")) return path;
         if (path.startsWith("/images/")) return path;
-        return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
     };
 
     return (

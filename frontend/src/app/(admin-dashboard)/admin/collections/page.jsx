@@ -62,7 +62,8 @@ export default function CollectionsAdminPage() {
   const getImageUrl = (path) => {
     if (!path) return "/images/placeholder.png";
     if (path.startsWith("http")) return path;
-    return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
   };
 
   const handleImageChange = (e) => {

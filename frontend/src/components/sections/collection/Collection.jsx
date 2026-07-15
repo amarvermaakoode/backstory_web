@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import ExploreButton from "@/components/ui/ExploreButton";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
 const defaultCollections = [
     {
@@ -52,7 +52,8 @@ export default function QrEnabledRange() {
         if (path.startsWith("/images/")) return path;
         
         // Backend upload asset
-        return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
     };
 
     const activeCollections = collections.length > 0 ? collections : defaultCollections;

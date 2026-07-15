@@ -6,7 +6,7 @@ import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
 const defaultProducts = [
     {
@@ -108,7 +108,8 @@ export default function Collections() {
         if (path.startsWith("/images/")) return path;
         
         // Backend upload asset
-        return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
     };
 
     const scroll = (direction) => {
