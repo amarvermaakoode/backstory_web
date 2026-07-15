@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
+import ProductCard from "@/components/ui/ProductCard";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -107,7 +108,7 @@ export default function FeaturedProducts() {
     };
 
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-10 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
@@ -121,7 +122,7 @@ export default function FeaturedProducts() {
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
                 <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0">
-                    <style>{`
+                    <style jsx global>{`
                         .no-scrollbar::-webkit-scrollbar {
                             display: none;
                         }

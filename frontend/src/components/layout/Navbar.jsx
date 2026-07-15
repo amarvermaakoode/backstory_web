@@ -17,10 +17,18 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     const { wishlistCount, openWishlist } = useWishlist();
 
     const handleWishlistClick = () => {
-        if (pathname === "/") {
+        if (pathname === "/" && wishlistCount > 0) {
             router.push("/wishlist");
         } else {
             openWishlist();
+        }
+    };
+
+    const handleCartClick = () => {
+        if (pathname === "/" && cartCount > 0) {
+            router.push("/cart");
+        } else {
+            openCart();
         }
     };
 
@@ -127,7 +135,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                         )}
                     </button>
                     <button
-                        onClick={openCart}
+                        onClick={handleCartClick}
                         className={`relative transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
                         aria-label="Cart"
                     >

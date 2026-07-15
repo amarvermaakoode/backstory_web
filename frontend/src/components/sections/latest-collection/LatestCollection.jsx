@@ -1,13 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCart } from "@/context/CartContext";
-import { useWishlist } from "@/context/WishlistContext";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
+import ProductCard from "@/components/ui/ProductCard";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -48,8 +45,6 @@ const defaultProducts = [
 ];
 
 export default function Collections() {
-    const { addToCart } = useCart();
-    const { toggleWishlist, wishlistItems } = useWishlist();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -163,83 +158,9 @@ export default function Collections() {
                         className="flex md:gap-6 gap-4 overflow-x-auto scroll-smooth no-scrollbar pb-4"
                     >
                         {products.map((product) => (
-                            <Link
-                                key={product.id}
-                                href={`/products/${product.id}`}
-                                className="group md:w-[24vw] w-[50vw] shrink-0 flex flex-col cursor-pointer"
-                            >
-                                {/* Card Body (Image Container) */}
-                                <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                                    {/* Default Image (Front Flat Layout) */}
-                                    <div className="absolute w-[90%] h-[90%] transition-all duration-200 ease-out group-hover:scale-105 opacity-100 group-hover:opacity-0">
-                                        <Image
-                                            src={getImageUrl(product.image)}
-                                            alt={product.name}
-                                            fill
-                                            priority
-                                            unoptimized
-                                            sizes="(max-width: 768px) 280px, 350px"
-                                            className="object-contain select-none"
-                                        />
-                                    </div>
-
-                                    {/* Hover Image (Person Wearing Layout) */}
-                                    {product.hoverImage && (
-                                        <div className="absolute inset-0 transition-all duration-500 ease-out group-hover:scale-105 opacity-0 group-hover:opacity-100">
-                                            <Image
-                                                src={getImageUrl(product.hoverImage)}
-                                                alt={product.name}
-                                                fill
-                                                priority
-                                                unoptimized
-                                                sizes="(max-width: 768px) 280px, 350px"
-                                                className="object-contain object-center select-none"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Favorite Heart Button */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            toggleWishlist(product);
-                                        }}
-                                        className="absolute top-4 right-4 z-10 p-0 bg-transparent backdrop-blur-xs rounded-full hover:scale-110 transition-all duration-300 cursor-pointer"
-                                        aria-label="Add to favorites"
-                                    >
-                                        <Heart
-                                            className={`h-6 w-6 transition-colors ${wishlistItems.some(item => item.id === product.id || item.name.toLowerCase() === product.name.toLowerCase())
-                                                ? "fill-red-500 text-red-500 stroke-red-500"
-                                                : "text-black stroke-[1.5]"
-                                                }`}
-                                        />
-                                    </button>
-                                </div>
-
-                                {/* Product Info (Below Card) */}
-                                <div className="md:mt-4 mt-2 mr-4 ml-3 flex justify-between items-end">
-                                    <div>
-                                        <h3 className="font-sans text-base md:text-lg font-medium text-black">
-                                            {product.name}
-                                        </h3>
-                                        <p className="font-sans text-lg md:text-[2vw] leading-[1.3] font-bold text-black">
-                                            {product.price}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            addToCart(product, 1);
-                                        }}
-                                        className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer"
-                                        aria-label="Add to cart"
-                                    >
-                                        <Plus className="h-4 w-4 stroke-[2]" />
-                                    </button>
-                                </div>
-                            </Link>
+                            <div key={product.id} className="md:w-[24vw] w-[50vw] shrink-0">
+                                <ProductCard product={product} isHome={true} />
+                            </div>
                         ))}
                     </div>
 
