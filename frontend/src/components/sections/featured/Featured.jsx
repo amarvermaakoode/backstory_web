@@ -116,7 +116,7 @@ export default function FeaturedProducts() {
                     <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
                         Featured Products
                     </h2>
-                    <Button href="/featured-products" hasArrow={false} variant="outline">
+                    <Button href="/products" hasArrow={false} variant="outline">
                         See All
                     </Button>
                 </div>

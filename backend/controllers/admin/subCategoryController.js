@@ -5,7 +5,7 @@ const SubCategory = require("../../models/SubCategory");
 // Create Sub Category
 const createSubCategory = async (req, res) => {
   try {
-    const { category, name, status } = req.body;
+    const { category, name, slug, status } = req.body;
 
     if (!category || !name) {
       return res.status(400).json({
@@ -52,6 +52,7 @@ const createSubCategory = async (req, res) => {
     const subCategory = await SubCategory.create({
       category,
       name: name.trim(),
+      slug: slug ? slug.trim() : undefined,
       image: `/uploads/${req.file.filename}`,
       status: status === undefined ? true : status,
     });
@@ -176,7 +177,7 @@ const updateSubCategory = async (req, res) => {
   try {
 
     const { id } = req.params;
-    const { category, name, status } = req.body;
+    const { category, name, slug, status } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -217,6 +218,10 @@ const updateSubCategory = async (req, res) => {
 
     if (name) {
       subCategory.name = name.trim();
+    }
+
+    if (slug !== undefined) {
+      subCategory.slug = slug.trim() || undefined;
     }
 
     if (status !== undefined) {

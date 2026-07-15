@@ -30,6 +30,7 @@ export default function SubCategoriesAdminPage() {
 
   // Form State
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [status, setStatus] = useState(true);
   const [imageFile, setImageFile] = useState(null);
@@ -93,6 +94,7 @@ export default function SubCategoriesAdminPage() {
   const openCreateModal = () => {
     setModalMode("create");
     setName("");
+    setSlug("");
     setCategoryId(categories.length > 0 ? categories[0]._id : "");
     setStatus(true);
     setImageFile(null);
@@ -104,6 +106,7 @@ export default function SubCategoriesAdminPage() {
     setModalMode("edit");
     setEditingSubCategory(subCat);
     setName(subCat.name || ""); // Note lowercase 'name' in SubCategory schema
+    setSlug(subCat.slug || "");
     const catId = typeof subCat.category === "object" ? subCat.category?._id : subCat.category;
     setCategoryId(catId || "");
     setStatus(subCat.status === undefined ? true : subCat.status);
@@ -139,6 +142,7 @@ export default function SubCategoriesAdminPage() {
     try {
       const formData = new FormData();
       formData.append("name", name.trim()); // Lowercase 'name' in subcategory schema
+      formData.append("slug", slug.trim());
       formData.append("category", categoryId);
       formData.append("status", status);
       if (imageFile) {
@@ -359,6 +363,20 @@ export default function SubCategoriesAdminPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Graphic Tees"
+                  className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
+                />
+              </div>
+
+              {/* Sub-Category Slug */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                  Slug (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="e.g. graphic-tees (auto-generated if left blank)"
                   className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
                 />
               </div>

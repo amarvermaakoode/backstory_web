@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import ExploreButton from "@/components/ui/ExploreButton";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
@@ -62,9 +63,9 @@ export default function QrEnabledRange() {
         <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 select-none">
             <div className="mx-auto max-w-[100%] grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activeCollections.map((collection) => (
-                    <a
+                    <Link
                         key={collection._id}
-                        href="#shop"
+                        href={`/products/collection/${collection.slug || collection._id}`}
                         className="group relative block w-full h-[60vh] md:h-[110vh] overflow-hidden cursor-pointer"
                     >
                         {/* Background Image */}
@@ -97,7 +98,7 @@ export default function QrEnabledRange() {
                             {/* Explore Pill Button */}
                             <ExploreButton text="Explore" />
                         </div>
-                    </a>
+                    </Link>
                 ))}
             </div>
         </section>

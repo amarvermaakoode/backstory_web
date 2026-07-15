@@ -9,6 +9,7 @@ const getSubCategories = async (req, res) => {
         category: 1,
         name: 1,
         image: 1,
+        slug: 1,
       }
     ).sort({ createdAt: 1 });
 

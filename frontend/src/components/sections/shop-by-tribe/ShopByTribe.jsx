@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
@@ -80,9 +81,9 @@ export default function ShopByTribe() {
                 {/* Flex Accordion of Tribes (Contiguous, no gap) */}
                 <div className="flex flex-col md:flex-row w-full overflow-hidden">
                     {activeTribes.map((tribe) => (
-                        <a
+                        <Link
                             key={tribe._id}
-                            href={`#shop?tribe=${tribe._id}`}
+                            href={`/products/tribe/${tribe.slug || tribe._id}`}
                             className="group relative block w-full h-[250px] md:h-[550px] flex-1 md:hover:flex-[2.2] transition-all duration-700 ease-in-out overflow-hidden cursor-pointer"
                         >
                             {/* Background Image */}
@@ -107,7 +108,7 @@ export default function ShopByTribe() {
                                     {tribe.name}
                                 </h3>
                             </div>
-                        </a>
+                        </Link>
                     ))}
                 </div>
             </div>

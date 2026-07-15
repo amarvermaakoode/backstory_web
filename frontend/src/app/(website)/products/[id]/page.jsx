@@ -95,7 +95,7 @@ export default function ProductDetailPage({ params }) {
                     <nav className="text-xs md:text-sm text-neutral-400 font-normal mt-2">
                         <Link href="/" className="hover:text-black transition-colors duration-200">Home</Link>
                         <span className="mx-2">/</span>
-                        <Link href="/featured-products" className="hover:text-black transition-colors duration-200">{product.tag}</Link>
+                        <Link href="/products" className="hover:text-black transition-colors duration-200">{product.tag}</Link>
                         <span className="mx-2">/</span>
                         <span className="text-neutral-600 font-medium">{product.name}</span>
                     </nav>

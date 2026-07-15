@@ -19,6 +19,14 @@ export default function CartDrawer() {
 
     const drawerRef = useRef(null);
 
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
     // Close on Escape key press
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -117,11 +125,12 @@ export default function CartDrawer() {
                                     {/* Product Image Container */}
                                     <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                                         <Image
-                                            src={item.image}
+                                            src={getImageUrl(item.image)}
                                             alt={item.name}
                                             fill
                                             className="object-contain p-2 select-none"
                                             sizes="96px"
+                                            unoptimized
                                         />
                                     </div>
 

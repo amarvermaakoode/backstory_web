@@ -22,7 +22,39 @@ dotenv.config();
 const app = express();
 
 // Connect Database
-connectDB();
+connectDB().then(() => {
+  // Run migration to auto-slug existing docs
+  const migrationAutoSlug = async () => {
+    try {
+      const Category = require("./models/category");
+      const SubCategory = require("./models/SubCategory");
+      const Collection = require("./models/collection");
+
+      // categories
+      const categories = await Category.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
+      for (let cat of categories) {
+        await cat.save();
+      }
+
+      // subcategories
+      const subcategories = await SubCategory.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
+      for (let sub of subcategories) {
+        await sub.save();
+      }
+
+      // collections
+      const collections = await Collection.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
+      for (let col of collections) {
+        await col.save();
+      }
+
+      console.log("✅ Slug migration completed successfully.");
+    } catch (err) {
+      console.error("❌ Slug migration error:", err.message);
+    }
+  };
+  migrationAutoSlug();
+});
 
 // Middlewares
 app.use(cors());

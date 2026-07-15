@@ -19,6 +19,14 @@ export default function WishlistDrawer() {
     const { addToCart } = useCart();
     const drawerRef = useRef(null);
 
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
     // Close on Escape key press
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -144,11 +152,12 @@ export default function WishlistDrawer() {
                                             {/* Product Image */}
                                             <div className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
                                                 <Image
-                                                    src={item.image}
+                                                    src={getImageUrl(item.image)}
                                                     alt={item.name}
                                                     fill
                                                     className="object-contain select-none"
                                                     sizes="(max-width: 640px) 40vw, 200px"
+                                                    unoptimized
                                                 />
                                             </div>
                                         </div>

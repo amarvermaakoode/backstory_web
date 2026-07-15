@@ -22,6 +22,7 @@ export default function ProductsAdminPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]); // Filtered list based on category selection
+  const [collections, setCollections] = useState([]);
   const [sizeGuides, setSizeGuides] = useState([]);
   const [allColors, setAllColors] = useState([]);
 
@@ -41,6 +42,7 @@ export default function ProductsAdminPage() {
   const [price, setPrice] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
+  const [selectedCollection, setSelectedCollection] = useState("");
   const [selectedSizeGuide, setSelectedSizeGuide] = useState("");
   const [description, setDescription] = useState("");
   const [material, setMaterial] = useState("");
@@ -72,23 +74,26 @@ export default function ProductsAdminPage() {
       setLoading(true);
       setError("");
       
-      // Fetch Products, Categories, Size Guides, Colors in parallel
-      const [prodRes, catRes, sizeRes, colorRes] = await Promise.all([
+      // Fetch Products, Categories, Collections, Size Guides, Colors in parallel
+      const [prodRes, catRes, colRes, sizeRes, colorRes] = await Promise.all([
         adminFetch("/products"),
         adminFetch("/categories"),
+        adminFetch("/collections"),
         adminFetch("/size-guides"),
         adminFetch("/colors")
       ]);
 
-      const [prodData, catData, sizeData, colorData] = await Promise.all([
+      const [prodData, catData, colData, sizeData, colorData] = await Promise.all([
         prodRes.json(),
         catRes.json(),
+        colRes.json(),
         sizeRes.json(),
         colorRes.json()
       ]);
 
       setProducts(prodData.data || prodData || []);
       setCategories(catData.data || catData || []);
+      setCollections(colData.data || colData || []);
       setSizeGuides(sizeData.data || sizeData || []);
       setAllColors((colorData.data || colorData || []).filter(c => c.status !== false));
     } catch (err) {
@@ -122,6 +127,7 @@ export default function ProductsAdminPage() {
     setPrice("");
     setSelectedCategory("");
     setSelectedSubCategory("");
+    setSelectedCollection("");
     setSelectedSizeGuide("");
     setDescription("");
     setMaterial("");
@@ -143,6 +149,7 @@ export default function ProductsAdminPage() {
     // Set category & subcategory IDs (handling populate objects or IDs)
     const catId = product.category?._id || product.category || "";
     const subCatId = product.subCategory?._id || product.subCategory || "";
+    const collectionId = product.collection?._id || product.collection || "";
     const sizeGuideId = product.sizeGuide?._id || product.sizeGuide || "";
     
     // Explicitly load subcategories for category first
@@ -152,6 +159,7 @@ export default function ProductsAdminPage() {
 
     setSelectedCategory(catId);
     setSelectedSubCategory(subCatId);
+    setSelectedCollection(collectionId);
     setSelectedSizeGuide(sizeGuideId);
     
     setDescription(product.description || "");
@@ -278,6 +286,11 @@ export default function ProductsAdminPage() {
       formData.append("price", Number(price));
       formData.append("category", selectedCategory);
       formData.append("subCategory", selectedSubCategory);
+      if (selectedCollection) {
+        formData.append("collection", selectedCollection);
+      } else {
+        formData.append("collection", "");
+      }
       formData.append("sizeGuide", selectedSizeGuide);
       formData.append("description", description.trim());
       formData.append("material", material.trim());
@@ -604,6 +617,23 @@ export default function ProductsAdminPage() {
                     <option value="">Select Sub-Category</option>
                     {subCategories.map((sc) => (
                       <option key={sc._id} value={sc._id}>{sc.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Collection */}
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                    Collection (Optional)
+                  </label>
+                  <select
+                    value={selectedCollection}
+                    onChange={(e) => setSelectedCollection(e.target.value)}
+                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white cursor-pointer font-semibold"
+                  >
+                    <option value="">Select Collection</option>
+                    {collections.map((coll) => (
+                      <option key={coll._id} value={coll._id}>{coll.Name}</option>
                     ))}
                   </select>
                 </div>

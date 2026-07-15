@@ -4,7 +4,7 @@ const Category = require("../../models/category");
 // create category
 const createCategory = async (req, res) => {
   try {
-    const { Name, status } = req.body;
+    const { Name, slug, status } = req.body;
 
     if (!Name) {
       return res.status(400).json({
@@ -33,6 +33,7 @@ const createCategory = async (req, res) => {
 
     const category = await Category.create({
       Name: Name.trim(),
+      slug: slug ? slug.trim() : undefined,
       image: `/uploads/${req.file.filename}`,
       status: status === undefined ? true : status,
     });
@@ -111,7 +112,7 @@ const getCategoryById = async (req, res) => {
 const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Name, status } = req.body;
+    const { Name, slug, status } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -147,6 +148,10 @@ const updateCategory = async (req, res) => {
       }
 
       category.Name = Name.trim();
+    }
+
+    if (slug !== undefined) {
+      category.slug = slug.trim() || undefined;
     }
 
     if (status !== undefined) {

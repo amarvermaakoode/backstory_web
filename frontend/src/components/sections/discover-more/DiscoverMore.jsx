@@ -26,7 +26,7 @@ export default function DiscoverMore() {
                     Scan to uncover it.
                 </h2>
                 <div>
-                    <Button href="#discover" variant="outline-white" hasArrow={false}>
+                    <Button href="/products" variant="outline-white" hasArrow={false}>
                         Discover more
                     </Button>
                 </div>

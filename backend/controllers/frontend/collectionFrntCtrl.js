@@ -8,6 +8,7 @@ const getCollections = async (req, res) => {
       {
         Name: 1,
         image: 1,
+        slug: 1,
       }
     ).sort({ createdAt: 1 });
 

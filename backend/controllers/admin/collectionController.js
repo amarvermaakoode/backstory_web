@@ -4,7 +4,7 @@ const Collection = require("../../models/collection");
 // Create Collection
 const createCollection = async (req, res) => {
   try {
-    const { Name, status } = req.body;
+    const { Name, slug, status } = req.body;
 
     if (!Name) {
       return res.status(400).json({
@@ -33,6 +33,7 @@ const createCollection = async (req, res) => {
 
     const collection = await Collection.create({
       Name: Name.trim(),
+      slug: slug ? slug.trim() : undefined,
       image: `/uploads/${req.file.filename}`,
       status: status === undefined ? true : status,
     });
@@ -107,7 +108,7 @@ const getCollectionById = async (req, res) => {
 const updateCollection = async (req, res) => {
   try {
     const { id } = req.params;
-    const { Name, status } = req.body;
+    const { Name, slug, status } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -143,6 +144,10 @@ const updateCollection = async (req, res) => {
       }
 
       collection.Name = Name.trim();
+    }
+
+    if (slug !== undefined) {
+      collection.slug = slug.trim() || undefined;
     }
 
     if (status !== undefined) {

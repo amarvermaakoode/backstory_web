@@ -36,9 +36,12 @@ export default function ProductCard({
     };
 
     // Helper to get image URL safely
-    const getImageUrl = (url) => {
-        if (!url) return "/images/placeholder.png";
-        return url;
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
     };
 
     // Calculate visibilities dynamically with fallback to defaults
@@ -121,6 +124,7 @@ export default function ProductCard({
                                 sizes="(max-width: 768px) 280px, 350px"
                                 className="object-contain select-none"
                                 priority
+                                unoptimized
                             />
                         </div>
 
@@ -132,6 +136,7 @@ export default function ProductCard({
                                 fill
                                 sizes="(max-width: 768px) 280px, 350px"
                                 className="object-contain object-center select-none"
+                                unoptimized
                             />
                         </div>
                     </>
@@ -145,6 +150,7 @@ export default function ProductCard({
                             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             className="object-contain select-none"
                             priority
+                            unoptimized
                         />
                     </div>
                 )}

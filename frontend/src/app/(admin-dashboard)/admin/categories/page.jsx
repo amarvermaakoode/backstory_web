@@ -29,6 +29,7 @@ export default function CategoriesAdminPage() {
 
   // Form State
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
   const [status, setStatus] = useState(true);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -81,6 +82,7 @@ export default function CategoriesAdminPage() {
   const openCreateModal = () => {
     setModalMode("create");
     setName("");
+    setSlug("");
     setStatus(true);
     setImageFile(null);
     setImagePreview("");
@@ -91,6 +93,7 @@ export default function CategoriesAdminPage() {
     setModalMode("edit");
     setEditingCategory(category);
     setName(category.Name || ""); // Note capitalized 'Name'
+    setSlug(category.slug || "");
     setStatus(category.status === undefined ? true : category.status);
     setImageFile(null);
     setImagePreview(getImageUrl(category.image));
@@ -118,6 +121,7 @@ export default function CategoriesAdminPage() {
     try {
       const formData = new FormData();
       formData.append("Name", name.trim());
+      formData.append("slug", slug.trim());
       formData.append("status", status);
       if (imageFile) {
         formData.append("image", imageFile);
@@ -323,6 +327,20 @@ export default function CategoriesAdminPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. T-Shirts"
+                  className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
+                />
+              </div>
+
+              {/* Category Slug */}
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                  Slug (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="e.g. t-shirts (auto-generated if left blank)"
                   className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
                 />
               </div>

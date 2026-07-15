@@ -15,6 +15,13 @@ const categorySchema = new mongoose.Schema(
       required: [true, "Category image is required"],
     },
 
+    slug: {
+      type: String,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+
     status: {
       type: Boolean,
       default: true,
@@ -24,5 +31,22 @@ const categorySchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+function slugify(text) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-");
+}
+
+categorySchema.pre("save", async function () {
+  if (this.isModified("Name") || this.isModified("slug") || !this.slug) {
+    const baseText = this.slug ? this.slug : this.Name;
+    this.slug = slugify(baseText);
+  }
+});
 
 module.exports = mongoose.model("Category", categorySchema);

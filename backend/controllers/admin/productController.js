@@ -13,6 +13,7 @@ const createProduct = async (req, res) => {
       price,
       category,
       subCategory,
+      collection,
       sizeGuide,
       description,
       material,
@@ -38,6 +39,9 @@ const createProduct = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(subCategory)) {
       return res.status(400).json({ success: false, message: "Invalid subcategory ID." });
     }
+    if (collection && !mongoose.Types.ObjectId.isValid(collection)) {
+      return res.status(400).json({ success: false, message: "Invalid collection ID." });
+    }
     if (!mongoose.Types.ObjectId.isValid(sizeGuide)) {
       return res.status(400).json({ success: false, message: "Invalid size guide ID." });
     }
@@ -51,6 +55,13 @@ const createProduct = async (req, res) => {
     const subCategoryExists = await SubCategory.findById(subCategory);
     if (!subCategoryExists) {
       return res.status(404).json({ success: false, message: "Subcategory not found." });
+    }
+
+    if (collection) {
+      const collectionExists = await mongoose.model("Collection").findById(collection);
+      if (!collectionExists) {
+        return res.status(404).json({ success: false, message: "Collection not found." });
+      }
     }
 
     const sizeGuideExists = await SizeGuide.findById(sizeGuide);
@@ -116,6 +127,7 @@ const createProduct = async (req, res) => {
       price: Number(price),
       category,
       subCategory,
+      collection: collection || undefined,
       sizeGuide,
       colors: parsedColors,
       description: description ? description.trim() : undefined,
@@ -146,6 +158,7 @@ const getProducts = async (req, res) => {
     const products = await Product.find()
       .populate("category", "Name image")
       .populate("subCategory", "name image")
+      .populate("collection", "Name image")
       .populate("sizeGuide", "name chart")
       .populate("colors.color", "name hexCode")
       .sort({ createdAt: -1 });
@@ -178,6 +191,7 @@ const getProductById = async (req, res) => {
     const product = await Product.findById(id)
       .populate("category", "Name image")
       .populate("subCategory", "name image")
+      .populate("collection", "Name image")
       .populate("sizeGuide", "name chart")
       .populate("colors.color", "name hexCode");
 
@@ -225,6 +239,7 @@ const updateProduct = async (req, res) => {
       price,
       category,
       subCategory,
+      collection,
       sizeGuide,
       description,
       material,
@@ -256,6 +271,19 @@ const updateProduct = async (req, res) => {
         return res.status(404).json({ success: false, message: "Subcategory not found." });
       }
       product.subCategory = subCategory;
+    }
+
+    if (collection) {
+      if (!mongoose.Types.ObjectId.isValid(collection)) {
+        return res.status(400).json({ success: false, message: "Invalid collection ID." });
+      }
+      const collectionExists = await mongoose.model("Collection").findById(collection);
+      if (!collectionExists) {
+        return res.status(404).json({ success: false, message: "Collection not found." });
+      }
+      product.collection = collection;
+    } else if (collection === "") {
+      product.collection = undefined;
     }
 
     if (sizeGuide) {

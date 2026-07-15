@@ -11,6 +11,14 @@ export default function WishlistCard({ item, onRemove, onAddToCart }) {
     const displayRating = item.rating || "4.7";
     const displayReviewsCount = item.reviewsCount || item.reviews || 63;
 
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
     return (
         <div className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden w-full select-none">
             {/* Image Box Container */}
@@ -48,11 +56,12 @@ export default function WishlistCard({ item, onRemove, onAddToCart }) {
                     className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105"
                 >
                     <Image
-                        src={item.image || "/images/placeholder.png"}
+                        src={getImageUrl(item.image)}
                         alt={item.name}
                         fill
                         className="object-contain select-none"
                         sizes="(max-width: 640px) 40vw, 250px"
+                        unoptimized
                     />
                 </Link>
 

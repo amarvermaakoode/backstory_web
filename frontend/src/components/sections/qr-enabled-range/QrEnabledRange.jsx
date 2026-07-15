@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
@@ -102,9 +103,9 @@ export default function QrEnabledRange() {
                     const itemClass = isFourth ? "md:!hidden" : "";
 
                     return (
-                        <a
+                        <Link
                             key={category._id}
-                            href="#shop"
+                            href={`/products/range/${category.slug || category._id}`}
                             className={`group relative h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black ${itemClass}`}
                         >
                             {/* Background Image */}
@@ -135,7 +136,7 @@ export default function QrEnabledRange() {
                                     {category.Name}
                                 </h3>
                             </div>
-                        </a>
+                        </Link>
                     );
                 })}
             </div>

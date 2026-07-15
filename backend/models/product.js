@@ -23,6 +23,11 @@ const productSchema = new mongoose.Schema(
       ref: "SubCategory",
       required: [true, "Product subcategory is required"],
     },
+    collection: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collection",
+      required: false,
+    },
     sizeGuide: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "SizeGuide",

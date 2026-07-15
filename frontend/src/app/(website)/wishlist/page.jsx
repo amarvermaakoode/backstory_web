@@ -17,6 +17,14 @@ export default function WishlistPage() {
     const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [currentPage, setCurrentPage] = useState(1);
 
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
     // Categorize wishlist items
     const categorizeItem = (item) => {
         const name = item.name.toLowerCase();
@@ -120,7 +128,7 @@ export default function WishlistPage() {
                             No items found in {activeCategory.toLowerCase()}. Explore our collection to add items.
                         </p>
                         <Link
-                            href="/featured-products"
+                            href="/products"
                             className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold"
                         >
                             Explore Collection
@@ -205,11 +213,12 @@ export default function WishlistPage() {
                                             {/* Image */}
                                             <Link href={`/products/${product.id}`} className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
                                                 <Image
-                                                    src={product.image}
+                                                    src={getImageUrl(product.image)}
                                                     alt={product.name}
                                                     fill
                                                     className="object-contain select-none"
                                                     sizes="(max-width: 640px) 40vw, 250px"
+                                                    unoptimized
                                                 />
                                             </Link>
 

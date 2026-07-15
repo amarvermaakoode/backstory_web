@@ -38,6 +38,14 @@ const mockCheckoutItems = [
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
 
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
     // Check if the cart has items; if not, use mock items for visual exactness
     const isCartEmpty = cartItems.length === 0;
     const activeItems = isCartEmpty ? mockCheckoutItems : cartItems;
@@ -446,11 +454,12 @@ export default function CheckoutPage() {
                                         {/* Thumbnail Image Container */}
                                         <div className="relative w-18 h-20 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                                             <Image
-                                                src={item.image}
+                                                src={getImageUrl(item.image)}
                                                 alt={item.name}
                                                 fill
                                                 className="object-contain p-1.5 select-none"
                                                 sizes="72px"
+                                                unoptimized
                                             />
                                         </div>
 
