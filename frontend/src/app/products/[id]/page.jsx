@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, Plus, Minus, Star, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { getProductById, allProducts } from "../products";
+import { getProductById, allProducts } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 

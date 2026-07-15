@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X, Heart } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { allProducts as dbProducts } from "@/data/products";
 
 export default function WishlistDrawer() {
     const {
@@ -57,18 +58,16 @@ export default function WishlistDrawer() {
         <>
             {/* Backdrop Overlay */}
             <div
-                className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${
-                    isWishlistOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                }`}
+                className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${isWishlistOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                    }`}
                 onClick={closeWishlist}
             />
 
             {/* Slide-out Wishlist Drawer Panel */}
             <div
                 ref={drawerRef}
-                className={`fixed top-0 right-0 h-full w-full sm:max-w-[540px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-                    isWishlistOpen ? "translate-x-0" : "translate-x-full"
-                }`}
+                className={`fixed top-0 right-0 h-full w-full sm:max-w-[540px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isWishlistOpen ? "translate-x-0" : "translate-x-full"
+                    }`}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200/80">
@@ -109,60 +108,73 @@ export default function WishlistDrawer() {
                         </div>
                     ) : (
                         <div className="px-6 py-6 grid grid-cols-2 gap-4">
-                            {wishlistItems.map((item, index) => (
-                                <div
-                                    key={item.id + "-" + index}
-                                    className="bg-white rounded-2xl sm:rounded-3xl border border-neutral-200/40 overflow-hidden shadow-xs flex flex-col"
-                                >
-                                    {/* Image Box */}
-                                    <div className="relative w-full aspect-[4/5] bg-[#F4F0EA] flex items-center justify-center flex-shrink-0 group">
-                                        {/* Series Tag (Top-left) */}
-                                        <span className="absolute top-3 left-3 z-10 bg-black text-white text-[8px] sm:text-[9px] font-bold tracking-wider px-2 py-0.5 rounded-sm uppercase select-none">
-                                            {item.tag || "Original Series"}
-                                        </span>
+                            {wishlistItems.map((item, index) => {
+                                const dbProduct = dbProducts.find((p) => p.id === item.id) || item;
+                                const displayOffer = dbProduct.offer || item.offer;
+                                const displayTag = dbProduct.tag || item.tag;
 
-                                        {/* Active Red Heart Icon (Top-right) */}
-                                        <button
-                                            onClick={() => removeFromWishlist(item.id)}
-                                            className="absolute top-3 right-3 z-10 p-1 text-red-500 hover:scale-105 transition-transform cursor-pointer"
-                                            aria-label="Remove from wishlist"
-                                        >
-                                            <Heart className="w-4.5 h-4.5 fill-red-500 stroke-red-500" />
-                                        </button>
+                                return (
+                                    <div
+                                        key={item.id + "-" + index}
+                                        className="bg-white rounded-2xl sm:rounded-3xl border border-neutral-200/40 overflow-hidden shadow-xs flex flex-col"
+                                    >
+                                        {/* Image Box */}
+                                        <div className="relative w-full aspect-[4/5] bg-[#F4F0EA] flex items-center justify-center flex-shrink-0 group">
+                                            {/* Top badges (Top-left) */}
+                                            <div className="absolute top-3 left-3 z-10 flex flex-row gap-1">
+                                                {displayOffer && (
+                                                    <div className="text-[8px] sm:text-[9px] font-bold tracking-tight px-2 py-0.5 rounded-full uppercase bg-[#C5B9AC] text-[#1F1108] w-fit">
+                                                        {displayOffer}
+                                                    </div>
+                                                )}
+                                                <span className="bg-black text-white text-[8px] sm:text-[9px] font-bold tracking-wider px-2 py-0.5 rounded-full uppercase select-none w-fit">
+                                                    {displayTag || "Original Series"}
+                                                </span>
+                                            </div>
 
-                                        {/* Product Image */}
-                                        <div className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
-                                            <Image
-                                                src={item.image}
-                                                alt={item.name}
-                                                fill
-                                                className="object-contain select-none"
-                                                sizes="(max-width: 640px) 40vw, 200px"
-                                            />
+                                            {/* Active Red Heart Icon (Top-right) */}
+                                            <button
+                                                onClick={() => removeFromWishlist(item.id)}
+                                                className="absolute top-3 right-3 z-10 p-1 text-red-500 hover:scale-105 transition-transform cursor-pointer"
+                                                aria-label="Remove from wishlist"
+                                            >
+                                                <Heart className="w-4.5 h-4.5 fill-red-500 stroke-red-500" />
+                                            </button>
+
+                                            {/* Product Image */}
+                                            <div className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
+                                                <Image
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    fill
+                                                    className="object-contain select-none"
+                                                    sizes="(max-width: 640px) 40vw, 200px"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Details Body */}
+                                        <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
+                                            <div>
+                                                <h3 className="font-sans text-xs sm:text-sm font-bold text-black leading-snug line-clamp-2">
+                                                    {item.name}
+                                                </h3>
+                                                <p className="font-clashDisplay text-xs sm:text-sm font-bold text-black mt-1">
+                                                    {item.price}
+                                                </p>
+                                            </div>
+
+                                            {/* Add to Cart button */}
+                                            <button
+                                                onClick={() => handleAddToCart(item)}
+                                                className="w-full bg-[#DFD7CC]/80 hover:bg-[#DFD7CC] text-black font-semibold text-[10px] sm:text-xs py-2 rounded-full mt-3 cursor-pointer text-center select-none transition-colors"
+                                            >
+                                                Add to Cart
+                                            </button>
                                         </div>
                                     </div>
-
-                                    {/* Details Body */}
-                                    <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <h3 className="font-sans text-xs sm:text-sm font-bold text-black leading-snug line-clamp-2">
-                                                {item.name}
-                                            </h3>
-                                            <p className="font-clashDisplay text-xs sm:text-sm font-bold text-black mt-1">
-                                                {item.price}
-                                            </p>
-                                        </div>
-
-                                        {/* Add to Cart button */}
-                                        <button
-                                            onClick={() => handleAddToCart(item)}
-                                            className="w-full bg-[#DFD7CC]/80 hover:bg-[#DFD7CC] text-black font-semibold text-[10px] sm:text-xs py-2 rounded-full mt-3 cursor-pointer text-center select-none transition-colors"
-                                        >
-                                            Add to Cart
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
