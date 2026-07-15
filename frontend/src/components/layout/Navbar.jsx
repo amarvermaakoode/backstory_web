@@ -4,14 +4,25 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 
 export default function Navbar({ onSearchClick, solid = false, light = false }) {
     const [scrolled, setScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const pathname = usePathname();
+    const router = useRouter();
     const { cartCount, openCart } = useCart();
     const { wishlistCount, openWishlist } = useWishlist();
+
+    const handleWishlistClick = () => {
+        if (pathname === "/") {
+            router.push("/wishlist");
+        } else {
+            openWishlist();
+        }
+    };
 
     useEffect(() => {
         const handleScroll = () => {
@@ -28,8 +39,8 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
         <header
             className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${light
                 ? scrolled || isMobileMenuOpen
-                    ? "bg-white text-black"
-                    : "bg-white text-black"
+                    ? "bg-[#FAF9F6] text-black"
+                    : "bg-[#FAF9F6] text-black"
                 : scrolled || isMobileMenuOpen || solid
                     ? "bg-black/90 backdrop-blur-md text-white"
                     : "bg-transparent text-white"
@@ -97,7 +108,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                         />
                     </button>
                     <button
-                        onClick={openWishlist}
+                        onClick={handleWishlistClick}
                         className={`relative transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
                         aria-label="Favorites"
                     >
