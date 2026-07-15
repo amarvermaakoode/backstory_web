@@ -1,35 +1,70 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
+const API_BASE_URL = "http://localhost:5000/api";
+
+const defaultTribes = [
+    {
+        _id: "coders",
+        name: "Coders",
+        image: "/images/landing-page/tribe1.png",
+    },
+    {
+        _id: "bikers",
+        name: "Bikers",
+        image: "/images/landing-page/tribe2.png",
+    },
+    {
+        _id: "nomad",
+        name: "Nomad",
+        image: "/images/landing-page/tribe3.png",
+    },
+    {
+        _id: "techies",
+        name: "Techies",
+        image: "/images/landing-page/tribe4.png",
+    },
+];
+
 export default function ShopByTribe() {
-    const tribes = [
-        {
-            id: "coders",
-            name: "Coders",
-            image: "/images/landing-page/tribe1.png",
-            link: "#shop?tribe=coders",
-        },
-        {
-            id: "bikers",
-            name: "Bikers",
-            image: "/images/landing-page/tribe2.png",
-            link: "#shop?tribe=bikers",
-        },
-        {
-            id: "nomad",
-            name: "Nomad",
-            image: "/images/landing-page/tribe3.png",
-            link: "#shop?tribe=nomad",
-        },
-        {
-            id: "techies",
-            name: "Techies",
-            image: "/images/landing-page/tribe4.png",
-            link: "#shop?tribe=techies",
-        },
-    ];
+    const [subCategories, setSubCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSubCategories = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/frontend/sub-categories`);
+                const data = await res.json();
+                if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    setSubCategories(data.data);
+                } else {
+                    setSubCategories(defaultTribes);
+                }
+            } catch (err) {
+                console.error("Failed to fetch landing subcategories/tribes:", err);
+                setSubCategories(defaultTribes);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSubCategories();
+    }, []);
+
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        
+        // Local public assets start with /images/
+        if (path.startsWith("/images/")) return path;
+        
+        // Backend upload asset
+        return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
+    const activeTribes = subCategories.length > 0 ? subCategories : defaultTribes;
 
     return (
         <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
@@ -43,18 +78,20 @@ export default function ShopByTribe() {
 
                 {/* Flex Accordion of Tribes (Contiguous, no gap) */}
                 <div className="flex flex-col md:flex-row w-full overflow-hidden">
-                    {tribes.map((tribe) => (
+                    {activeTribes.map((tribe) => (
                         <a
-                            key={tribe.id}
-                            href={tribe.link}
+                            key={tribe._id}
+                            href={`#shop?tribe=${tribe._id}`}
                             className="group relative block w-full h-[250px] md:h-[550px] flex-1 md:hover:flex-[2.2] transition-all duration-700 ease-in-out overflow-hidden cursor-pointer"
                         >
                             {/* Background Image */}
                             <div className="absolute inset-0 transition-transform duration-1000 ease-out group-hover:scale-105">
                                 <Image
-                                    src={tribe.image}
+                                    src={getImageUrl(tribe.image)}
                                     alt={tribe.name}
                                     fill
+                                    priority
+                                    unoptimized
                                     sizes="(max-width: 768px) 100vw, 25vw"
                                     className="object-cover object-center select-none"
                                 />
