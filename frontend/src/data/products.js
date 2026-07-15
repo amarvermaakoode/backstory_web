@@ -3,8 +3,9 @@ export const allProducts = [
     {
         id: "lost-on-purpose-1",
         name: "Lost on Purpose",
-        price: "Rs 1,100",
-        priceNum: 1100,
+        price: "Rs 999",
+        originalPrice: "Rs 1,100",
+        priceNum: 999,
         image: "/images/landing-page/featured3.png",
         images: [
             "/images/landing-page/featured3.png",
@@ -34,6 +35,10 @@ export const allProducts = [
                 author: "Arjun M.",
                 rating: 5,
                 date: "June 2026",
+                images: [
+                    "/images/landing-page/review1.png",
+                    "/images/landing-page/review2.png"
+                ],
                 text: "This tee is everything. The graphic is insane quality and the weight of the fabric feels premium. Already ordered two more. Can't wait."
             },
             {

@@ -18,11 +18,7 @@ export default function ProductDetailPage({ params }) {
     const { toggleWishlist, isInWishlist } = useWishlist();
 
     // States for interactive elements
-    const [selectedSize, setSelectedSize] = useState(
-        product?.sizes && product.sizes.length > 0
-            ? product.sizes[2] || product.sizes[0]
-            : ""
-    );
+    const [selectedSize, setSelectedSize] = useState("");
     const [selectedColor, setSelectedColor] = useState(
         product?.colors && product.colors.length > 0
             ? product.colors[0]
@@ -187,23 +183,23 @@ export default function ProductDetailPage({ params }) {
                         </div>
 
                         {/* Right: Info panel (Sticky on Desktop) */}
-                        <div className="lg:col-span-5 lg:sticky lg:top-28 h-fit flex flex-col space-y-6 md:space-y-8">
+                        <div className="lg:col-span-5 lg:sticky lg:top-28 h-fit flex flex-col space-y-6">
 
                             {/* Title, Tag, and Stars Header */}
                             <div className="space-y-3">
-                                <p className="text-xs md:text-sm font-semibold uppercase tracking-wider text-neutral-400">
+                                <p className="text-xs md:text-base font-regular uppercase tracking-wider text-black">
                                     {product.tag}
                                 </p>
                                 <div className="flex justify-between items-start">
-                                    <h1 className="font-clashDisplay text-3xl md:text-4xl lg:text-5xl font-semibold text-black tracking-tight leading-tight">
+                                    <h1 className="font-geist text-3xl md:text-4xl lg:text-[2.5vw] font-semibold text-black tracking-tight leading-tight">
                                         {product.name}
                                     </h1>
                                     <button
                                         onClick={() => toggleWishlist(product)}
-                                        className="p-2 border border-neutral-200 rounded-full hover:border-black transition-colors duration-200 cursor-pointer ml-4 mt-1"
+                                        className=" cursor-pointer ml-4 mt-1"
                                         aria-label="Add to favorites"
                                     >
-                                        <Heart className={`h-5.5 w-5.5 transition-colors ${isFavorite ? "fill-red-500 text-red-500 stroke-red-500" : "text-black stroke-[1.5]"}`} />
+                                        <Heart className={`h-9.5 w-9.5 transition-colors ${isFavorite ? "fill-red-500 text-red-500 stroke-red-500" : "text-black stroke-[1.5]"}`} />
                                     </button>
                                 </div>
 
@@ -214,22 +210,29 @@ export default function ProductDetailPage({ params }) {
                                             <Star key={i} className="w-4 h-4 fill-current stroke-none" />
                                         ))}
                                     </div>
-                                    <span className="text-xs md:text-sm font-semibold text-black">{product.rating}</span>
-                                    <span className="text-xs md:text-sm font-normal text-neutral-400">({product.reviewsCount})</span>
+                                    <span className="text-xs md:text-[1vw] font-semibold text-black">{product.rating}</span>
+                                    <span className="text-xs md:text-[1vw] font-normal text-black">({product.reviewsCount})</span>
                                 </div>
                             </div>
 
                             {/* Price */}
-                            <div className="pt-2 border-t border-neutral-200">
-                                <p className="font-clashDisplay text-3xl md:text-4xl font-bold text-black">
-                                    {product.price}
-                                </p>
+                            <div className="pb-6 border-b border-neutral-200">
+                                <div className="flex items-baseline gap-3">
+                                    <p className="font-clashDisplay text-3xl md:text-[3vw] font-semibold text-black">
+                                        {product.price}
+                                    </p>
+                                    {product.originalPrice && (
+                                        <p className="font-clashDisplay text-xl md:text-[1.8vw] font-normal text-neutral-300 line-through">
+                                            {product.originalPrice}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Size selector */}
                             <div className="space-y-3 pt-2">
                                 <div className="flex justify-between items-center text-xs md:text-sm">
-                                    <span className="font-semibold text-neutral-500">SIZE</span>
+                                    <span className="font-regular text-black">SIZE</span>
                                     <button className="text-neutral-400 hover:text-black transition-colors underline cursor-pointer">Size Guide</button>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
@@ -260,12 +263,12 @@ export default function ProductDetailPage({ params }) {
                                                 key={color.name}
                                                 onClick={() => setSelectedColor(color)}
                                                 className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${selectedColor.name === color.name
-                                                    ? "border-black scale-105"
-                                                    : "border-transparent hover:scale-105"
+                                                    ? "border-black"
+                                                    : "border-transparent"
                                                     }`}
                                             >
                                                 <span
-                                                    className="w-6 h-6 rounded-full border border-black/10 shadow-sm"
+                                                    className="w-6 h-6 rounded-full border border-black/10"
                                                     style={{ backgroundColor: color.hex }}
                                                 />
                                             </button>
@@ -275,30 +278,36 @@ export default function ProductDetailPage({ params }) {
                             )}
 
                             {/* Quantity and Actions */}
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4">
                                 {/* Quantity */}
-                                <div className="flex items-center justify-between border border-neutral-200 rounded-full px-4 h-12 w-full sm:w-36 bg-neutral-50">
+                                <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-14 w-full sm:w-34 select-none">
                                     <button
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                        className="text-black hover:text-neutral-500 transition-colors p-1 cursor-pointer"
+                                        className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
                                         aria-label="Decrease quantity"
                                     >
-                                        <Minus className="w-4 h-4 stroke-[2]" />
+                                        <Minus className="w-5 h-5" strokeWidth={2} />
                                     </button>
-                                    <span className="font-semibold text-sm w-8 text-center">{quantity}</span>
+                                    <span className="font-semibold text-[1.8vw] text-black text-center w-8">{quantity}</span>
                                     <button
                                         onClick={() => setQuantity(quantity + 1)}
-                                        className="text-black hover:text-neutral-500 transition-colors p-1 cursor-pointer"
+                                        className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
                                         aria-label="Increase quantity"
                                     >
-                                        <Plus className="w-4 h-4 stroke-[2]" />
+                                        <Plus className="w-5 h-5" strokeWidth={2} />
                                     </button>
                                 </div>
 
                                 {/* Add to Cart */}
                                 <button
-                                    onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
-                                    className="flex-1 h-12 bg-[#DFD7CC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
+                                    onClick={() => {
+                                        if (!selectedSize) {
+                                            alert("Please select a size.");
+                                            return;
+                                        }
+                                        addToCart(product, quantity, selectedSize, selectedColor);
+                                    }}
+                                    className="flex-1 h-14 bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-medium text-[1vw] tracking-wide cursor-pointer"
                                 >
                                     Add to Cart
                                 </button>
@@ -306,38 +315,44 @@ export default function ProductDetailPage({ params }) {
 
                             {/* Buy Now */}
                             <button
-                                onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
-                                className="w-full h-12 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
+                                onClick={() => {
+                                    if (!selectedSize) {
+                                        alert("Please select a size.");
+                                        return;
+                                    }
+                                    addToCart(product, quantity, selectedSize, selectedColor);
+                                }}
+                                className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-[1vw] tracking-wide cursor-pointer"
                             >
                                 Buy Now
                             </button>
 
                             {/* Product Details Specs */}
                             <div className="space-y-4 pt-6 border-t border-neutral-200">
-                                <p className="text-xs md:text-sm font-semibold uppercase tracking-wider text-neutral-500">
+                                <p className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">
                                     Product Details
                                 </p>
-                                <p className="text-sm md:text-base font-normal text-neutral-600 leading-relaxed font-sans">
+                                <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">
                                     {product.description}
                                 </p>
 
                                 {/* Bullet details */}
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 text-xs md:text-sm">
                                     <div>
-                                        <span className="font-bold text-black uppercase tracking-wider text-[10px] sm:text-xs">Material</span>
-                                        <p className="text-neutral-500 mt-0.5">{product.details.material}</p>
+                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Material</span>
+                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.material}</p>
                                     </div>
                                     <div>
-                                        <span className="font-bold text-black uppercase tracking-wider text-[10px] sm:text-xs">Fit</span>
-                                        <p className="text-neutral-500 mt-0.5">{product.details.fit}</p>
+                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Fit</span>
+                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.fit}</p>
                                     </div>
                                     <div>
-                                        <span className="font-bold text-black uppercase tracking-wider text-[10px] sm:text-xs">Weight</span>
-                                        <p className="text-neutral-500 mt-0.5">{product.details.weight}</p>
+                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Weight</span>
+                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.weight}</p>
                                     </div>
                                     <div>
-                                        <span className="font-bold text-black uppercase tracking-wider text-[10px] sm:text-xs">Care</span>
-                                        <p className="text-neutral-500 mt-0.5">{product.details.care}</p>
+                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Care</span>
+                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.care}</p>
                                     </div>
                                 </div>
                             </div>
@@ -395,22 +410,41 @@ export default function ProductDetailPage({ params }) {
                                         <div className="flex items-center justify-between text-xs md:text-sm">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-bold text-black">{rev.author}</span>
-                                                <span className="text-[10px] md:text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
-                                                    Verified Purchase
-                                                </span>
+
                                             </div>
                                             <span className="text-neutral-400">{rev.date}</span>
                                         </div>
-                                        <div className="flex text-[#FFB800] space-x-0.5">
-                                            {Array.from({ length: 5 }).map((_, i) => (
-                                                <Star
-                                                    key={i}
-                                                    className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
-                                                        }`}
-                                                />
-                                            ))}
+                                        <div className="flex flex-row gap-2">
+                                            <div className="flex text-[#FFB800] space-x-0.5 ">
+                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                    <Star
+                                                        key={i}
+                                                        className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
+                                                            }`}
+                                                    />
+                                                ))}
+
+                                            </div>
+                                            <span className="text-[10px] md:text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
+                                                Verified Purchase
+                                            </span>
                                         </div>
-                                        <p className="text-sm md:text-base font-normal text-neutral-600 leading-relaxed font-sans pt-1">
+                                        {rev.images && rev.images.length > 0 && (
+                                            <div className="flex gap-2.5 pt-1.5 pb-1">
+                                                {rev.images.map((imgUrl, imgIdx) => (
+                                                    <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-neutral-50 border border-neutral-200 cursor-pointer transition-transform duration-200 hover:scale-105">
+                                                        <Image
+                                                            src={imgUrl}
+                                                            alt={`Review attachment ${imgIdx + 1}`}
+                                                            fill
+                                                            sizes="80px"
+                                                            className="object-cover select-none"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <p className="text-sm md:text-base font-normal text-neutral-600 leading-snug font-sans pt-1">
                                             {rev.text}
                                         </p>
                                     </div>
