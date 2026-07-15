@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AdminAuthProvider, useAdminAuth } from "@/context/AdminAuthContext";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 import { 
   LayoutDashboard, 
   Tag, 

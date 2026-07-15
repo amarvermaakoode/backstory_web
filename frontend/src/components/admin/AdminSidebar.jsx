@@ -11,7 +11,10 @@ import {
   FolderTree,
   LogOut,
   X,
-  Menu
+  Menu,
+  ShoppingBag,
+  Palette,
+  Ruler
 } from "lucide-react";
 
 export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
@@ -23,6 +26,11 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Dashboard",
       path: "/admin/dashboard",
       icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      name: "Products",
+      path: "/admin/products",
+      icon: <ShoppingBag className="w-5 h-5" />,
     },
     {
       name: "Categories",
@@ -38,6 +46,16 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Collections",
       path: "/admin/collections",
       icon: <Layers className="w-5 h-5" />,
+    },
+    {
+      name: "Colors",
+      path: "/admin/colors",
+      icon: <Palette className="w-5 h-5" />,
+    },
+    {
+      name: "Size Guides",
+      path: "/admin/size-guides",
+      icon: <Ruler className="w-5 h-5" />,
     },
   ];
 
