@@ -13,7 +13,10 @@ import {
   Menu, 
   X, 
   User,
-  ShieldCheck
+  ShieldCheck,
+  Palette,
+  Ruler,
+  ShoppingBag
 } from "lucide-react";
 
 function AdminLayoutShell({ children }) {
@@ -59,6 +62,11 @@ function AdminLayoutShell({ children }) {
       icon: <LayoutDashboard className="w-5 h-5" />,
     },
     {
+      name: "Products",
+      path: "/admin/products",
+      icon: <ShoppingBag className="w-5 h-5" />,
+    },
+    {
       name: "Categories",
       path: "/admin/categories",
       icon: <Tag className="w-5 h-5" />,
@@ -72,6 +80,16 @@ function AdminLayoutShell({ children }) {
       name: "Collections",
       path: "/admin/collections",
       icon: <Layers className="w-5 h-5" />,
+    },
+    {
+      name: "Colors",
+      path: "/admin/colors",
+      icon: <Palette className="w-5 h-5" />,
+    },
+    {
+      name: "Size Guides",
+      path: "/admin/size-guides",
+      icon: <Ruler className="w-5 h-5" />,
     },
   ];
 
