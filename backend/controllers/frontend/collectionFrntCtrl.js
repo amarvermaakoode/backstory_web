@@ -9,7 +9,7 @@ const getCollections = async (req, res) => {
         Name: 1,
         image: 1,
       }
-    ).sort({ createdAt: -1 });
+    ).sort({ createdAt: 1 });
 
     return res.status(200).json({
       success: true,
