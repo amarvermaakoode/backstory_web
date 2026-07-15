@@ -8,7 +8,7 @@ import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { allProducts as dbProducts } from "@/app/products/products";
+import { allProducts as dbProducts } from "@/data/products";
 
 export default function FeaturedListingPage() {
     const { addToCart } = useCart();

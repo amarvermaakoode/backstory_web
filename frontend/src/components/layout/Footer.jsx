@@ -35,9 +35,9 @@ export default function Footer() {
             <div className="mx-auto max-w-[1600px] space-y-16">
 
                 {/* Top Section */}
-                <div className="flex flex-col lg:flex-row justify-between gap-12 lg:gap-8">
+                <div className="flex flex-col md:flex-row justify-between gap-12 lg:gap-8">
                     {/* Left Column (Brand Slogan & Socials) */}
-                    <div className="flex flex-col justify-between max-w-[30%] space-y-8">
+                    <div className="flex flex-col justify-between md:max-w-[30%] max-w-[100%] space-y-8">
                         <div className="space-y-6">
                             <h2 className="font-geist text-2xl md:text-[2.5vw] font-medium leading-tight tracking-tight">
                                 Every person has a story worth wearing.

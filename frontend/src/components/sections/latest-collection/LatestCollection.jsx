@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { allProducts } from "@/app/products/products";
+import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
 
 export default function Collections() {

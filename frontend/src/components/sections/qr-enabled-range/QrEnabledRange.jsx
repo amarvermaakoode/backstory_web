@@ -29,7 +29,7 @@ export default function QrEnabledRange() {
             name: "More...",
             image: "/images/landing-page/pants.png",
             link: "#shop",
-            className: "block md:hidden"
+            className: "md:!hidden"
         },
     ];
 

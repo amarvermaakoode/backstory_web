@@ -42,7 +42,7 @@ export default function CheckoutPage() {
     const isCartEmpty = cartItems.length === 0;
     const activeItems = isCartEmpty ? mockCheckoutItems : cartItems;
     const activeCount = isCartEmpty ? mockCheckoutItems.reduce((acc, item) => acc + item.quantity, 0) : cartCount;
-    const activeSubtotal = isCartEmpty 
+    const activeSubtotal = isCartEmpty
         ? mockCheckoutItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0)
         : cartSubtotal;
 
@@ -66,7 +66,7 @@ export default function CheckoutPage() {
     const [appliedDiscount, setAppliedDiscount] = useState(0); // percentage discount
     const [promoError, setPromoError] = useState("");
     const [promoSuccess, setPromoSuccess] = useState("");
-    
+
     // Order complete state
     const [isOrderComplete, setIsOrderComplete] = useState(false);
     const [generatedOrderNum, setGeneratedOrderNum] = useState("");
@@ -114,12 +114,12 @@ export default function CheckoutPage() {
     // Checkout submission
     const handleCheckoutSubmit = (e) => {
         e.preventDefault();
-        
+
         // Generate random order ID
         const orderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
         setGeneratedOrderNum(orderId);
         setIsOrderComplete(true);
-        
+
         // Clear active cart if they actually had items
         if (!isCartEmpty) {
             clearCart();
@@ -130,14 +130,21 @@ export default function CheckoutPage() {
         <div className="bg-[#FAF9F6] min-h-screen text-black selection:bg-neutral-200">
             {/* Header */}
             <header className="bg-white border-b border-neutral-200/80 sticky top-0 z-40">
-                <div className="max-w-[1600px] mx-auto px-6 h-17 flex items-center justify-between">
+                <div className="max-w-[1600px] mx-auto px-12 h-17 flex items-center justify-between">
                     <Link href="/" className="font-clashDisplay text-2xl font-semibold tracking-tight text-black select-none">
-                        bscstory
+                        <Image
+                            src="/images/logo-dark.svg"
+                            alt="bacstory logo"
+                            width={120}
+                            height={26}
+                            className="h-6 sm:h-7 w-auto object-contain cursor-pointer"
+                            priority
+                        />
                     </Link>
                     <div className="flex items-center gap-5 text-neutral-600">
-                        <button 
+                        <button
                             onClick={openCart}
-                            className="relative hover:text-black transition-colors cursor-pointer" 
+                            className="relative hover:text-black transition-colors cursor-pointer"
                             aria-label="Open Cart"
                         >
                             <ShoppingBag className="h-5.5 w-5.5 stroke-[1.25]" />
@@ -165,7 +172,7 @@ export default function CheckoutPage() {
                 <form onSubmit={handleCheckoutSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
                     {/* Left Column: Form Cards */}
                     <div className="lg:col-span-7 space-y-8">
-                        
+
                         {/* Contact & Delivery Details Block */}
                         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200/50 shadow-xs">
                             {/* Contact Details Section */}
@@ -336,15 +343,14 @@ export default function CheckoutPage() {
                                     <label className="text-[11px] font-bold text-neutral-400 tracking-wider mb-4 block">
                                         SHIPPING METHOD
                                     </label>
-                                    
+
                                     <div className="space-y-3">
                                         {/* Standard Delivery Option */}
                                         <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${
-                                                shippingMethod === "standard"
-                                                    ? "border-black bg-neutral-50/50 shadow-xs"
-                                                    : "border-neutral-200 hover:border-neutral-300"
-                                            }`}
+                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "standard"
+                                                ? "border-black bg-neutral-50/50 shadow-xs"
+                                                : "border-neutral-200 hover:border-neutral-300"
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <input
@@ -365,11 +371,10 @@ export default function CheckoutPage() {
 
                                         {/* Express Delivery Option */}
                                         <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${
-                                                shippingMethod === "express"
-                                                    ? "border-black bg-neutral-50/50 shadow-xs"
-                                                    : "border-neutral-200 hover:border-neutral-300"
-                                            }`}
+                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "express"
+                                                ? "border-black bg-neutral-50/50 shadow-xs"
+                                                : "border-neutral-200 hover:border-neutral-300"
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <input
@@ -390,11 +395,10 @@ export default function CheckoutPage() {
 
                                         {/* International Shipping Option */}
                                         <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${
-                                                shippingMethod === "international"
-                                                    ? "border-black bg-neutral-50/50 shadow-xs"
-                                                    : "border-neutral-200 hover:border-neutral-300"
-                                            }`}
+                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "international"
+                                                ? "border-black bg-neutral-50/50 shadow-xs"
+                                                : "border-neutral-200 hover:border-neutral-300"
+                                                }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <input
@@ -475,9 +479,9 @@ export default function CheckoutPage() {
                                                         {item.size}
                                                     </span>
                                                     <span className="text-[9px] font-medium px-2 py-0.5 rounded-full border border-neutral-150 text-neutral-500 flex items-center gap-1 select-none">
-                                                        <span 
-                                                            className="w-1.5 h-1.5 rounded-full border border-black/10 shadow-xs" 
-                                                            style={{ backgroundColor: item.color.hex }} 
+                                                        <span
+                                                            className="w-1.5 h-1.5 rounded-full border border-black/10 shadow-xs"
+                                                            style={{ backgroundColor: item.color.hex }}
                                                         />
                                                         {item.color.name}
                                                     </span>
@@ -570,11 +574,11 @@ export default function CheckoutPage() {
                         <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 border border-green-100">
                             <CheckCircle2 className="w-9 h-9 stroke-[1.5]" />
                         </div>
-                        
+
                         <h2 className="font-clashDisplay text-2xl font-bold text-black leading-tight">
                             Order Placed Successfully!
                         </h2>
-                        
+
                         <p className="text-sm text-neutral-400 mt-2 font-medium">
                             Thank you for shopping with us, {formData.firstName}.
                         </p>
