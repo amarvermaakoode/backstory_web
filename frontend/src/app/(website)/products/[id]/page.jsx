@@ -19,13 +19,13 @@ export default function ProductDetailPage({ params }) {
 
     // States for interactive elements
     const [selectedSize, setSelectedSize] = useState(
-        product?.sizes && product.sizes.length > 0 
-            ? product.sizes[2] || product.sizes[0] 
+        product?.sizes && product.sizes.length > 0
+            ? product.sizes[2] || product.sizes[0]
             : ""
     );
     const [selectedColor, setSelectedColor] = useState(
-        product?.colors && product.colors.length > 0 
-            ? product.colors[0] 
+        product?.colors && product.colors.length > 0
+            ? product.colors[0]
             : null
     );
     const [quantity, setQuantity] = useState(1);
@@ -44,6 +44,15 @@ export default function ProductDetailPage({ params }) {
             </div>
         );
     }
+
+    const productImages = product.images && product.images.length > 0
+        ? product.images
+        : [
+            product.image,
+            "/images/landing-page/first.png",
+            "/images/landing-page/second.png",
+            "/images/landing-page/third.png"
+        ];
 
     // Related products (exclude current)
     const relatedProducts = allProducts
@@ -84,7 +93,7 @@ export default function ProductDetailPage({ params }) {
 
             <main className="flex-1 w-full pt-28 pb-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none">
                 <div className="mx-auto max-w-[1600px] flex flex-col">
-                    
+
                     {/* Breadcrumbs */}
                     <nav className="text-xs md:text-sm text-neutral-400 font-normal mt-2">
                         <Link href="/" className="hover:text-black transition-colors duration-200">Home</Link>
@@ -96,24 +105,90 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Top Detail Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 mt-8">
-                        
-                        {/* Left: Image Container */}
-                        <div className="lg:col-span-7 w-full aspect-[4/5] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                            <div className="relative w-[85%] h-[85%]">
-                                <Image
-                                    src={product.image}
-                                    alt={product.name}
-                                    fill
-                                    sizes="(max-width: 1024px) 100vw, 60vw"
-                                    className="object-contain select-none"
-                                    priority
-                                />
+
+                        {/* Left: Stacked Image Gallery */}
+                        <div className="lg:col-span-7 flex flex-col gap-4 w-full">
+                            {/* Main Image */}
+                            <div className="w-full aspect-[4/3] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
+                                <div className="relative w-[80%] h-[80%]">
+                                    <Image
+                                        src={productImages[0]}
+                                        alt={product.name}
+                                        fill
+                                        sizes="(max-width: 1024px) 100vw, 60vw"
+                                        className="object-contain select-none"
+                                        priority
+                                    />
+                                </div>
                             </div>
+
+                            {/* Additional images */}
+                            {productImages.length > 1 && (
+                                <>
+                                    {productImages.length >= 3 ? (
+                                        <>
+                                            {/* Row 2: Side-by-side split */}
+                                            <div className="grid grid-cols-2 gap-4 w-full">
+                                                <div className="aspect-square flex items-center justify-center overflow-hidden">
+                                                    <div className="relative w-full h-full">
+                                                        <Image
+                                                            src={productImages[1]}
+                                                            alt={`${product.name} detail 1`}
+                                                            fill
+                                                            sizes="(max-width: 1024px) 50vw, 30vw"
+                                                            className="object-cover select-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="aspect-square flex items-center justify-center overflow-hidden">
+                                                    <div className="relative w-full h-full">
+                                                        <Image
+                                                            src={productImages[2]}
+                                                            alt={`${product.name} detail 2`}
+                                                            fill
+                                                            sizes="(max-width: 1024px) 50vw, 30vw"
+                                                            className="object-cover select-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Row 3: Remainder full width images */}
+                                            {productImages.slice(3).map((img, index) => (
+                                                <div key={index} className="w-full aspect-[2/1] flex items-center justify-center overflow-hidden">
+                                                    <div className="relative w-full h-full">
+                                                        <Image
+                                                            src={img}
+                                                            alt={`${product.name} detail ${index + 3}`}
+                                                            fill
+                                                            sizes="(max-width: 1024px) 100vw, 60vw"
+                                                            className="object-cover select-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    ) : (
+                                        // Fallback for exactly 2 images: render second full width
+                                        <div className="w-full aspect-[4/5] flex items-center justify-center overflow-hidden">
+                                            <div className="relative w-full h-full">
+                                                <Image
+                                                    src={productImages[1]}
+                                                    alt={`${product.name} detail 1`}
+                                                    fill
+                                                    sizes="(max-width: 1024px) 100vw, 60vw"
+                                                    className="object-cover select-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
 
-                        {/* Right: Info panel */}
-                        <div className="lg:col-span-5 flex flex-col space-y-6 md:space-y-8">
-                            
+                        {/* Right: Info panel (Sticky on Desktop) */}
+                        <div className="lg:col-span-5 lg:sticky lg:top-28 h-fit flex flex-col space-y-6 md:space-y-8">
+
                             {/* Title, Tag, and Stars Header */}
                             <div className="space-y-3">
                                 <p className="text-xs md:text-sm font-semibold uppercase tracking-wider text-neutral-400">
@@ -131,7 +206,7 @@ export default function ProductDetailPage({ params }) {
                                         <Heart className={`h-5.5 w-5.5 transition-colors ${isFavorite ? "fill-red-500 text-red-500 stroke-red-500" : "text-black stroke-[1.5]"}`} />
                                     </button>
                                 </div>
-                                
+
                                 {/* Star Rating Review summary */}
                                 <div className="flex items-center gap-1.5 pt-1">
                                     <div className="flex text-[#FFB800]">
@@ -162,11 +237,10 @@ export default function ProductDetailPage({ params }) {
                                         <button
                                             key={size}
                                             onClick={() => setSelectedSize(size)}
-                                            className={`h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 cursor-pointer ${
-                                                selectedSize === size
-                                                    ? "bg-black border-black text-white"
-                                                    : "border-neutral-200 text-black hover:border-black"
-                                            }`}
+                                            className={`h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 cursor-pointer ${selectedSize === size
+                                                ? "bg-black border-black text-white"
+                                                : "border-neutral-200 text-black hover:border-black"
+                                                }`}
                                         >
                                             {size}
                                         </button>
@@ -185,11 +259,10 @@ export default function ProductDetailPage({ params }) {
                                             <button
                                                 key={color.name}
                                                 onClick={() => setSelectedColor(color)}
-                                                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
-                                                    selectedColor.name === color.name
-                                                        ? "border-black scale-105"
-                                                        : "border-transparent hover:scale-105"
-                                                }`}
+                                                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${selectedColor.name === color.name
+                                                    ? "border-black scale-105"
+                                                    : "border-transparent hover:scale-105"
+                                                    }`}
                                             >
                                                 <span
                                                     className="w-6 h-6 rounded-full border border-black/10 shadow-sm"
@@ -223,7 +296,7 @@ export default function ProductDetailPage({ params }) {
                                 </div>
 
                                 {/* Add to Cart */}
-                                <button 
+                                <button
                                     onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
                                     className="flex-1 h-12 bg-[#DFD7CC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
                                 >
@@ -232,7 +305,7 @@ export default function ProductDetailPage({ params }) {
                             </div>
 
                             {/* Buy Now */}
-                            <button 
+                            <button
                                 onClick={() => addToCart(product, quantity, selectedSize, selectedColor)}
                                 className="w-full h-12 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-bold text-sm tracking-wide cursor-pointer"
                             >
@@ -332,9 +405,8 @@ export default function ProductDetailPage({ params }) {
                                             {Array.from({ length: 5 }).map((_, i) => (
                                                 <Star
                                                     key={i}
-                                                    className={`w-3.5 h-3.5 fill-current ${
-                                                        i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
-                                                    }`}
+                                                    className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
+                                                        }`}
                                                 />
                                             ))}
                                         </div>
@@ -363,12 +435,12 @@ export default function ProductDetailPage({ params }) {
                         <h2 className="font-clashDisplay text-2xl md:text-3xl font-semibold text-black tracking-tight mb-8">
                             You might also like
                         </h2>
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                             {relatedProducts.map((p) => (
                                 <Link key={p.id} href={`/products/${p.id}`} className="group flex flex-col cursor-pointer">
                                     <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                                        
+
                                         {/* Tag */}
                                         <div className="absolute top-3 left-3 z-10 bg-[#101820] text-white text-[8px] sm:text-[10px] font-normal tracking-wider px-2.5 py-1 rounded-full uppercase">
                                             {p.tag}
@@ -421,7 +493,7 @@ export default function ProductDetailPage({ params }) {
                                         <span>{item.question}</span>
                                         <ChevronDown className={`w-4 h-4 text-neutral-400 transition-transform duration-300 group-hover:text-black ${expandedFaq === index ? "rotate-180" : ""}`} />
                                     </button>
-                                    
+
                                     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandedFaq === index ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"}`}>
                                         <p className="text-xs md:text-sm font-normal text-neutral-500 leading-relaxed font-sans pb-1 max-w-3xl">
                                             {item.answer}
