@@ -12,10 +12,10 @@ const collectionRoutes = require("./routes/admin/collectionRoutes");
 const colorRoutes = require("./routes/admin/colorRoutes");
 const sizeGuideRoutes = require("./routes/admin/sizeGuideRoutes");
 const productRoutes = require("./routes/admin/productRoutes");
-//frontend routes
 const frontendCategoryRoutes = require("./routes/frontend/categoryFrntRoutes");
 const frontendSubCategoryRoutes = require("./routes/frontend/subcategoryFrntRoutes");
 const frontendCollectionRoutes = require("./routes/frontend/collectionFrntRoutes");
+const frontendProductRoutes = require("./routes/frontend/productFrntRoutes");
 
 dotenv.config();
 
@@ -47,6 +47,7 @@ app.use("/api/admin/products", productRoutes);
 app.use("/api/frontend/categories", frontendCategoryRoutes);
 app.use("/api/frontend/sub-categories", frontendSubCategoryRoutes);
 app.use("/api/frontend/collections", frontendCollectionRoutes);
+app.use("/api/frontend/products", frontendProductRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

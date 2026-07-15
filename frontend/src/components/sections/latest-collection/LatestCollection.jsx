@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, Plus, ChevronLeft, ChevronRight } from "lucide-react";
@@ -9,54 +9,112 @@ import { useWishlist } from "@/context/WishlistContext";
 import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
 
+const API_BASE_URL = "http://localhost:5000/api";
+
+const defaultProducts = [
+    {
+        id: "built-in-public",
+        name: "Built in Public",
+        price: "Rs 1200",
+        priceNum: 1200,
+        image: "/images/landing-page/featured11.png",
+        hoverImage: "/images/person-image-1-removebg-preview.png",
+        sizes: ["S", "M", "L"],
+        colors: [{ name: "Default", hex: "#CCCCCC" }],
+        tag: "T-Shirt"
+    },
+    {
+        id: "life-through-my-lenses",
+        name: "Life Through My Lenses",
+        price: "Rs 1100",
+        priceNum: 1100,
+        image: "/images/landing-page/featured2.png",
+        hoverImage: "/images/person-image-2-removebg-preview.png",
+        sizes: ["S", "M", "L"],
+        colors: [{ name: "Default", hex: "#CCCCCC" }],
+        tag: "T-Shirt"
+    },
+    {
+        id: "lost-on-purpose",
+        name: "Lost on Purpose",
+        price: "Rs 1100",
+        priceNum: 1100,
+        image: "/images/landing-page/featured3.png",
+        hoverImage: "/images/person-image-3-removebg-preview.png",
+        sizes: ["S", "M", "L"],
+        colors: [{ name: "Default", hex: "#CCCCCC" }],
+        tag: "T-Shirt"
+    },
+];
+
 export default function Collections() {
     const { addToCart } = useCart();
     const { toggleWishlist, wishlistItems } = useWishlist();
-    const products = [
-        {
-            id: "built-in-public",
-            name: "Built in Public",
-            price: "Rs 1200",
-            image: "/images/landing-page/featured11.png",
-            hoverImage: "/images/person-image-1-removebg-preview.png",
-            link: "#shop",
-        },
-        {
-            id: "life-through-my-lenses",
-            name: "Life Through My Lenses",
-            price: "Rs 1100",
-            image: "/images/landing-page/featured2.png",
-            hoverImage: "/images/person-image-2-removebg-preview.png",
-            link: "#shop",
-        },
-        {
-            id: "lost-on-purpose",
-            name: "Lost on Purpose",
-            price: "Rs 1100",
-            image: "/images/landing-page/featured3.png",
-            hoverImage: "/images/person-image-3-removebg-preview.png",
-            link: "#shop",
-        },
-        {
-            id: "built-in-public-2",
-            name: "Built in Public (Alternate)",
-            price: "Rs 1200",
-            image: "/images/landing-page/featured11.png",
-            hoverImage: "/images/person-image-1-removebg-preview.png",
-            link: "#shop",
-        },
-        {
-            id: "life-through-my-lenses-2",
-            name: "Life Through My Lenses (Alternate)",
-            price: "Rs 1100",
-            image: "/images/landing-page/featured2.png",
-            hoverImage: "/images/person-image-2-removebg-preview.png",
-            link: "#shop",
-        },
-    ];
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Carousel Ref
     const carouselRef = useRef(null);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/frontend/products`);
+                const data = await res.json();
+                if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
+                    // Map MongoDB schemas to front-end schema structures
+                    const mapped = data.data.map(item => {
+                        // Resolve color arrays
+                        const colorsList = (item.colors || []).map(c => ({
+                            name: c.color?.name || "Default",
+                            hex: c.color?.hexCode || "#CCCCCC"
+                        }));
+
+                        // Resolve sizes array
+                        const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+
+                        // Image resolving logic (front view and hover view)
+                        const mainImg = item.colors?.[0]?.images?.[0] || "";
+                        const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
+
+                        return {
+                            id: item._id,
+                            name: item.title,
+                            price: `Rs ${item.price}`,
+                            priceNum: Number(item.price),
+                            image: mainImg,
+                            hoverImage: hoverImg,
+                            sizes: sizesList,
+                            colors: colorsList,
+                            tag: item.category?.Name || "Product",
+                            link: `/products/${item._id}`
+                        };
+                    });
+                    setProducts(mapped);
+                } else {
+                    setProducts(defaultProducts);
+                }
+            } catch (err) {
+                console.error("Failed to fetch landing products:", err);
+                setProducts(defaultProducts);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, []);
+
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        
+        // Local public assets start with /images/
+        if (path.startsWith("/images/")) return path;
+        
+        // Backend upload asset
+        return `http://localhost:5000${path.startsWith("/") ? "" : "/"}${path}`;
+    };
 
     const scroll = (direction) => {
         if (carouselRef.current) {
@@ -115,9 +173,11 @@ export default function Collections() {
                                     {/* Default Image (Front Flat Layout) */}
                                     <div className="absolute w-[90%] h-[90%] transition-all duration-200 ease-out group-hover:scale-105 opacity-100 group-hover:opacity-0">
                                         <Image
-                                            src={product.image}
+                                            src={getImageUrl(product.image)}
                                             alt={product.name}
                                             fill
+                                            priority
+                                            unoptimized
                                             sizes="(max-width: 768px) 280px, 350px"
                                             className="object-contain select-none"
                                         />
@@ -127,9 +187,11 @@ export default function Collections() {
                                     {product.hoverImage && (
                                         <div className="absolute inset-0 transition-all duration-500 ease-out group-hover:scale-105 opacity-0 group-hover:opacity-100">
                                             <Image
-                                                src={product.hoverImage}
+                                                src={getImageUrl(product.hoverImage)}
                                                 alt={product.name}
                                                 fill
+                                                priority
+                                                unoptimized
                                                 sizes="(max-width: 768px) 280px, 350px"
                                                 className="object-contain object-center select-none"
                                             />
@@ -141,18 +203,13 @@ export default function Collections() {
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            const fullProduct = allProducts.find(
-                                                p => p.id === product.id ||
-                                                    p.id.replace("-1", "") === product.id ||
-                                                    p.name.toLowerCase() === product.name.toLowerCase()
-                                            ) || allProducts[0];
-                                            toggleWishlist(fullProduct);
+                                            toggleWishlist(product);
                                         }}
                                         className="absolute top-4 right-4 z-10 p-0 bg-transparent backdrop-blur-xs rounded-full hover:scale-110 transition-all duration-300 cursor-pointer"
                                         aria-label="Add to favorites"
                                     >
                                         <Heart
-                                            className={`h-6 w-6 transition-colors ${wishlistItems.some(item => item.name.toLowerCase() === product.name.toLowerCase())
+                                            className={`h-6 w-6 transition-colors ${wishlistItems.some(item => item.id === product.id || item.name.toLowerCase() === product.name.toLowerCase())
                                                 ? "fill-red-500 text-red-500 stroke-red-500"
                                                 : "text-black stroke-[1.5]"
                                                 }`}
@@ -174,12 +231,7 @@ export default function Collections() {
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                            const fullProduct = allProducts.find(
-                                                p => p.id === product.id ||
-                                                    p.id.replace("-1", "") === product.id ||
-                                                    p.name.toLowerCase() === product.name.toLowerCase()
-                                            ) || allProducts[0];
-                                            addToCart(fullProduct, 1);
+                                            addToCart(product, 1);
                                         }}
                                         className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                         aria-label="Add to cart"
