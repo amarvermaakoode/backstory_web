@@ -20,6 +20,7 @@ const createProduct = async (req, res) => {
       weight,
       care,
       status,
+      featured,
     } = req.body;
 
     // Standard validations
@@ -123,6 +124,7 @@ const createProduct = async (req, res) => {
       weight: weight ? weight.trim() : undefined,
       care: care ? care.trim() : undefined,
       status: status === undefined ? true : status,
+      featured: featured === 'true' || featured === true,
     });
 
     return res.status(201).json({
@@ -230,6 +232,7 @@ const updateProduct = async (req, res) => {
       weight,
       care,
       status,
+      featured,
     } = req.body;
 
     // Validate new updates if provided
@@ -296,6 +299,10 @@ const updateProduct = async (req, res) => {
 
     if (status !== undefined) {
       product.status = status;
+    }
+
+    if (featured !== undefined) {
+      product.featured = featured === 'true' || featured === true;
     }
 
     // If colors are supplied, update them

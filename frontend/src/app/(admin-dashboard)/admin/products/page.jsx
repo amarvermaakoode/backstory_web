@@ -48,6 +48,7 @@ export default function ProductsAdminPage() {
   const [weight, setWeight] = useState("");
   const [care, setCare] = useState("");
   const [status, setStatus] = useState(true);
+  const [featured, setFeatured] = useState(false);
 
   // Selected colors with local image previews and files
   // Structure: { colorId: string, name: string, hexCode: string, existingImages: [string], newFiles: [File], newPreviews: [string] }
@@ -127,6 +128,7 @@ export default function ProductsAdminPage() {
     setWeight("");
     setCare("");
     setStatus(true);
+    setFeatured(false);
     setProductColors([]);
     setIsModalOpen(true);
   };
@@ -157,6 +159,7 @@ export default function ProductsAdminPage() {
     setWeight(product.weight || "");
     setCare(product.care || "");
     setStatus(product.status === undefined ? true : product.status);
+    setFeatured(product.featured === undefined ? false : product.featured);
 
     // Map existing colors
     const mappedColors = (product.colors || []).map(item => {
@@ -281,6 +284,7 @@ export default function ProductsAdminPage() {
       formData.append("weight", weight.trim());
       formData.append("care", care.trim());
       formData.append("status", status);
+      formData.append("featured", featured);
 
       // Serialize colors array mapping color references & existing images
       const colorsPayload = productColors.map(c => ({
@@ -409,6 +413,7 @@ export default function ProductsAdminPage() {
                   <th className="py-4 px-6">Category/Sub</th>
                   <th className="py-4 px-6">Price</th>
                   <th className="py-4 px-6">Colors</th>
+                  <th className="py-4 px-6">Featured</th>
                   <th className="py-4 px-6">Status</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
@@ -446,7 +451,7 @@ export default function ProductsAdminPage() {
                         <div className="text-neutral-500 text-[10px] font-semibold tracking-wide uppercase">{product.subCategory?.name || "-"}</div>
                       </td>
                       <td className="py-4 px-6 font-semibold text-neutral-900 text-sm">
-                        ${Number(product.price).toFixed(2)}
+                        Rs {Number(product.price)}
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-1">
@@ -459,6 +464,16 @@ export default function ProductsAdminPage() {
                             />
                           ))}
                         </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          product.featured
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : "bg-neutral-50 text-neutral-400 border border-neutral-200"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${product.featured ? "bg-amber-500" : "bg-neutral-300"}`}></span>
+                          {product.featured ? "Featured" : "No"}
+                        </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
@@ -539,7 +554,7 @@ export default function ProductsAdminPage() {
                 {/* Price */}
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
-                    Price ($) *
+                    Price (Rs) *
                   </label>
                   <input
                     type="number"
@@ -610,7 +625,7 @@ export default function ProductsAdminPage() {
                   </select>
                 </div>
 
-                {/* Status */}
+                {/* Status & Featured */}
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
                     Status
@@ -631,6 +646,31 @@ export default function ProductsAdminPage() {
                     </button>
                     <span className="text-sm text-neutral-600 font-semibold">
                       {status ? "Active (visible on website)" : "Inactive (hidden)"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Featured */}
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                    Featured
+                  </label>
+                  <div className="flex items-center gap-3 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFeatured(!featured)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${
+                        featured ? "bg-[#dfd7cc]" : "bg-neutral-200"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          featured ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm text-neutral-600 font-semibold">
+                      {featured ? "Featured Product" : "Regular Product"}
                     </span>
                   </div>
                 </div>
