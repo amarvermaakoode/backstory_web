@@ -9,6 +9,9 @@ const adminAuthRoutes = require("./routes/admin/authRoutes");
 const categoryRoutes = require("./routes/admin/categoryRoutes");
 const subCategoryRoutes = require("./routes/admin/subCategoryRoutes");
 const collectionRoutes = require("./routes/admin/collectionRoutes");
+const colorRoutes = require("./routes/admin/colorRoutes");
+const sizeGuideRoutes = require("./routes/admin/sizeGuideRoutes");
+const productRoutes = require("./routes/admin/productRoutes");
 //frontend routes
 const frontendCategoryRoutes = require("./routes/frontend/categoryFrntRoutes");
 const frontendSubCategoryRoutes = require("./routes/frontend/subcategoryFrntRoutes");
@@ -34,6 +37,9 @@ app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin/categories", categoryRoutes);
 app.use("/api/admin/sub-categories", subCategoryRoutes);
 app.use("/api/admin/collections", collectionRoutes);
+app.use("/api/admin/colors", colorRoutes);
+app.use("/api/admin/size-guides", sizeGuideRoutes);
+app.use("/api/admin/products", productRoutes);
 
 //frontend routes
 //app.use("/api/categories", categoryFrntRoutes);
