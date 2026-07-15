@@ -9,6 +9,10 @@ const adminAuthRoutes = require("./routes/admin/authRoutes");
 const categoryRoutes = require("./routes/admin/categoryRoutes");
 const subCategoryRoutes = require("./routes/admin/subCategoryRoutes");
 const collectionRoutes = require("./routes/admin/collectionRoutes");
+//frontend routes
+const frontendCategoryRoutes = require("./routes/frontend/categoryFrntRoutes");
+const frontendSubCategoryRoutes = require("./routes/frontend/subcategoryFrntRoutes");
+const frontendCollectionRoutes = require("./routes/frontend/collectionFrntRoutes");
 
 dotenv.config();
 
@@ -30,6 +34,13 @@ app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin/categories", categoryRoutes);
 app.use("/api/admin/sub-categories", subCategoryRoutes);
 app.use("/api/admin/collections", collectionRoutes);
+
+//frontend routes
+//app.use("/api/categories", categoryFrntRoutes);
+
+app.use("/api/frontend/categories", frontendCategoryRoutes);
+app.use("/api/frontend/sub-categories", frontendSubCategoryRoutes);
+app.use("/api/frontend/collections", frontendCollectionRoutes);
 
 // Health Check
 app.get("/", (req, res) => {
