@@ -4,6 +4,28 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 const WishlistContext = createContext(undefined);
 
+const areProductsEqual = (item, product) => {
+    if (!item || !product) return false;
+    
+    // 1. Direct ID comparison
+    if (item.id && product.id && item.id === product.id) return true;
+    if (item._id && product._id && item._id === product._id) return true;
+    
+    // 2. Cross ID comparison
+    if (item.id && product._id && item.id === product._id) return true;
+    if (item._id && product.id && item._id === product.id) return true;
+    
+    // 3. Slug comparison
+    if (item.slug && product.slug && item.slug === product.slug) return true;
+    
+    // 4. Name comparison (case-insensitive, trimmed)
+    const name1 = item.name || item.title || "";
+    const name2 = product.name || product.title || "";
+    if (name1 && name2 && name1.toLowerCase().trim() === name2.toLowerCase().trim()) return true;
+    
+    return false;
+};
+
 export function WishlistProvider({ children }) {
     const [wishlistItems, setWishlistItems] = useState([]);
     const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -36,29 +58,53 @@ export function WishlistProvider({ children }) {
 
     const addToWishlist = (product) => {
         setWishlistItems((prevItems) => {
-            if (prevItems.some((item) => item.id === product.id)) {
+            if (prevItems.some((item) => areProductsEqual(item, product))) {
                 return prevItems; // already exists
             }
             return [...prevItems, product];
         });
     };
 
-    const removeFromWishlist = (productId) => {
-        setWishlistItems((prevItems) => prevItems.filter((item) => item.id !== productId));
+    const removeFromWishlist = (productOrId) => {
+        setWishlistItems((prevItems) => {
+            return prevItems.filter((item) => {
+                if (typeof productOrId === "object" && productOrId !== null) {
+                    return !areProductsEqual(item, productOrId);
+                } else {
+                    const isMatch = item.id === productOrId || 
+                                    item._id === productOrId || 
+                                    item.slug === productOrId ||
+                                    (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
+                                    (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+                    return !isMatch;
+                }
+            });
+        });
     };
 
     const toggleWishlist = (product) => {
         setWishlistItems((prevItems) => {
-            const exists = prevItems.some((item) => item.id === product.id);
+            const exists = prevItems.some((item) => areProductsEqual(item, product));
             if (exists) {
-                return prevItems.filter((item) => item.id !== product.id);
+                return prevItems.filter((item) => !areProductsEqual(item, product));
             }
             return [...prevItems, product];
         });
     };
 
-    const isInWishlist = (productId) => {
-        return wishlistItems.some((item) => item.id === productId);
+    const isInWishlist = (productOrId) => {
+        if (!productOrId) return false;
+        return wishlistItems.some((item) => {
+            if (typeof productOrId === "object" && productOrId !== null) {
+                return areProductsEqual(item, productOrId);
+            } else {
+                return item.id === productOrId || 
+                       item._id === productOrId || 
+                       item.slug === productOrId ||
+                       (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
+                       (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+            }
+        });
     };
 
     const openWishlist = () => setIsWishlistOpen(true);

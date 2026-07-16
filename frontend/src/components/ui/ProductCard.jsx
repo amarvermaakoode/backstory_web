@@ -15,12 +15,10 @@ export default function ProductCard({
     showRating = null,
     showSwatches = null
 }) {
-    const { toggleWishlist, wishlistItems } = useWishlist();
+    const { toggleWishlist, isInWishlist } = useWishlist();
     const { addToCart } = useCart();
 
-    const isFavorite = wishlistItems.some(
-        item => item.id === product.id || item.name.toLowerCase() === product.name.toLowerCase()
-    );
+    const isFavorite = isInWishlist(product);
 
     const handleWishlistToggle = (e) => {
         e.preventDefault();
