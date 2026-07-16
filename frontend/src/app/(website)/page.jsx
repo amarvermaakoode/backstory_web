@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Navbar from "@/components/layout/Navbar";
 import Hero from "@/components/sections/hero/Hero";
 import QrEnabledRange from "@/components/sections/qr-enabled-range/QrEnabledRange";

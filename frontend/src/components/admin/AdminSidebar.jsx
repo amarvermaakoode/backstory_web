@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -11,7 +10,6 @@ import {
   FolderTree,
   LogOut,
   X,
-  Menu,
   ShoppingBag,
   Palette,
   Ruler

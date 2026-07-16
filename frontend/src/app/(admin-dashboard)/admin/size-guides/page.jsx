@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { 
   Plus, 
@@ -9,8 +9,7 @@ import {
   Loader, 
   X, 
   Check, 
-  AlertTriangle,
-  Layers
+  AlertTriangle
 } from "lucide-react";
 
 export default function SizeGuidesAdminPage() {

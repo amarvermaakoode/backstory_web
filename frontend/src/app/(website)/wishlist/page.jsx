@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Trash2, Heart, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useWishlist } from "@/context/WishlistContext";

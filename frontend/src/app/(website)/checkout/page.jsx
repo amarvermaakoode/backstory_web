@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Lock, Check, ShoppingBag, User, ArrowRight, CheckCircle2, ShoppingCart } from "lucide-react";
+import { Lock, Check, ShoppingBag, User, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Button from "@/components/ui/Button";
 

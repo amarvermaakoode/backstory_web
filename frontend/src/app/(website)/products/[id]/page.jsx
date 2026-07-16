@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Plus, Minus, Star, StarHalf, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Heart, Plus, Minus, Star, ChevronDown, X } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { getProductById, allProducts } from "@/data/products";

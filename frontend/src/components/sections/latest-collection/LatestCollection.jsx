@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { allProducts } from "@/data/products";
+import { useState, useEffect, useRef } from "react";
+import { ChevronRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 

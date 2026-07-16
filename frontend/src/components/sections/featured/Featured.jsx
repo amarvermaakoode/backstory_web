@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Heart, Plus } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { allProducts } from "@/data/products";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, Suspense } from "react";
+import { use, Suspense } from "react";
 import ProductsListing from "@/components/layout/ProductsListing";
 
 export default function CollectionListingPage({ params }) {
