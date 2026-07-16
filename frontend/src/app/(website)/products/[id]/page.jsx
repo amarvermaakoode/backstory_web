@@ -83,6 +83,9 @@ export default function ProductDetailPage({ params }) {
     const [quantity, setQuantity] = useState(1);
     const [expandedFaq, setExpandedFaq] = useState(null);
 
+    // States for size guide
+    const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+
     // States for reviews
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [reviewAuthor, setReviewAuthor] = useState("");
@@ -118,7 +121,7 @@ export default function ProductDetailPage({ params }) {
                 setReviewAuthor("");
                 setReviewRating(5);
                 setReviewText("");
-                
+
                 // Reload product data dynamically by fetching again
                 const fetchUpdatedProductData = async () => {
                     try {
@@ -185,7 +188,7 @@ export default function ProductDetailPage({ params }) {
             try {
                 setLoading(true);
                 setError(null);
-                
+
                 // Attempt database fetch first (supports both ID and slug)
                 try {
                     const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
@@ -218,11 +221,11 @@ export default function ProductDetailPage({ params }) {
                             faqs: dbProd.faqs || []
                         };
                         setProduct(mapped);
-                        
+
                         if (mapped.colors && mapped.colors.length > 0) {
                             setSelectedColor(mapped.colors[0]);
                         }
-                        
+
                         // Fetch related
                         fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
                         setLoading(false);
@@ -231,7 +234,7 @@ export default function ProductDetailPage({ params }) {
                 } catch (apiErr) {
                     console.warn("Backend fetch failed, trying mock fallback:", apiErr);
                 }
-                
+
                 // Fallback to mock product
                 const mockProduct = getProductById(id);
                 if (mockProduct) {
@@ -287,7 +290,7 @@ export default function ProductDetailPage({ params }) {
                             const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
                             const mainImg = item.colors?.[0]?.images?.[0] || "";
                             const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-                            
+
                             return {
                                 id: item._id,
                                 name: item.title,
@@ -302,7 +305,7 @@ export default function ProductDetailPage({ params }) {
                             };
                         })
                         .slice(0, 4);
-                    
+
                     if (mapped.length > 0) {
                         setRelatedProducts(mapped);
                     } else {
@@ -332,7 +335,7 @@ export default function ProductDetailPage({ params }) {
                             const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
                             const mainImg = item.colors?.[0]?.images?.[0] || "";
                             const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-                            
+
                             return {
                                 id: item._id,
                                 name: item.title,
@@ -416,7 +419,7 @@ export default function ProductDetailPage({ params }) {
     } else {
         productImages = (product.colors || []).flatMap(c => c.images || []);
     }
-    
+
     if (productImages.length === 0) {
         productImages = [
             "/images/placeholder.png",
@@ -605,7 +608,12 @@ export default function ProductDetailPage({ params }) {
                             <div className="space-y-3 pt-2">
                                 <div className="flex justify-between items-center text-xs md:text-sm">
                                     <span className="font-regular text-black">SIZE</span>
-                                    <button className="text-neutral-400 hover:text-black transition-colors underline cursor-pointer">Size Guide</button>
+                                    <button
+                                        onClick={() => setIsSizeGuideOpen(true)}
+                                        className="text-neutral-400 hover:text-black transition-colors underline cursor-pointer"
+                                    >
+                                        Size Guide
+                                    </button>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {product.sizes.map((size) => (
@@ -771,9 +779,9 @@ export default function ProductDetailPage({ params }) {
                                                     <span className="w-3 text-neutral-500 font-semibold">{stars}</span>
                                                     <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                                                         <div className="h-full bg-[#DFD7CC] rounded-full" style={{ width: `${percentage}%` }} />
-                                                     </div>
-                                                     <span className="w-6 text-right text-neutral-400">{count}</span>
-                                                 </div>
+                                                    </div>
+                                                    <span className="w-6 text-right text-neutral-400">{count}</span>
+                                                </div>
                                             );
                                         });
                                     })()}
@@ -835,7 +843,7 @@ export default function ProductDetailPage({ params }) {
                                 <h4 className="font-clashDisplay text-lg font-semibold text-black">Bought this piece?</h4>
                                 <p className="text-sm text-neutral-500 mt-0.5">Share your story with the community.</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setIsReviewModalOpen(true)}
                                 className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white"
                             >
@@ -859,12 +867,43 @@ export default function ProductDetailPage({ params }) {
                         </div>
                     </section>
 
+                    {/* Size Guide Modal */}
+                    {isSizeGuideOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs animate-fadeIn">
+                            {/* Backdrop click to close */}
+                            <div className="absolute inset-0" onClick={() => setIsSizeGuideOpen(false)} />
+
+                            {/* Modal content: container that animates from bottom to center */}
+                            <div className="relative z-10 w-full max-w-xl mx-4 animate-slideUp">
+                                {/* Close button absolute inside the container, overlapping the top-right of the image */}
+                                <button
+                                    onClick={() => setIsSizeGuideOpen(false)}
+                                    className="absolute top-5 right-5 text-neutral-400 hover:text-black hover:bg-neutral-100/60 p-1.5 rounded-full transition-colors cursor-pointer z-20"
+                                    aria-label="Close Size Guide"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+
+                                {/* Image card */}
+                                <div className="relative w-full aspect-[1.44/1] rounded-3xl overflow-hidden shadow-2xl">
+                                    <Image
+                                        src="/images/sizechart.png"
+                                        alt="Size Guide Chart"
+                                        fill
+                                        className="object-cover"
+                                        unoptimized
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Review Submission Modal */}
                     {isReviewModalOpen && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                             <div className="bg-white text-black w-full max-w-lg mx-4 rounded-3xl p-8 border border-neutral-100 shadow-2xl relative animate-scaleUp">
                                 {/* Close button */}
-                                <button 
+                                <button
                                     onClick={() => setIsReviewModalOpen(false)}
                                     className="absolute top-6 right-6 text-neutral-400 hover:text-black transition-colors cursor-pointer"
                                 >
@@ -878,8 +917,8 @@ export default function ProductDetailPage({ params }) {
                                     {/* Author Name */}
                                     <div>
                                         <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Your Name</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             required
                                             value={reviewAuthor}
                                             onChange={(e) => setReviewAuthor(e.target.value)}
@@ -899,8 +938,8 @@ export default function ProductDetailPage({ params }) {
                                                     onClick={() => setReviewRating(star)}
                                                     className="text-neutral-300 hover:scale-110 transition-transform cursor-pointer"
                                                 >
-                                                    <Star 
-                                                        className={`w-8 h-8 ${star <= reviewRating ? "text-[#FFB800] fill-[#FFB800]" : "text-neutral-200"}`} 
+                                                    <Star
+                                                        className={`w-8 h-8 ${star <= reviewRating ? "text-[#FFB800] fill-[#FFB800]" : "text-neutral-200"}`}
                                                     />
                                                 </button>
                                             ))}
@@ -910,7 +949,7 @@ export default function ProductDetailPage({ params }) {
                                     {/* Review Text */}
                                     <div>
                                         <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Review</label>
-                                        <textarea 
+                                        <textarea
                                             required
                                             rows={4}
                                             value={reviewText}
