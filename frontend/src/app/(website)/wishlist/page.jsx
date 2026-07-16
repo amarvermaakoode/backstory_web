@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
@@ -8,7 +8,6 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
-import { allProducts as dbProducts } from "@/data/products";
 import WishlistCard from "@/components/ui/WishlistCard";
 
 export default function WishlistPage() {
@@ -47,10 +46,50 @@ export default function WishlistPage() {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedWishlist = filteredWishlist.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // Get 4 explore products that are not currently in the wishlist
-    const exploreProducts = dbProducts
-        .filter((product) => !wishlistItems.some((item) => item.id === product.id))
-        .slice(0, 4);
+    const [exploreProducts, setExploreProducts] = useState([]);
+
+    useEffect(() => {
+        const fetchExplore = async () => {
+            try {
+                const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+                const res = await fetch(`${apiBase}/api/frontend/products`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const mapped = json.data.map(item => {
+                        const colorsList = (item.colors || []).map(c => ({
+                            name: c.color?.name || "Default",
+                            hex: c.color?.hexCode || "#CCCCCC"
+                        }));
+                        const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+                        const mainImg = item.colors?.[0]?.images?.[0] || "";
+                        
+                        return {
+                            id: item._id,
+                            slug: item.slug,
+                            name: item.title,
+                            price: `Rs ${item.price}`,
+                            priceNum: Number(item.price),
+                            image: mainImg,
+                            sizes: sizesList,
+                            colors: colorsList,
+                            tag: item.category?.Name || "Product",
+                            rating: "4.7",
+                            reviewsCount: 63
+                        };
+                    });
+                    
+                    const filtered = mapped.filter(
+                        (p) => !wishlistItems.some((item) => item.id === p.id)
+                    ).slice(0, 4);
+                    
+                    setExploreProducts(filtered);
+                }
+            } catch (err) {
+                console.error("Failed to fetch explore products:", err);
+            }
+        };
+        fetchExplore();
+    }, [wishlistItems]);
 
     const handleAddToCart = (item) => {
         addToCart(item, 1, "M", item.colors?.[0] || { name: "Default", hex: "#000" });

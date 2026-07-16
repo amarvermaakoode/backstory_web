@@ -11,44 +11,7 @@ import ProductCard from "@/components/ui/ProductCard";
 
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
 
-const defaultProducts = [
-    {
-        id: "lost-on-purpose",
-        name: "Lost on Purpose",
-        price: "Rs 1100",
-        priceNum: 1100,
-        image: "/images/landing-page/featured3.png",
-        hoverImage: "",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "Travel Series",
-        link: "#shop"
-    },
-    {
-        id: "miles-over-words",
-        name: "Miles Over Words",
-        price: "Rs 1090",
-        priceNum: 1090,
-        image: "/images/landing-page/biker-tshirt.png",
-        hoverImage: "",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "Biker Series",
-        link: "#shop"
-    },
-    {
-        id: "coding-t-shirt",
-        name: "Coding T-Shirt",
-        price: "Rs 990",
-        priceNum: 990,
-        image: "/images/landing-page/coding-tshirt.png",
-        hoverImage: "",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "Coding Series",
-        link: "#shop"
-    },
-];
+
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
@@ -87,11 +50,11 @@ export default function FeaturedProducts() {
                     });
                     setProducts(mapped);
                 } else {
-                    setProducts(defaultProducts);
+                    setProducts([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch featured products:", err);
-                setProducts(defaultProducts);
+                setProducts([]);
             } finally {
                 setLoading(false);
             }
@@ -156,7 +119,7 @@ export default function FeaturedProducts() {
                                     aria-label="Add to favorites"
                                 >
                                     <Heart
-                                        className={`h-5 w-5 transition-all ${wishlistItems.some(item => item.id === product.id || item.name.toLowerCase() === product.name.toLowerCase())
+                                        className={`h-5 w-5 transition-all ${wishlistItems.some(item => item.id === product.id)
                                             ? "fill-red-500 text-red-500 stroke-red-500"
                                             : "text-black stroke-[1.5]"
                                             }`}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { allProducts } from "@/data/products";
+
 import ProductCard from "@/components/ui/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
@@ -86,11 +86,7 @@ export default function ProductsListing({
                 if (catData && catData.success && Array.isArray(catData.data)) {
                     setCategories(catData.data);
                 } else {
-                    setCategories([
-                        { _id: "t-shirts", Name: "T-Shirts", slug: "t-shirts" },
-                        { _id: "hoodies", Name: "Hoodies", slug: "hoodies" },
-                        { _id: "accessories", Name: "Accessories", slug: "accessories" }
-                    ]);
+                    setCategories([]);
                 }
 
                 // Fetch collections
@@ -99,10 +95,7 @@ export default function ProductsListing({
                 if (colData && colData.success && Array.isArray(colData.data)) {
                     setCollectionsList(colData.data);
                 } else {
-                    setCollectionsList([
-                        { _id: "ai-and-tech", Name: "AI and Tech Collection", slug: "ai-and-tech" },
-                        { _id: "wonderlust", Name: "Wanderlust Collection", slug: "wonderlust" }
-                    ]);
+                    setCollectionsList([]);
                 }
 
                 // Fetch subcategories
@@ -111,18 +104,13 @@ export default function ProductsListing({
                 if (subData && subData.success && Array.isArray(subData.data)) {
                     setSubCategoriesList(subData.data);
                 } else {
-                    setSubCategoriesList([
-                        { _id: "coders", name: "Coders", slug: "coders" },
-                        { _id: "bikers", name: "Bikers", slug: "bikers" },
-                        { _id: "nomad", name: "Nomad", slug: "nomad" },
-                        { _id: "techies", name: "Techies", slug: "techies" }
-                    ]);
+                    setSubCategoriesList([]);
                 }
 
                 // Fetch products
                 const prodRes = await fetch(`${API_BASE_URL}/frontend/products`);
                 const prodData = await prodRes.json();
-                if (prodData && prodData.success && Array.isArray(prodData.data) && prodData.data.length > 0) {
+                if (prodData && prodData.success && Array.isArray(prodData.data)) {
                     const mapped = prodData.data.map(item => {
                         const colorsList = (item.colors || []).map(c => ({
                             name: c.color?.name || "Default",
@@ -158,51 +146,14 @@ export default function ProductsListing({
                     });
                     setProducts(mapped);
                 } else {
-                    // Fallback to local products
-                    const mappedLocal = allProducts.map(p => ({
-                        ...p,
-                        categoryId: p.tag.toLowerCase().replace(" ", "-"),
-                        categorySlug: p.tag.toLowerCase().replace(" ", "-"),
-                        categoryName: p.tag,
-                        collectionId: p.tag.toLowerCase().includes("coding") ? "ai-and-tech" : p.tag.toLowerCase().includes("travel") ? "wonderlust" : "",
-                        collectionSlug: p.tag.toLowerCase().includes("coding") ? "ai-and-tech" : p.tag.toLowerCase().includes("travel") ? "wonderlust" : "",
-                        collectionName: p.tag.toLowerCase().includes("coding") ? "AI and Tech Collection" : p.tag.toLowerCase().includes("travel") ? "Wanderlust Collection" : "",
-                        subCategoryId: p.tag.toLowerCase().includes("coding") ? "coders" : p.tag.toLowerCase().includes("biker") ? "bikers" : p.tag.toLowerCase().includes("travel") ? "nomad" : "",
-                        subCategorySlug: p.tag.toLowerCase().includes("coding") ? "coders" : p.tag.toLowerCase().includes("biker") ? "bikers" : p.tag.toLowerCase().includes("travel") ? "nomad" : "",
-                        subCategoryName: p.tag.toLowerCase().includes("coding") ? "Coders" : p.tag.toLowerCase().includes("biker") ? "Bikers" : p.tag.toLowerCase().includes("travel") ? "Nomad" : ""
-                    }));
-                    setProducts(mappedLocal);
+                    setProducts([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch products or catalogs:", err);
-                const mappedLocal = allProducts.map(p => ({
-                    ...p,
-                    categoryId: p.tag.toLowerCase().replace(" ", "-"),
-                    categorySlug: p.tag.toLowerCase().replace(" ", "-"),
-                    categoryName: p.tag,
-                    collectionId: p.tag.toLowerCase().includes("coding") ? "ai-and-tech" : p.tag.toLowerCase().includes("travel") ? "wonderlust" : "",
-                    collectionSlug: p.tag.toLowerCase().includes("coding") ? "ai-and-tech" : p.tag.toLowerCase().includes("travel") ? "wonderlust" : "",
-                    collectionName: p.tag.toLowerCase().includes("coding") ? "AI and Tech Collection" : p.tag.toLowerCase().includes("travel") ? "Wanderlust Collection" : "",
-                    subCategoryId: p.tag.toLowerCase().includes("coding") ? "coders" : p.tag.toLowerCase().includes("biker") ? "bikers" : p.tag.toLowerCase().includes("travel") ? "nomad" : "",
-                    subCategorySlug: p.tag.toLowerCase().includes("coding") ? "coders" : p.tag.toLowerCase().includes("biker") ? "bikers" : p.tag.toLowerCase().includes("travel") ? "nomad" : "",
-                    subCategoryName: p.tag.toLowerCase().includes("coding") ? "Coders" : p.tag.toLowerCase().includes("biker") ? "Bikers" : p.tag.toLowerCase().includes("travel") ? "Nomad" : ""
-                }));
-                setProducts(mappedLocal);
-                setCategories([
-                    { _id: "t-shirts", Name: "T-Shirts", slug: "t-shirts" },
-                    { _id: "hoodies", Name: "Hoodies", slug: "hoodies" },
-                    { _id: "accessories", Name: "Accessories", slug: "accessories" }
-                ]);
-                setCollectionsList([
-                    { _id: "ai-and-tech", Name: "AI and Tech Collection", slug: "ai-and-tech" },
-                    { _id: "wonderlust", Name: "Wanderlust Collection", slug: "wonderlust" }
-                ]);
-                setSubCategoriesList([
-                    { _id: "coders", name: "Coders", slug: "coders" },
-                    { _id: "bikers", name: "Bikers", slug: "bikers" },
-                    { _id: "nomad", name: "Nomad", slug: "nomad" },
-                    { _id: "techies", name: "Techies", slug: "techies" }
-                ]);
+                setProducts([]);
+                setCategories([]);
+                setCollectionsList([]);
+                setSubCategoriesList([]);
             } finally {
                 setLoading(false);
             }
@@ -424,7 +375,7 @@ export default function ProductsListing({
                             </div>
 
                             {/* Right: Sort and Filter */}
-                            <div className="flex items-center gap-[8px] self-end sm:self-auto" ref={sortDropdownRef}>
+                            <div className="flex items-center gap-[8px] self-start sm:self-auto" ref={sortDropdownRef}>
                                 {/* Sort By */}
                                 <div className="relative">
                                     <button

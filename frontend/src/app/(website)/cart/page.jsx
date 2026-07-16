@@ -20,7 +20,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { allProducts as dbProducts } from "@/data/products";
+
 
 export default function CartPage() {
     const { 
@@ -108,8 +108,17 @@ export default function CartPage() {
         selectedItems.forEach(id => {
             const item = cartItems.find(c => c.id === id);
             if (item) {
-                const product = dbProducts.find(p => p.id === item.productId);
-                if (product && !isInWishlist(product.id)) {
+                const product = {
+                    id: item.productId,
+                    name: item.name,
+                    price: item.price,
+                    priceNum: item.priceNum,
+                    image: item.image,
+                    tag: item.tag,
+                    colors: item.colors || [item.color],
+                    sizes: item.sizes || [item.size]
+                };
+                if (!isInWishlist(product.id)) {
                     toggleWishlist(product);
                 }
                 removeFromCart(id);
@@ -119,8 +128,17 @@ export default function CartPage() {
     };
 
     const handleMoveToWishlist = (item) => {
-        const product = dbProducts.find(p => p.id === item.productId);
-        if (product && !isInWishlist(product.id)) {
+        const product = {
+            id: item.productId,
+            name: item.name,
+            price: item.price,
+            priceNum: item.priceNum,
+            image: item.image,
+            tag: item.tag,
+            colors: item.colors || [item.color],
+            sizes: item.sizes || [item.size]
+        };
+        if (!isInWishlist(product.id)) {
             toggleWishlist(product);
         }
         removeFromCart(item.id);
@@ -140,8 +158,7 @@ export default function CartPage() {
     const handleColorChange = (itemId, newColorName) => {
         setCartItems(prev => prev.map(item => {
             if (item.id === itemId) {
-                const product = dbProducts.find(p => p.id === item.productId);
-                const colorObj = product?.colors.find(c => c.name === newColorName) || item.color;
+                const colorObj = (item.colors || []).find(c => c.name === newColorName) || item.color;
                 const uniqueId = `${item.productId}-${item.size}-${colorObj.name}`;
                 return { ...item, id: uniqueId, color: colorObj };
             }
@@ -278,7 +295,6 @@ export default function CartPage() {
                                 <div className="space-y-4">
                                     {filteredItems.map((item) => {
                                         const isSelected = selectedItems.includes(item.id);
-                                        const productObj = dbProducts.find(p => p.id === item.productId);
                                         
                                         return (
                                             <div 
@@ -328,9 +344,9 @@ export default function CartPage() {
                                                                     onChange={(e) => handleSizeChange(item.id, e.target.value)}
                                                                     className="appearance-none pl-3 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
                                                                 >
-                                                                    {productObj?.sizes.map((sz) => (
+                                                                    {(item.sizes || [item.size]).map((sz) => (
                                                                         <option key={sz} value={sz}>{sz}</option>
-                                                                    )) || <option value={item.size}>{item.size}</option>}
+                                                                    ))}
                                                                 </select>
                                                                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
                                                             </div>
@@ -343,9 +359,9 @@ export default function CartPage() {
                                                                     onChange={(e) => handleColorChange(item.id, e.target.value)}
                                                                     className="appearance-none pl-7 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
                                                                 >
-                                                                    {productObj?.colors.map((cl) => (
+                                                                    {(item.colors || [item.color]).map((cl) => (
                                                                         <option key={cl.name} value={cl.name}>{cl.name}</option>
-                                                                    )) || <option value={item.color.name}>{item.color.name}</option>}
+                                                                    ))}
                                                                 </select>
                                                                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
                                                             </div>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, Plus, Minus, Star, ChevronDown, X } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { getProductById, allProducts } from "@/data/products";
+
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductCard from "@/components/ui/ProductCard";
@@ -189,81 +189,49 @@ export default function ProductDetailPage({ params }) {
                 setLoading(true);
                 setError(null);
 
-                // Attempt database fetch first (supports both ID and slug)
-                try {
-                    const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
-                    const json = await res.json();
-                    if (json.success && json.data) {
-                        const dbProd = json.data;
-                        const mapped = {
-                            id: dbProd._id,
-                            name: dbProd.title,
-                            price: `Rs ${dbProd.price}`,
-                            priceNum: Number(dbProd.price),
-                            image: dbProd.colors?.[0]?.images?.[0] || "",
-                            tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
-                            rating: dbProd.rating || "4.7",
-                            reviewsCount: dbProd.reviewsCount || 63,
-                            description: dbProd.description || "",
-                            details: {
-                                material: dbProd.material || "100% Cotton",
-                                fit: dbProd.fit || "Standard Fit",
-                                weight: dbProd.weight || "240 GSM",
-                                care: dbProd.care || "Machine wash cold"
-                            },
-                            colors: (dbProd.colors || []).map(c => ({
-                                name: c.color?.name || "Default",
-                                hex: c.color?.hexCode || "#CCCCCC",
-                                images: c.images || []
-                            })),
-                            sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
-                            reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
-                            faqs: dbProd.faqs || []
-                        };
-                        setProduct(mapped);
+                const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const dbProd = json.data;
+                    const mapped = {
+                        id: dbProd._id,
+                        name: dbProd.title,
+                        price: `Rs ${dbProd.price}`,
+                        priceNum: Number(dbProd.price),
+                        image: dbProd.colors?.[0]?.images?.[0] || "",
+                        tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
+                        rating: dbProd.rating || "4.7",
+                        reviewsCount: dbProd.reviewsCount || 63,
+                        description: dbProd.description || "",
+                        details: {
+                            material: dbProd.material || "100% Cotton",
+                            fit: dbProd.fit || "Standard Fit",
+                            weight: dbProd.weight || "240 GSM",
+                            care: dbProd.care || "Machine wash cold"
+                        },
+                        colors: (dbProd.colors || []).map(c => ({
+                            name: c.color?.name || "Default",
+                            hex: c.color?.hexCode || "#CCCCCC",
+                            images: c.images || []
+                        })),
+                        sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
+                        reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
+                        faqs: dbProd.faqs || []
+                    };
+                    setProduct(mapped);
 
-                        if (mapped.colors && mapped.colors.length > 0) {
-                            setSelectedColor(mapped.colors[0]);
-                        }
-
-                        // Fetch related
-                        fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
-                        setLoading(false);
-                        return;
+                    if (mapped.colors && mapped.colors.length > 0) {
+                        setSelectedColor(mapped.colors[0]);
                     }
-                } catch (apiErr) {
-                    console.warn("Backend fetch failed, trying mock fallback:", apiErr);
-                }
 
-                // Fallback to mock product
-                const mockProduct = getProductById(id);
-                if (mockProduct) {
-                    setProduct(mockProduct);
-                    if (mockProduct.colors && mockProduct.colors.length > 0) {
-                        setSelectedColor(mockProduct.colors[0]);
-                    }
-                    const related = allProducts
-                        .filter((p) => p.id !== mockProduct.id)
-                        .slice(0, 4);
-                    setRelatedProducts(related);
+                    // Fetch related
+                    fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
                 } else {
                     setError("Product not found");
                 }
             } catch (err) {
                 console.error("Error fetching product:", err);
-                const mockProduct = getProductById(id);
-                if (mockProduct) {
-                    setProduct(mockProduct);
-                    if (mockProduct.colors && mockProduct.colors.length > 0) {
-                        setSelectedColor(mockProduct.colors[0]);
-                    }
-                    const related = allProducts
-                        .filter((p) => p.id !== mockProduct.id)
-                        .slice(0, 4);
-                    setRelatedProducts(related);
-                } else {
-                    setError("Failed to load product");
-                }
+                setError("Product not found");
             } finally {
                 setLoading(false);
             }
@@ -352,16 +320,11 @@ export default function ProductDetailPage({ params }) {
                         .slice(0, 4);
                     setRelatedProducts(mapped);
                 } else {
-                    const related = allProducts
-                        .filter((p) => p.id !== currentId)
-                        .slice(0, 4);
-                    setRelatedProducts(related);
+                    setRelatedProducts([]);
                 }
             } catch (e) {
-                const related = allProducts
-                    .filter((p) => p.id !== currentId)
-                    .slice(0, 4);
-                setRelatedProducts(related);
+                console.error("Error fetching fallback related products:", e);
+                setRelatedProducts([]);
             }
         };
 
@@ -565,8 +528,8 @@ export default function ProductDetailPage({ params }) {
                         <div className="lg:col-span-5 lg:sticky lg:top-28 h-fit flex flex-col space-y-6">
 
                             {/* Title, Tag, and Stars Header */}
-                            <div className="space-y-3">
-                                <p className="text-xs md:text-base font-regular uppercase tracking-wider text-black">
+                            <div className="space-y-0">
+                                <p className="text-xs font-regular uppercase tracking-wider text-black">
                                     {product.tag}
                                 </p>
                                 <div className="flex justify-between items-start">
@@ -634,8 +597,8 @@ export default function ProductDetailPage({ params }) {
                             {/* Color Selector */}
                             {selectedColor && (
                                 <div className="space-y-3 pt-2">
-                                    <p className="text-xs md:text-sm font-semibold text-neutral-500">
-                                        COLOUR: <span className="text-black font-semibold ml-1">{selectedColor.name}</span>
+                                    <p className="text-xs md:text-sm font-semibold text-black">
+                                        COLOUR: <span className="text-gray-500 font-normal ml-1">{selectedColor.name}</span>
                                     </p>
                                     <div className="flex gap-3">
                                         {product.colors.map((color) => (
@@ -658,9 +621,9 @@ export default function ProductDetailPage({ params }) {
                             )}
 
                             {/* Quantity and Actions */}
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4">
+                            <div className="flex items-center gap-3 pt-4">
                                 {/* Quantity */}
-                                <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-14 w-full sm:w-34 select-none">
+                                <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-14 w-36 select-none flex-shrink-0">
                                     <button
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                                         className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
@@ -668,7 +631,7 @@ export default function ProductDetailPage({ params }) {
                                     >
                                         <Minus className="w-5 h-5" strokeWidth={2} />
                                     </button>
-                                    <span className="font-semibold text-[1.8vw] text-black text-center w-8">{quantity}</span>
+                                    <span className="font-semibold text-sm sm:text-base md:text-[1.2vw] text-black text-center w-8">{quantity}</span>
                                     <button
                                         onClick={() => setQuantity(quantity + 1)}
                                         className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
@@ -687,7 +650,7 @@ export default function ProductDetailPage({ params }) {
                                         }
                                         addToCart(product, quantity, selectedSize, selectedColor);
                                     }}
-                                    className="flex-1 h-14 bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-medium text-[1vw] tracking-wide cursor-pointer"
+                                    className="flex-1 h-14 bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-medium text-sm md:text-[1vw] tracking-wide cursor-pointer"
                                 >
                                     Add to Cart
                                 </button>
@@ -702,7 +665,7 @@ export default function ProductDetailPage({ params }) {
                                     }
                                     addToCart(product, quantity, selectedSize, selectedColor);
                                 }}
-                                className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-[1vw] tracking-wide cursor-pointer"
+                                className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-sm md:text-[1vw] tracking-wide cursor-pointer"
                             >
                                 Buy Now
                             </button>

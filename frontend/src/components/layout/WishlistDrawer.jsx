@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { X, Heart } from "lucide-react";
+import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
-import { allProducts as dbProducts } from "@/data/products";
 
 export default function WishlistDrawer() {
     const {
@@ -117,9 +117,8 @@ export default function WishlistDrawer() {
                     ) : (
                         <div className="px-6 py-6 grid grid-cols-2 gap-4">
                             {wishlistItems.map((item, index) => {
-                                const dbProduct = dbProducts.find((p) => p.id === item.id) || item;
-                                const displayOffer = dbProduct.offer || item.offer;
-                                const displayTag = dbProduct.tag || item.tag;
+                                const displayOffer = item.offer;
+                                const displayTag = item.tag;
 
                                 return (
                                     <div
@@ -150,7 +149,11 @@ export default function WishlistDrawer() {
                                             </button>
 
                                             {/* Product Image */}
-                                            <div className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
+                                            <Link
+                                                href={item.link || `/products/${item.slug || item.id}`}
+                                                onClick={closeWishlist}
+                                                className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105 block"
+                                            >
                                                 <Image
                                                     src={getImageUrl(item.image)}
                                                     alt={item.name}
@@ -159,19 +162,23 @@ export default function WishlistDrawer() {
                                                     sizes="(max-width: 640px) 40vw, 200px"
                                                     unoptimized
                                                 />
-                                            </div>
+                                            </Link>
                                         </div>
 
                                         {/* Details Body */}
                                         <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
-                                            <div>
+                                            <Link
+                                                href={item.link || `/products/${item.slug || item.id}`}
+                                                onClick={closeWishlist}
+                                                className="block hover:underline"
+                                            >
                                                 <h3 className="font-sans text-xs sm:text-sm font-bold text-black leading-snug line-clamp-2">
                                                     {item.name}
                                                 </h3>
                                                 <p className="font-clashDisplay text-xs sm:text-sm font-bold text-black mt-1">
                                                     {item.price}
                                                 </p>
-                                            </div>
+                                            </Link>
 
                                             {/* Add to Cart button */}
                                             <button

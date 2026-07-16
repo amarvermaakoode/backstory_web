@@ -65,7 +65,9 @@ export function CartProvider({ children }) {
                     tag: product.tag,
                     size: selectedSize,
                     color: selectedColor,
-                    quantity: quantity
+                    quantity: quantity,
+                    sizes: product.sizes || [selectedSize],
+                    colors: product.colors || [selectedColor]
                 }
             ];
         });

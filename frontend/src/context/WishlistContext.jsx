@@ -8,20 +8,22 @@ const areProductsEqual = (item, product) => {
     if (!item || !product) return false;
     
     // 1. Direct ID comparison
-    if (item.id && product.id && item.id === product.id) return true;
-    if (item._id && product._id && item._id === product._id) return true;
+    if (item.id && product.id) return item.id === product.id;
+    if (item._id && product._id) return item._id === product._id;
     
     // 2. Cross ID comparison
-    if (item.id && product._id && item.id === product._id) return true;
-    if (item._id && product.id && item._id === product.id) return true;
+    if (item.id && product._id) return item.id === product._id;
+    if (item._id && product.id) return item._id === product.id;
     
     // 3. Slug comparison
-    if (item.slug && product.slug && item.slug === product.slug) return true;
+    if (item.slug && product.slug) return item.slug === product.slug;
     
-    // 4. Name comparison (case-insensitive, trimmed)
-    const name1 = item.name || item.title || "";
-    const name2 = product.name || product.title || "";
-    if (name1 && name2 && name1.toLowerCase().trim() === name2.toLowerCase().trim()) return true;
+    // 4. Name comparison (case-insensitive, trimmed) - only as a last resort if neither has any ID/slug
+    if (!item.id && !item._id && !item.slug && !product.id && !product._id && !product.slug) {
+        const name1 = item.name || item.title || "";
+        const name2 = product.name || product.title || "";
+        if (name1 && name2 && name1.toLowerCase().trim() === name2.toLowerCase().trim()) return true;
+    }
     
     return false;
 };
@@ -98,11 +100,15 @@ export function WishlistProvider({ children }) {
             if (typeof productOrId === "object" && productOrId !== null) {
                 return areProductsEqual(item, productOrId);
             } else {
-                return item.id === productOrId || 
-                       item._id === productOrId || 
-                       item.slug === productOrId ||
-                       (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
-                       (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+                if (item.id === productOrId || item._id === productOrId || item.slug === productOrId) {
+                    return true;
+                }
+                // Only compare by name if the item in wishlist has no ID/slug
+                if (!item.id && !item._id && !item.slug) {
+                    return (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
+                           (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+                }
+                return false;
             }
         });
     };

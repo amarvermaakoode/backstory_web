@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Heart, Plus } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
-import { allProducts as dbProducts } from "@/data/products";
 
 export default function ProductCard({ 
     product, 
@@ -23,13 +22,7 @@ export default function ProductCard({
     const handleWishlistToggle = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
-        // Find full product object from database for wishlist context if necessary
-        const fullProduct = dbProducts.find(
-            p => p.id === product.id || p.name.toLowerCase() === product.name.toLowerCase()
-        ) || product;
-        
-        toggleWishlist(fullProduct);
+        toggleWishlist(product);
     };
 
     // Helper to get image URL safely
@@ -211,10 +204,7 @@ export default function ProductCard({
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        const fullProduct = dbProducts.find(
-                            p => p.id === product.id || p.name.toLowerCase() === product.name.toLowerCase()
-                        ) || product;
-                        addToCart(fullProduct, 1);
+                        addToCart(product, 1);
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer shrink-0"
                     aria-label="Add to cart"
