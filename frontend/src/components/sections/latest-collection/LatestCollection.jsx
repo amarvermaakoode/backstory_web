@@ -103,10 +103,10 @@ export default function Collections() {
     const getImageUrl = (path) => {
         if (!path) return "/images/placeholder.png";
         if (path.startsWith("http") || path.startsWith("data:")) return path;
-        
+
         // Local public assets start with /images/
         if (path.startsWith("/images/")) return path;
-        
+
         // Backend upload asset
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
         return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
@@ -131,14 +131,16 @@ export default function Collections() {
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
                         <h2 className="font-clashDisplay text-3xl md:text-[3.5vw] font-semibold tracking-tight text-[#030303] select-none">
-                            Shop our<br />Latest Collection
+                            Shop our <br className="hidden md:block" />Latest Collection
                         </h2>
-                        <p className="text-black font-geist text-base md:text-[1.8vw] md:mt-2 mt-2 leading-tight font-normal">
-                            Inspired by journeys.<br />Designed to be remembered.
-                        </p>
-                        <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-6 mt-4">
-                            Shop Now
-                        </Button>
+                        <div className="flex md:flex-col flex-row justify-between">
+                            <p className="text-black font-geist text-base md:text-[1.8vw] md:mt-2 mt-2 leading-tight font-normal">
+                                Inspired by journeys.<br />Designed to be remembered.
+                            </p>
+                            <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4">
+                                Shop Now
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

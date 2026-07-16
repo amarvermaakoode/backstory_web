@@ -84,7 +84,7 @@ export default function ShopByTribe() {
                         <Link
                             key={tribe._id}
                             href={`/product-list/tribe/${tribe.slug || tribe._id}`}
-                            className="group relative block w-full h-[250px] md:h-[550px] flex-1 md:hover:flex-[2.2] transition-all duration-700 ease-in-out overflow-hidden cursor-pointer"
+                            className="group relative block w-full h-[250px] md:h-[550px] md:flex-1 md:hover:flex-[2.2] transition-all duration-700 ease-in-out overflow-hidden cursor-pointer"
                         >
                             {/* Background Image */}
                             <div className="absolute inset-0 transition-transform duration-1000 ease-out group-hover:scale-105">
