@@ -8,6 +8,13 @@ const productSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, "Product title cannot exceed 200 characters"],
     },
+    slug: {
+      type: String,
+      required: [true, "Product slug is required"],
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     price: {
       type: Number,
       required: [true, "Product price is required"],
@@ -68,6 +75,20 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    faqs: [
+      {
+        question: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        answer: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
     status: {
       type: Boolean,
       default: true,
@@ -81,5 +102,34 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+productSchema.pre("save", async function () {
+  if (!this.slug || this.slug === "undefined") {
+    const slugify = (text) => {
+      if (!text) return "";
+      return text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]+/g, "")
+        .replace(/\-\-+/g, "-")
+        .replace(/^-+/, "")
+        .replace(/-+$/, "");
+    };
+
+    let slug = slugify(this.title);
+    const ProductModel = mongoose.model("Product");
+    let slugExists = await ProductModel.findOne({ slug });
+    let counter = 1;
+    const baseSlug = slug;
+    while (slugExists) {
+      slug = `${baseSlug}-${counter}`;
+      slugExists = await ProductModel.findOne({ slug });
+      counter++;
+    }
+    this.slug = slug;
+  }
+});
 
 module.exports = mongoose.model("Product", productSchema);

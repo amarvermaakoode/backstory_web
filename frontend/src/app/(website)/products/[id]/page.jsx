@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, use } from "react";
+import React, { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Plus, Minus, Star, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Plus, Minus, Star, StarHalf, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { getProductById, allProducts } from "@/data/products";
@@ -11,30 +11,397 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductCard from "@/components/ui/ProductCard";
 
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+
+const renderStars = (rating, sizeClass = "w-4 h-4") => {
+    const ratingNum = Number(rating) || 0;
+    return (
+        <div className="flex items-center text-[#FFB800] relative">
+            {/* SVG Gradient definition */}
+            <svg width="0" height="0" className="absolute">
+                <defs>
+                    <linearGradient id="halfStarGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="50%" stopColor="#FFB800" />
+                        <stop offset="50%" stopColor="#E5E7EB" />
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            {Array.from({ length: 5 }).map((_, i) => {
+                const starValue = i + 1;
+                if (ratingNum >= starValue) {
+                    return <Star key={i} className={`${sizeClass} fill-current stroke-none`} />;
+                } else if (ratingNum > starValue - 1 && ratingNum < starValue) {
+                    return <Star key={i} className={`${sizeClass} stroke-none`} style={{ fill: "url(#halfStarGrad)" }} />;
+                } else {
+                    return <Star key={i} className={`${sizeClass} text-neutral-200 fill-[#E5E7EB] stroke-none`} />;
+                }
+            })}
+        </div>
+    );
+};
+
+const fallbackReviews = [
+    {
+        author: "Arjun M.",
+        rating: 5,
+        date: "June 2026",
+        images: [
+            "/images/landing-page/review1.png",
+            "/images/landing-page/review2.png"
+        ],
+        text: "This tee is everything. The graphic is insane quality and the weight of the fabric feels premium. Already ordered two more. Can't wait."
+    },
+    {
+        author: "Priya S.",
+        rating: 4,
+        date: "June 2026",
+        text: "Great oversized fit and the wash gives it that lived-in texture. Runs slightly large, which I actually love. Wash care instructions are spot on."
+    },
+    {
+        author: "Kabir R.",
+        rating: 4,
+        date: "June 2026",
+        text: "The Biker Series concept is brilliant. This isn't just a t-shirt — it's a piece of art that starts conversations. Will definitely be back for more."
+    }
+];
+
 export default function ProductDetailPage({ params }) {
     // Unwrap route parameter promise
     const { id } = use(params);
-    const product = getProductById(id);
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
 
+    const [product, setProduct] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [relatedProducts, setRelatedProducts] = useState([]);
+
     // States for interactive elements
     const [selectedSize, setSelectedSize] = useState("");
-    const [selectedColor, setSelectedColor] = useState(
-        product?.colors && product.colors.length > 0
-            ? product.colors[0]
-            : null
-    );
+    const [selectedColor, setSelectedColor] = useState(null);
     const [quantity, setQuantity] = useState(1);
-    const isFavorite = isInWishlist(product?.id || "");
     const [expandedFaq, setExpandedFaq] = useState(null);
 
-    if (!product) {
+    // States for reviews
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [reviewAuthor, setReviewAuthor] = useState("");
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewText, setReviewText] = useState("");
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+    const isFavorite = isInWishlist(product?.id || "");
+
+    const handleReviewSubmit = async (e) => {
+        e.preventDefault();
+        if (!reviewAuthor.trim() || !reviewText.trim()) return;
+
+        try {
+            setReviewSubmitting(true);
+            const res = await fetch(`${API_BASE_URL}/frontend/reviews`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    product: product.id,
+                    author: reviewAuthor,
+                    rating: reviewRating,
+                    text: reviewText,
+                }),
+            });
+
+            const json = await res.json();
+            if (json.success) {
+                alert("Thank you! Your review has been submitted successfully.");
+                setIsReviewModalOpen(false);
+                setReviewAuthor("");
+                setReviewRating(5);
+                setReviewText("");
+                
+                // Reload product data dynamically by fetching again
+                const fetchUpdatedProductData = async () => {
+                    try {
+                        const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+                        if (isMongoId) {
+                            const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
+                            const json = await res.json();
+                            if (json.success && json.data) {
+                                const dbProd = json.data;
+                                const mapped = {
+                                    id: dbProd._id,
+                                    name: dbProd.title,
+                                    price: `Rs ${dbProd.price}`,
+                                    priceNum: Number(dbProd.price),
+                                    image: dbProd.colors?.[0]?.images?.[0] || "",
+                                    tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
+                                    rating: dbProd.rating || "4.7",
+                                    reviewsCount: dbProd.reviewsCount || 63,
+                                    description: dbProd.description || "",
+                                    details: {
+                                        material: dbProd.material || "100% Cotton",
+                                        fit: dbProd.fit || "Standard Fit",
+                                        weight: dbProd.weight || "240 GSM",
+                                        care: dbProd.care || "Machine wash cold"
+                                    },
+                                    colors: (dbProd.colors || []).map(c => ({
+                                        name: c.color?.name || "Default",
+                                        hex: c.color?.hexCode || "#CCCCCC",
+                                        images: c.images || []
+                                    })),
+                                    sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
+                                    reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
+                                    faqs: dbProd.faqs || []
+                                };
+                                setProduct(mapped);
+                            }
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+                fetchUpdatedProductData();
+            } else {
+                alert(json.message || "Failed to submit review.");
+            }
+        } catch (err) {
+            console.error("Error submitting review:", err);
+            alert("Error submitting review. Please try again.");
+        } finally {
+            setReviewSubmitting(false);
+        }
+    };
+
+    const getImageUrl = (path) => {
+        if (!path) return "/images/placeholder.png";
+        if (path.startsWith("http") || path.startsWith("data:")) return path;
+        if (path.startsWith("/images/")) return path;
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+    };
+
+    useEffect(() => {
+        const fetchProductData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                // Attempt database fetch first (supports both ID and slug)
+                try {
+                    const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
+                    const json = await res.json();
+                    if (json.success && json.data) {
+                        const dbProd = json.data;
+                        const mapped = {
+                            id: dbProd._id,
+                            name: dbProd.title,
+                            price: `Rs ${dbProd.price}`,
+                            priceNum: Number(dbProd.price),
+                            image: dbProd.colors?.[0]?.images?.[0] || "",
+                            tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
+                            rating: dbProd.rating || "4.7",
+                            reviewsCount: dbProd.reviewsCount || 63,
+                            description: dbProd.description || "",
+                            details: {
+                                material: dbProd.material || "100% Cotton",
+                                fit: dbProd.fit || "Standard Fit",
+                                weight: dbProd.weight || "240 GSM",
+                                care: dbProd.care || "Machine wash cold"
+                            },
+                            colors: (dbProd.colors || []).map(c => ({
+                                name: c.color?.name || "Default",
+                                hex: c.color?.hexCode || "#CCCCCC",
+                                images: c.images || []
+                            })),
+                            sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
+                            reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
+                            faqs: dbProd.faqs || []
+                        };
+                        setProduct(mapped);
+                        
+                        if (mapped.colors && mapped.colors.length > 0) {
+                            setSelectedColor(mapped.colors[0]);
+                        }
+                        
+                        // Fetch related
+                        fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
+                        setLoading(false);
+                        return;
+                    }
+                } catch (apiErr) {
+                    console.warn("Backend fetch failed, trying mock fallback:", apiErr);
+                }
+                
+                // Fallback to mock product
+                const mockProduct = getProductById(id);
+                if (mockProduct) {
+                    setProduct(mockProduct);
+                    if (mockProduct.colors && mockProduct.colors.length > 0) {
+                        setSelectedColor(mockProduct.colors[0]);
+                    }
+                    const related = allProducts
+                        .filter((p) => p.id !== mockProduct.id)
+                        .slice(0, 4);
+                    setRelatedProducts(related);
+                } else {
+                    setError("Product not found");
+                }
+            } catch (err) {
+                console.error("Error fetching product:", err);
+                const mockProduct = getProductById(id);
+                if (mockProduct) {
+                    setProduct(mockProduct);
+                    if (mockProduct.colors && mockProduct.colors.length > 0) {
+                        setSelectedColor(mockProduct.colors[0]);
+                    }
+                    const related = allProducts
+                        .filter((p) => p.id !== mockProduct.id)
+                        .slice(0, 4);
+                    setRelatedProducts(related);
+                } else {
+                    setError("Failed to load product");
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const fetchRelated = async (currentId, subCategoryId, categoryId) => {
+            try {
+                let url = `${API_BASE_URL}/frontend/products`;
+                if (subCategoryId) {
+                    url += `?subCategory=${subCategoryId}`;
+                } else if (categoryId) {
+                    url += `?category=${categoryId}`;
+                }
+                const res = await fetch(url);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const mapped = json.data
+                        .filter(item => item._id !== currentId)
+                        .map(item => {
+                            const colorsList = (item.colors || []).map(c => ({
+                                name: c.color?.name || "Default",
+                                hex: c.color?.hexCode || "#CCCCCC"
+                            }));
+                            const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+                            const mainImg = item.colors?.[0]?.images?.[0] || "";
+                            const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
+                            
+                            return {
+                                id: item._id,
+                                name: item.title,
+                                price: `Rs ${item.price}`,
+                                priceNum: Number(item.price),
+                                image: mainImg,
+                                hoverImage: hoverImg,
+                                sizes: sizesList,
+                                colors: colorsList,
+                                tag: item.subCategory?.name || item.category?.Name || "Product",
+                                link: `/products/${item.slug || item._id}`
+                            };
+                        })
+                        .slice(0, 4);
+                    
+                    if (mapped.length > 0) {
+                        setRelatedProducts(mapped);
+                    } else {
+                        fetchFallbackRelated(currentId);
+                    }
+                } else {
+                    fetchFallbackRelated(currentId);
+                }
+            } catch (err) {
+                console.error("Error fetching related products:", err);
+                fetchFallbackRelated(currentId);
+            }
+        };
+
+        const fetchFallbackRelated = async (currentId) => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/frontend/products`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const mapped = json.data
+                        .filter(item => item._id !== currentId)
+                        .map(item => {
+                            const colorsList = (item.colors || []).map(c => ({
+                                name: c.color?.name || "Default",
+                                hex: c.color?.hexCode || "#CCCCCC"
+                            }));
+                            const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+                            const mainImg = item.colors?.[0]?.images?.[0] || "";
+                            const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
+                            
+                            return {
+                                id: item._id,
+                                name: item.title,
+                                price: `Rs ${item.price}`,
+                                priceNum: Number(item.price),
+                                image: mainImg,
+                                hoverImage: hoverImg,
+                                sizes: sizesList,
+                                colors: colorsList,
+                                tag: item.subCategory?.name || item.category?.Name || "Product",
+                                link: `/products/${item.slug || item._id}`
+                            };
+                        })
+                        .slice(0, 4);
+                    setRelatedProducts(mapped);
+                } else {
+                    const related = allProducts
+                        .filter((p) => p.id !== currentId)
+                        .slice(0, 4);
+                    setRelatedProducts(related);
+                }
+            } catch (e) {
+                const related = allProducts
+                    .filter((p) => p.id !== currentId)
+                    .slice(0, 4);
+                setRelatedProducts(related);
+            }
+        };
+
+        fetchProductData();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-white text-black flex flex-col font-sans">
+                <Navbar solid={true} light={true} />
+                <main className="flex-1 w-full pt-28 pb-16 px-6 sm:px-10 md:px-16 lg:px-[4%] animate-pulse">
+                    <div className="mx-auto max-w-[1600px] flex flex-col">
+                        <div className="h-4 bg-neutral-200 rounded w-1/4 mb-8"></div>
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
+                            <div className="lg:col-span-7 flex flex-col gap-4">
+                                <div className="w-full aspect-[4/3] bg-neutral-200 rounded-lg"></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="aspect-square bg-neutral-200 rounded-lg"></div>
+                                    <div className="aspect-square bg-neutral-200 rounded-lg"></div>
+                                </div>
+                            </div>
+                            <div className="lg:col-span-5 space-y-6">
+                                <div className="h-4 bg-neutral-200 rounded w-1/3"></div>
+                                <div className="h-10 bg-neutral-200 rounded w-3/4"></div>
+                                <div className="h-6 bg-neutral-200 rounded w-1/4"></div>
+                                <div className="h-12 bg-neutral-200 rounded-full w-full"></div>
+                                <div className="h-12 bg-neutral-200 rounded-full w-full"></div>
+                                <div className="h-40 bg-neutral-200 rounded-lg w-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
+    if (error || !product) {
         return (
             <div className="min-h-screen bg-white text-black flex flex-col items-center justify-center">
                 <Navbar solid={true} light={true} />
                 <div className="text-center py-20">
-                    <h2 className="text-2xl font-bold">Product not found</h2>
+                    <h2 className="text-2xl font-bold">{error || "Product not found"}</h2>
                     <Link href="/" className="mt-4 text-blue-500 hover:underline inline-block">Back Home</Link>
                 </div>
                 <Footer />
@@ -42,22 +409,25 @@ export default function ProductDetailPage({ params }) {
         );
     }
 
-    const productImages = product.images && product.images.length > 0
-        ? product.images
-        : [
-            product.image,
+    // Image gallery resolution
+    let productImages = [];
+    if (selectedColor && selectedColor.images && selectedColor.images.length > 0) {
+        productImages = selectedColor.images;
+    } else {
+        productImages = (product.colors || []).flatMap(c => c.images || []);
+    }
+    
+    if (productImages.length === 0) {
+        productImages = [
+            "/images/placeholder.png",
             "/images/landing-page/first.png",
             "/images/landing-page/second.png",
             "/images/landing-page/third.png"
         ];
-
-    // Related products (exclude current)
-    const relatedProducts = allProducts
-        .filter((p) => p.id !== product.id)
-        .slice(0, 4);
+    }
 
     // FAQ items
-    const faqItems = [
+    const faqItems = product && product.faqs && product.faqs.length > 0 ? product.faqs : [
         {
             question: "What sizes do you offer?",
             answer: "We offer sizes XS through XXL. Our garments are cut oversized, so we recommend checking the size guide or sizing down if you prefer a regular fit."
@@ -95,7 +465,7 @@ export default function ProductDetailPage({ params }) {
                     <nav className="text-xs md:text-sm text-neutral-400 font-normal mt-2">
                         <Link href="/" className="hover:text-black transition-colors duration-200">Home</Link>
                         <span className="mx-2">/</span>
-                        <Link href="/products" className="hover:text-black transition-colors duration-200">{product.tag}</Link>
+                        <Link href="/product-list" className="hover:text-black transition-colors duration-200">{product.tag}</Link>
                         <span className="mx-2">/</span>
                         <span className="text-neutral-600 font-medium">{product.name}</span>
                     </nav>
@@ -109,12 +479,13 @@ export default function ProductDetailPage({ params }) {
                             <div className="w-full aspect-[4/3] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
                                 <div className="relative w-[80%] h-[80%]">
                                     <Image
-                                        src={productImages[0]}
+                                        src={getImageUrl(productImages[0])}
                                         alt={product.name}
                                         fill
                                         sizes="(max-width: 1024px) 100vw, 60vw"
                                         className="object-contain select-none"
                                         priority
+                                        unoptimized
                                     />
                                 </div>
                             </div>
@@ -129,22 +500,24 @@ export default function ProductDetailPage({ params }) {
                                                 <div className="aspect-square flex items-center justify-center overflow-hidden">
                                                     <div className="relative w-full h-full">
                                                         <Image
-                                                            src={productImages[1]}
+                                                            src={getImageUrl(productImages[1])}
                                                             alt={`${product.name} detail 1`}
                                                             fill
                                                             sizes="(max-width: 1024px) 50vw, 30vw"
                                                             className="object-cover select-none"
+                                                            unoptimized
                                                         />
                                                     </div>
                                                 </div>
                                                 <div className="aspect-square flex items-center justify-center overflow-hidden">
                                                     <div className="relative w-full h-full">
                                                         <Image
-                                                            src={productImages[2]}
+                                                            src={getImageUrl(productImages[2])}
                                                             alt={`${product.name} detail 2`}
                                                             fill
                                                             sizes="(max-width: 1024px) 50vw, 30vw"
                                                             className="object-cover select-none"
+                                                            unoptimized
                                                         />
                                                     </div>
                                                 </div>
@@ -155,11 +528,12 @@ export default function ProductDetailPage({ params }) {
                                                 <div key={index} className="w-full aspect-[2/1] flex items-center justify-center overflow-hidden">
                                                     <div className="relative w-full h-full">
                                                         <Image
-                                                            src={img}
+                                                            src={getImageUrl(img)}
                                                             alt={`${product.name} detail ${index + 3}`}
                                                             fill
                                                             sizes="(max-width: 1024px) 100vw, 60vw"
                                                             className="object-cover select-none"
+                                                            unoptimized
                                                         />
                                                     </div>
                                                 </div>
@@ -170,11 +544,12 @@ export default function ProductDetailPage({ params }) {
                                         <div className="w-full aspect-[4/5] flex items-center justify-center overflow-hidden">
                                             <div className="relative w-full h-full">
                                                 <Image
-                                                    src={productImages[1]}
+                                                    src={getImageUrl(productImages[1])}
                                                     alt={`${product.name} detail 1`}
                                                     fill
                                                     sizes="(max-width: 1024px) 100vw, 60vw"
                                                     className="object-cover select-none"
+                                                    unoptimized
                                                 />
                                             </div>
                                         </div>
@@ -206,11 +581,7 @@ export default function ProductDetailPage({ params }) {
 
                                 {/* Star Rating Review summary */}
                                 <div className="flex items-center gap-1.5 pt-1">
-                                    <div className="flex text-[#FFB800]">
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <Star key={i} className="w-4 h-4 fill-current stroke-none" />
-                                        ))}
-                                    </div>
+                                    {renderStars(product.rating)}
                                     <span className="text-xs md:text-[1vw] font-semibold text-black">{product.rating}</span>
                                     <span className="text-xs md:text-[1vw] font-normal text-black">({product.reviewsCount})</span>
                                 </div>
@@ -375,9 +746,7 @@ export default function ProductDetailPage({ params }) {
                                         {product.rating}
                                     </p>
                                     <div className="flex text-[#FFB800] pt-1">
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <Star key={i} className="w-4 h-4 fill-current stroke-none" />
-                                        ))}
+                                        {renderStars(product.rating)}
                                     </div>
                                     <p className="text-xs md:text-sm text-neutral-400 mt-1">
                                         Based on {product.reviewsCount} reviews
@@ -386,21 +755,28 @@ export default function ProductDetailPage({ params }) {
 
                                 {/* Progress Bars */}
                                 <div className="space-y-2 pt-2 max-w-[280px]">
-                                    {[
-                                        { stars: 5, count: 48, percentage: 76 },
-                                        { stars: 4, count: 10, percentage: 16 },
-                                        { stars: 3, count: 3, percentage: 5 },
-                                        { stars: 2, count: 1, percentage: 1.5 },
-                                        { stars: 1, count: 1, percentage: 1.5 }
-                                    ].map((row) => (
-                                        <div key={row.stars} className="flex items-center gap-3 text-xs">
-                                            <span className="w-3 text-neutral-500 font-semibold">{row.stars}</span>
-                                            <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-[#DFD7CC] rounded-full" style={{ width: `${row.percentage}%` }} />
-                                            </div>
-                                            <span className="w-6 text-right text-neutral-400">{row.count}</span>
-                                        </div>
-                                    ))}
+                                    {(() => {
+                                        const revs = product.reviews || [];
+                                        const totalRevs = revs.length;
+                                        const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                                        revs.forEach(r => {
+                                            const val = Math.round(Number(r.rating));
+                                            if (counts[val] !== undefined) counts[val]++;
+                                        });
+                                        return [5, 4, 3, 2, 1].map(stars => {
+                                            const count = counts[stars];
+                                            const percentage = totalRevs > 0 ? (count / totalRevs) * 100 : 0;
+                                            return (
+                                                <div key={stars} className="flex items-center gap-3 text-xs">
+                                                    <span className="w-3 text-neutral-500 font-semibold">{stars}</span>
+                                                    <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-[#DFD7CC] rounded-full" style={{ width: `${percentage}%` }} />
+                                                     </div>
+                                                     <span className="w-6 text-right text-neutral-400">{count}</span>
+                                                 </div>
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             </div>
 
@@ -459,7 +835,10 @@ export default function ProductDetailPage({ params }) {
                                 <h4 className="font-clashDisplay text-lg font-semibold text-black">Bought this piece?</h4>
                                 <p className="text-sm text-neutral-500 mt-0.5">Share your story with the community.</p>
                             </div>
-                            <button className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white">
+                            <button 
+                                onClick={() => setIsReviewModalOpen(true)}
+                                className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white"
+                            >
                                 Write a Review
                             </button>
                         </div>
@@ -479,6 +858,80 @@ export default function ProductDetailPage({ params }) {
                             ))}
                         </div>
                     </section>
+
+                    {/* Review Submission Modal */}
+                    {isReviewModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                            <div className="bg-white text-black w-full max-w-lg mx-4 rounded-3xl p-8 border border-neutral-100 shadow-2xl relative animate-scaleUp">
+                                {/* Close button */}
+                                <button 
+                                    onClick={() => setIsReviewModalOpen(false)}
+                                    className="absolute top-6 right-6 text-neutral-400 hover:text-black transition-colors cursor-pointer"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+
+                                <h3 className="font-clashDisplay text-2xl font-bold mb-2">Share Your Story</h3>
+                                <p className="text-sm text-neutral-500 mb-6">Let other buyers know your thoughts on this piece.</p>
+
+                                <form onSubmit={handleReviewSubmit} className="space-y-5">
+                                    {/* Author Name */}
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Your Name</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={reviewAuthor}
+                                            onChange={(e) => setReviewAuthor(e.target.value)}
+                                            placeholder="e.g. John Doe"
+                                            className="w-full h-12 px-4 rounded-xl border border-neutral-200 focus:border-black focus:outline-none transition-colors text-sm font-sans"
+                                        />
+                                    </div>
+
+                                    {/* Rating Stars Selection */}
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Rating</label>
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    onClick={() => setReviewRating(star)}
+                                                    className="text-neutral-300 hover:scale-110 transition-transform cursor-pointer"
+                                                >
+                                                    <Star 
+                                                        className={`w-8 h-8 ${star <= reviewRating ? "text-[#FFB800] fill-[#FFB800]" : "text-neutral-200"}`} 
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Review Text */}
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Review</label>
+                                        <textarea 
+                                            required
+                                            rows={4}
+                                            value={reviewText}
+                                            onChange={(e) => setReviewText(e.target.value)}
+                                            placeholder="Tell us about the fit, material, and how it feels..."
+                                            className="w-full p-4 rounded-xl border border-neutral-200 focus:border-black focus:outline-none transition-colors text-sm font-sans resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Submit Button */}
+                                    <button
+                                        type="submit"
+                                        disabled={reviewSubmitting}
+                                        className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-sm tracking-wide cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                                    >
+                                        {reviewSubmitting ? "Submitting..." : "Submit Review"}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Frequently Asked Questions */}
                     <section className="mt-20 md:mt-28 pb-10">

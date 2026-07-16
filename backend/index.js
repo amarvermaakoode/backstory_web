@@ -12,10 +12,12 @@ const collectionRoutes = require("./routes/admin/collectionRoutes");
 const colorRoutes = require("./routes/admin/colorRoutes");
 const sizeGuideRoutes = require("./routes/admin/sizeGuideRoutes");
 const productRoutes = require("./routes/admin/productRoutes");
+const adminReviewRoutes = require("./routes/admin/reviewRoutes");
 const frontendCategoryRoutes = require("./routes/frontend/categoryFrntRoutes");
 const frontendSubCategoryRoutes = require("./routes/frontend/subcategoryFrntRoutes");
 const frontendCollectionRoutes = require("./routes/frontend/collectionFrntRoutes");
 const frontendProductRoutes = require("./routes/frontend/productFrntRoutes");
+const frontendReviewRoutes = require("./routes/frontend/reviewFrntRoutes");
 
 dotenv.config();
 
@@ -48,6 +50,13 @@ connectDB().then(() => {
         await col.save();
       }
 
+      // products
+      const Product = require("./models/product");
+      const products = await Product.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }, { slug: "undefined" }] });
+      for (let prod of products) {
+        await prod.save();
+      }
+
       console.log("✅ Slug migration completed successfully.");
     } catch (err) {
       console.error("❌ Slug migration error:", err.message);
@@ -72,6 +81,7 @@ app.use("/api/admin/collections", collectionRoutes);
 app.use("/api/admin/colors", colorRoutes);
 app.use("/api/admin/size-guides", sizeGuideRoutes);
 app.use("/api/admin/products", productRoutes);
+app.use("/api/admin/reviews", adminReviewRoutes);
 
 //frontend routes
 //app.use("/api/categories", categoryFrntRoutes);
@@ -80,6 +90,7 @@ app.use("/api/frontend/categories", frontendCategoryRoutes);
 app.use("/api/frontend/sub-categories", frontendSubCategoryRoutes);
 app.use("/api/frontend/collections", frontendCollectionRoutes);
 app.use("/api/frontend/products", frontendProductRoutes);
+app.use("/api/frontend/reviews", frontendReviewRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

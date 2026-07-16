@@ -83,7 +83,7 @@ export default function ShopByTribe() {
                     {activeTribes.map((tribe) => (
                         <Link
                             key={tribe._id}
-                            href={`/products/tribe/${tribe.slug || tribe._id}`}
+                            href={`/product-list/tribe/${tribe.slug || tribe._id}`}
                             className="group relative block w-full h-[250px] md:h-[550px] flex-1 md:hover:flex-[2.2] transition-all duration-700 ease-in-out overflow-hidden cursor-pointer"
                         >
                             {/* Background Image */}

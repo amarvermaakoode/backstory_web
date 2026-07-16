@@ -59,7 +59,7 @@ export default function Hero() {
                                 <p className="text-sm xs:text-sm sm:text-base md:text-xl lg:text-[2vw] text-white font-geist font-light md:font-normal leading-snug tracking-wide">
                                     Crafted as apparel.<br />Worn as identity.
                                 </p>
-                                <Button href="/products" hasArrow={true} variant="primary">
+                                <Button href="/product-list" hasArrow={true} variant="primary">
                                     Shop Now
                                 </Button>
                             </div>

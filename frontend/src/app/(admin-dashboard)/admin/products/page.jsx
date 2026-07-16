@@ -11,12 +11,26 @@ import {
   Check, 
   AlertTriangle,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageSquare
 } from "lucide-react";
 import Image from "next/image";
 
 export default function ProductsAdminPage() {
   const { adminFetch } = useAdminAuth();
+
+  const slugify = (text) => {
+    if (!text) return "";
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-]+/g, "")
+      .replace(/\-\-+/g, "-")
+      .replace(/^-+/, "")
+      .replace(/-+$/, "");
+  };
   
   // Catalogs
   const [products, setProducts] = useState([]);
@@ -36,6 +50,17 @@ export default function ProductsAdminPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // "create" or "edit"
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // FAQs State
+  const [faqs, setFaqs] = useState([]);
+  const [slug, setSlug] = useState("");
+  const [isSlugManual, setIsSlugManual] = useState(false);
+
+  // Reviews Modal States
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [selectedProductForReviews, setSelectedProductForReviews] = useState(null);
+  const [productReviews, setProductReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -137,6 +162,9 @@ export default function ProductsAdminPage() {
     setStatus(true);
     setFeatured(false);
     setProductColors([]);
+    setFaqs([]);
+    setSlug("");
+    setIsSlugManual(false);
     setIsModalOpen(true);
   };
 
@@ -183,6 +211,9 @@ export default function ProductsAdminPage() {
       };
     });
     setProductColors(mappedColors);
+    setFaqs(product.faqs || []);
+    setSlug(product.slug || "");
+    setIsSlugManual(true);
     
     setIsModalOpen(true);
   };
@@ -306,6 +337,8 @@ export default function ProductsAdminPage() {
         images: c.existingImages // keeps current files intact
       }));
       formData.append("colors", JSON.stringify(colorsPayload));
+      formData.append("faqs", JSON.stringify(faqs));
+      formData.append("slug", slug.trim());
 
       // Append files with fieldname matching color_images_<colorId>
       productColors.forEach(c => {
@@ -367,6 +400,49 @@ export default function ProductsAdminPage() {
     } catch (err) {
       console.error(err);
       setError(err.message || "Could not delete product.");
+    }
+  };
+
+  const openReviewsModal = async (product) => {
+    setSelectedProductForReviews(product);
+    setIsReviewsModalOpen(true);
+    setReviewsLoading(true);
+    try {
+      const res = await adminFetch(`/reviews/product/${product._id}`);
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setProductReviews(json.data || []);
+      } else {
+        setError(json.message || "Failed to load reviews.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch product reviews from server.");
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) {
+      return;
+    }
+    try {
+      setError("");
+      setSuccess("");
+      const res = await adminFetch(`/reviews/${reviewId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setProductReviews(prev => prev.filter(r => r._id !== reviewId));
+        setSuccess("Review deleted successfully.");
+      } else {
+        setError(json.message || "Failed to delete review.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Could not connect to server to delete review.");
     }
   };
 
@@ -502,6 +578,13 @@ export default function ProductsAdminPage() {
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <button
+                            onClick={() => openReviewsModal(product)}
+                            className="p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                            title="Reviews"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => openEditModal(product)}
                             className="p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
                             title="Edit"
@@ -548,26 +631,52 @@ export default function ProductsAdminPage() {
             <form onSubmit={handleFormSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
               
               {/* Basic Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Title */}
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold font-sans">
                     Product Title *
                   </label>
                   <input
                     type="text"
                     required
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setTitle(newTitle);
+                      if (!isSlugManual) {
+                        setSlug(slugify(newTitle));
+                      }
+                    }}
                     placeholder="e.g. Vintage Oversized Tee"
-                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
+                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white font-sans"
+                  />
+                </div>
+
+                {/* Slug */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs uppercase tracking-wider text-neutral-500 font-bold font-sans">
+                      Product Slug *
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={slug}
+                    onChange={(e) => {
+                      setSlug(e.target.value);
+                      setIsSlugManual(true);
+                    }}
+                    placeholder="e.g. vintage-oversized-tee"
+                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white font-mono"
                   />
                 </div>
 
                 {/* Price */}
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold font-sans">
                     Price (Rs) *
                   </label>
                   <input
@@ -577,7 +686,7 @@ export default function ProductsAdminPage() {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="e.g. 29.99"
-                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white"
+                    className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white font-sans"
                   />
                 </div>
 
@@ -910,6 +1019,70 @@ export default function ProductsAdminPage() {
                 </div>
               </div>
 
+              {/* Product FAQs */}
+              <div className="space-y-4 pt-4 border-t border-neutral-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-clashDisplay font-bold text-neutral-900 text-sm uppercase tracking-wider">
+                    Frequently Asked Questions (FAQs)
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setFaqs([...faqs, { question: "", answer: "" }])}
+                    className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg text-[10px] uppercase font-bold tracking-wider transition-colors cursor-pointer"
+                  >
+                    + Add FAQ
+                  </button>
+                </div>
+                
+                {faqs.length === 0 ? (
+                  <p className="text-xs text-neutral-400 italic font-sans">No FAQs added yet. Click "+ Add FAQ" to add product-specific FAQs.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {faqs.map((faq, index) => (
+                      <div key={index} className="flex gap-4 items-start bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                        <div className="flex-1 space-y-3">
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1 font-bold font-sans">Question</label>
+                            <input
+                              type="text"
+                              value={faq.question}
+                              onChange={(e) => {
+                                const newFaqs = [...faqs];
+                                newFaqs[index].question = e.target.value;
+                                setFaqs(newFaqs);
+                              }}
+                              placeholder="e.g. What is the fabric weight?"
+                              className="w-full bg-white text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-lg py-2 px-3 outline-none text-xs transition-all font-sans"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-wider text-neutral-400 mb-1 font-bold font-sans">Answer</label>
+                            <textarea
+                              rows={2}
+                              value={faq.answer}
+                              onChange={(e) => {
+                                const newFaqs = [...faqs];
+                                newFaqs[index].answer = e.target.value;
+                                setFaqs(newFaqs);
+                              }}
+                              placeholder="e.g. This tee is made of 240 GSM premium heavy cotton."
+                              className="w-full bg-white text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-lg py-2 px-3 outline-none text-xs transition-all resize-none font-sans"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFaqs(faqs.filter((_, i) => i !== index))}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all self-center cursor-pointer"
+                          title="Remove FAQ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* Submit Buttons */}
               <div className="flex items-center justify-end gap-4 pt-4 border-t border-neutral-100 flex-shrink-0">
                 <button
@@ -930,6 +1103,80 @@ export default function ProductsAdminPage() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Reviews Modal */}
+      {isReviewsModalOpen && selectedProductForReviews && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white border border-neutral-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col max-h-[80vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-neutral-100 bg-neutral-50/50 flex-shrink-0">
+              <div>
+                <h3 className="font-clashDisplay text-lg font-bold text-neutral-900">
+                  Product Reviews
+                </h3>
+                <p className="text-xs text-neutral-500 font-semibold mt-0.5">
+                  Reviews for "{selectedProductForReviews.title}"
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsReviewsModalOpen(false);
+                  setSelectedProductForReviews(null);
+                  setProductReviews([]);
+                }}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {reviewsLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3">
+                  <Loader className="w-6 h-6 animate-spin text-neutral-800" />
+                  <p className="text-neutral-500 text-[10px] uppercase tracking-widest font-semibold font-sans">Loading reviews...</p>
+                </div>
+              ) : productReviews.length === 0 ? (
+                <div className="py-12 text-center text-neutral-500 text-sm font-semibold font-sans">
+                  No reviews submitted for this product.
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-100">
+                  {productReviews.map((rev) => (
+                    <div key={rev._id} className="py-4 first:pt-0 last:pb-0 flex justify-between items-start gap-4">
+                      <div className="space-y-1.5 flex-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-neutral-800 text-sm font-sans">{rev.author}</span>
+                          <div className="flex text-[#FFB800]">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i} className="text-xs">
+                                {i < rev.rating ? "★" : "☆"}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-xs text-neutral-600 leading-relaxed font-sans">{rev.text}</p>
+                        <div className="text-[10px] text-neutral-400 font-semibold font-sans">
+                          Submitted on {new Date(rev.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteReview(rev._id)}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                        title="Delete Review"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -52,7 +52,7 @@ export default function WishlistCard({ item, onRemove, onAddToCart }) {
 
                 {/* Image Wrapper */}
                 <Link 
-                    href={`/products/${item.id}`} 
+                    href={`/products/${item.slug || item.id}`} 
                     className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105"
                 >
                     <Image

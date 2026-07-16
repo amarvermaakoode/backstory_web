@@ -74,6 +74,7 @@ export default function Collections() {
 
                         return {
                             id: item._id,
+                            slug: item.slug,
                             name: item.title,
                             price: `Rs ${item.price}`,
                             priceNum: Number(item.price),
@@ -82,7 +83,7 @@ export default function Collections() {
                             sizes: sizesList,
                             colors: colorsList,
                             tag: item.category?.Name || "Product",
-                            link: `/products/${item._id}`
+                            link: `/products/${item.slug || item._id}`
                         };
                     });
                     setProducts(mapped);

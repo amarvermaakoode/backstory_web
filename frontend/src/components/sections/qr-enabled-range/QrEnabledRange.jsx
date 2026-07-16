@@ -105,7 +105,7 @@ export default function QrEnabledRange() {
                     return (
                         <Link
                             key={category._id}
-                            href={`/products/range/${category.slug || category._id}`}
+                            href={`/product-list/range/${category.slug || category._id}`}
                             className={`group relative h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black ${itemClass}`}
                         >
                             {/* Background Image */}

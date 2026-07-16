@@ -122,14 +122,67 @@ const createProduct = async (req, res) => {
       });
     }
 
+    // Parse and validate faqs
+    let parsedFaqs = [];
+    if (req.body.faqs) {
+      try {
+        const parsed = JSON.parse(req.body.faqs);
+        if (Array.isArray(parsed)) {
+          parsedFaqs = parsed.map(f => {
+            if (f && typeof f === "object" && f.question && f.answer) {
+              return { question: f.question.trim(), answer: f.answer.trim() };
+            }
+            return null;
+          }).filter(Boolean);
+        }
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid faqs array JSON format.",
+        });
+      }
+    }
+
+    const slugify = (text) => {
+      return text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]+/g, "")
+        .replace(/\-\-+/g, "-")
+        .replace(/^-+/, "")
+        .replace(/-+$/, "");
+    };
+
+    let slug = req.body.slug ? slugify(req.body.slug) : slugify(title);
+    let slugExists = await Product.findOne({ slug });
+
+    if (req.body.slug && slugExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Product slug is already in use. Please choose a different one.",
+      });
+    }
+
+    let counter = 1;
+    const baseSlug = slug;
+    while (slugExists) {
+      slug = `${baseSlug}-${counter}`;
+      slugExists = await Product.findOne({ slug });
+      counter++;
+    }
+
     const product = await Product.create({
       title: title.trim(),
+      slug,
       price: Number(price),
       category,
       subCategory,
       collection: collection || undefined,
       sizeGuide,
       colors: parsedColors,
+      faqs: parsedFaqs,
       description: description ? description.trim() : undefined,
       material: material ? material.trim() : undefined,
       fit: fit ? fit.trim() : undefined,
@@ -297,6 +350,63 @@ const updateProduct = async (req, res) => {
       product.sizeGuide = sizeGuide;
     }
 
+    if (req.body.slug !== undefined) {
+      const slugify = (text) => {
+        return text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^\w\-]+/g, "")
+          .replace(/\-\-+/g, "-")
+          .replace(/^-+/, "")
+          .replace(/-+$/, "");
+      };
+
+      let slug = req.body.slug ? slugify(req.body.slug) : slugify(title || product.title);
+      if (slug !== product.slug) {
+        let slugExists = await Product.findOne({ slug, _id: { $ne: id } });
+        if (req.body.slug && slugExists) {
+          return res.status(400).json({
+            success: false,
+            message: "Product slug is already in use. Please choose a different one.",
+          });
+        }
+
+        let counter = 1;
+        const baseSlug = slug;
+        while (slugExists) {
+          slug = `${baseSlug}-${counter}`;
+          slugExists = await Product.findOne({ slug, _id: { $ne: id } });
+          counter++;
+        }
+        product.slug = slug;
+      }
+    } else if (title !== undefined && title.trim() !== product.title) {
+      const slugify = (text) => {
+        return text
+          .toString()
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^\w\-]+/g, "")
+          .replace(/\-\-+/g, "-")
+          .replace(/^-+/, "")
+          .replace(/-+$/, "");
+      };
+
+      let slug = slugify(title);
+      let slugExists = await Product.findOne({ slug, _id: { $ne: id } });
+      let counter = 1;
+      const baseSlug = slug;
+      while (slugExists) {
+        slug = `${baseSlug}-${counter}`;
+        slugExists = await Product.findOne({ slug, _id: { $ne: id } });
+        counter++;
+      }
+      product.slug = slug;
+    }
+
     if (title !== undefined) {
       product.title = title.trim();
     }
@@ -397,6 +507,28 @@ const updateProduct = async (req, res) => {
           }
         }
       });
+    }
+
+    // Parse and validate faqs
+    if (req.body.faqs !== undefined) {
+      let parsedFaqs = [];
+      try {
+        const parsed = JSON.parse(req.body.faqs);
+        if (Array.isArray(parsed)) {
+          parsedFaqs = parsed.map(f => {
+            if (f && typeof f === "object" && f.question && f.answer) {
+              return { question: f.question.trim(), answer: f.answer.trim() };
+            }
+            return null;
+          }).filter(Boolean);
+        }
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid faqs array JSON format.",
+        });
+      }
+      product.faqs = parsedFaqs;
     }
 
     await product.save();

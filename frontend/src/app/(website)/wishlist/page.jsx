@@ -128,7 +128,7 @@ export default function WishlistPage() {
                             No items found in {activeCategory.toLowerCase()}. Explore our collection to add items.
                         </p>
                         <Link
-                            href="/products"
+                            href="/product-list"
                             className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold"
                         >
                             Explore Collection
@@ -211,7 +211,7 @@ export default function WishlistPage() {
                                             </button>
 
                                             {/* Image */}
-                                            <Link href={`/products/${product.id}`} className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
+                                            <Link href={`/products/${product.slug || product.id}`} className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
                                                 <Image
                                                     src={getImageUrl(product.image)}
                                                     alt={product.name}

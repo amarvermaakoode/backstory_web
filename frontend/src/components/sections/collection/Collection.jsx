@@ -65,7 +65,7 @@ export default function QrEnabledRange() {
                 {activeCollections.map((collection) => (
                     <Link
                         key={collection._id}
-                        href={`/products/collection/${collection.slug || collection._id}`}
+                        href={`/product-list/collection/${collection.slug || collection._id}`}
                         className="group relative block w-full h-[60vh] md:h-[110vh] overflow-hidden cursor-pointer"
                     >
                         {/* Background Image */}

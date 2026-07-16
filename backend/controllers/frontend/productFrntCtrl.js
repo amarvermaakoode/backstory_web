@@ -129,7 +129,69 @@ const getFeaturedProducts = async (req, res) => {
   }
 };
 
+// Get Product by ID / Slug
+const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const mongoose = require("mongoose");
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query = { _id: id };
+    } else {
+      query = { slug: id.toLowerCase() };
+    }
+
+    const product = await Product.findOne(query)
+      .populate("category", "Name image slug")
+      .populate("subCategory", "name image slug")
+      .populate("collection", "Name image slug")
+      .populate("sizeGuide", "name chart")
+      .populate("colors.color", "name hexCode");
+
+    if (!product || !product.status) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const Review = require("../../models/review");
+    const reviews = await Review.find({ product: product._id, status: true }).sort({ createdAt: -1 });
+
+    let rating = "5.0";
+    let reviewsCount = reviews.length;
+
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+      rating = (sum / reviews.length).toFixed(1);
+    }
+
+    const productObj = product.toObject();
+    productObj.reviews = reviews.map(r => ({
+      author: r.author,
+      rating: r.rating,
+      text: r.text,
+      date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    }));
+    productObj.rating = rating;
+    productObj.reviewsCount = reviewsCount;
+
+    return res.status(200).json({
+      success: true,
+      data: productObj,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getProducts,
   getFeaturedProducts,
+  getProductById,
 };
+

@@ -74,6 +74,7 @@ export default function FeaturedProducts() {
 
                         return {
                             id: item._id,
+                            slug: item.slug,
                             name: item.title,
                             price: `Rs ${item.price}`,
                             priceNum: Number(item.price),
@@ -82,7 +83,7 @@ export default function FeaturedProducts() {
                             sizes: sizesList,
                             colors: colorsList,
                             tag: item.subCategory?.name || item.category?.Name || "Featured",
-                            link: `/products/${item._id}`
+                            link: `/products/${item.slug || item._id}`
                         };
                     });
                     setProducts(mapped);
@@ -116,7 +117,7 @@ export default function FeaturedProducts() {
                     <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
                         Featured Products
                     </h2>
-                    <Button href="/products" hasArrow={false} variant="outline">
+                    <Button href="/product-list" hasArrow={false} variant="outline">
                         See All
                     </Button>
                 </div>
@@ -135,7 +136,7 @@ export default function FeaturedProducts() {
                     {products.map((product) => (
                         <Link
                             key={product.id}
-                            href={`/products/${product.id}`}
+                            href={product.link || `/products/${product.slug || product.id}`}
                             className="group w-[50vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
                         >
                             {/* Image Container Card */}

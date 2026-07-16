@@ -51,7 +51,7 @@ export default function ProductCard({
 
     return (
         <Link
-            href={`/products/${product.id}`}
+            href={product.link || `/products/${product.slug || product.id}`}
             className="group flex flex-col cursor-pointer w-full select-none"
         >
             {/* Image Container */}

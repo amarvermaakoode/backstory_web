@@ -134,6 +134,7 @@ export default function ProductsListing({
                         
                         return {
                             id: item._id,
+                            slug: item.slug,
                             name: item.title,
                             price: `Rs ${item.price}`,
                             priceNum: Number(item.price),
@@ -225,10 +226,10 @@ export default function ProductsListing({
         if (subCategorySlug) {
             // On a subcategory dynamic route: Changing the subcategory means changing the path itself
             if (subSlugOrId === "ALL") {
-                newUrl = "/products";
+                newUrl = "/product-list";
                 params.delete("subCategory");
             } else {
-                newUrl = `/products/tribe/${subSlugOrId}`;
+                newUrl = `/product-list/tribe/${subSlugOrId}`;
                 params.delete("subCategory"); // Slug is in path, no need for param
             }
         } else {
@@ -343,19 +344,19 @@ export default function ProductsListing({
             setSelectedCategory(slugOrId);
             setSelectedCollection("ALL");
             setSelectedSubCategory("ALL");
-            const newUrl = slugOrId === "ALL" ? "/products" : `/products/range/${slugOrId}`;
+            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/range/${slugOrId}`;
             window.history.pushState({}, "", newUrl);
         } else if (isCollectionPage) {
             setSelectedCategory("ALL");
             setSelectedCollection(slugOrId);
             setSelectedSubCategory("ALL");
-            const newUrl = slugOrId === "ALL" ? "/products" : `/products/collection/${slugOrId}`;
+            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/collection/${slugOrId}`;
             window.history.pushState({}, "", newUrl);
         } else {
             setSelectedCategory("ALL");
             setSelectedCollection("ALL");
             setSelectedSubCategory(slugOrId);
-            const newUrl = slugOrId === "ALL" ? "/products" : `/products/tribe/${slugOrId}`;
+            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/tribe/${slugOrId}`;
             window.history.pushState({}, "", newUrl);
         }
     };
