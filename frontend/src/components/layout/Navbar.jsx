@@ -153,7 +153,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             </span>
                         )}
                     </button>
-                    <button className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
+                    <Link href="/login" className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
                         <Image
                             src="/images/landing-page/user.svg"
                             alt="Account"
@@ -161,7 +161,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             height={22}
                             className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
                         />
-                    </button>
+                    </Link>
                 </div>
             </div>
 
