@@ -197,7 +197,7 @@ export default function CartPage() {
                 </nav>
 
                 {/* Page Title */}
-                <h1 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-black mt-4">
+                <h1 className="heading-page text-black mt-4">
                     Cart
                 </h1>
 
@@ -428,7 +428,7 @@ export default function CartPage() {
                         {/* Right column: Order Summary */}
                         <div className="lg:col-span-4">
                             <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-xs space-y-6 lg:sticky lg:top-28 h-fit">
-                                <h3 className="font-sans text-xl font-bold text-black">
+                                <h3 className="heading-sub text-black">
                                     Order Summary
                                 </h3>
 

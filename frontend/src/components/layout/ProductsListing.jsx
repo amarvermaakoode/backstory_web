@@ -329,7 +329,7 @@ export default function ProductsListing({
 
                     {/* Page Header */}
                     <div className="mt-6 md:mt-8 space-y-6 md:space-y-3">
-                        <h1 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-black capitalize">
+                        <h1 className="heading-page text-black capitalize">
                             {getActiveTitle()}
                         </h1>
 

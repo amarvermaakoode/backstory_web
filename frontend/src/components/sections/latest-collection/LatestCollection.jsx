@@ -130,11 +130,11 @@ export default function Collections() {
                 {/* Left Content (Static) */}
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
-                        <h2 className="font-clashDisplay text-3xl md:text-[3.5vw] font-semibold tracking-tight text-[#030303] select-none">
+                        <h2 className="heading-section text-[#030303] select-none">
                             Shop our <br className="hidden md:block" />Latest Collection
                         </h2>
                         <div className="flex md:flex-col flex-row justify-between">
-                            <p className="text-black font-geist text-base md:text-[1.8vw] md:mt-2 mt-2 leading-tight font-normal">
+                            <p className="text-black body-large md:mt-2 mt-2">
                                 Inspired by journeys.<br />Designed to be remembered.
                             </p>
                             <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4">

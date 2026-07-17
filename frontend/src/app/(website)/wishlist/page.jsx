@@ -108,7 +108,7 @@ export default function WishlistPage() {
                 </nav>
 
                 {/* Page Title */}
-                <h1 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-black mt-4">
+                <h1 className="heading-page text-black mt-4">
                     Wishlist
                 </h1>
 
@@ -212,7 +212,7 @@ export default function WishlistPage() {
                 {/* Explore More Section */}
                 {exploreProducts.length > 0 && (
                     <div className="mt-24 pt-12 border-t border-neutral-200/50">
-                        <h2 className="font-clashDisplay text-2xl font-semibold text-black tracking-tight mb-8">
+                        <h2 className="heading-sub text-black mb-8">
                             Explore more Products
                         </h2>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-12">

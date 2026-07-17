@@ -81,7 +81,7 @@ export default function QrEnabledRange() {
             {/* Header Banner with Cream Background */}
             <div className="bg-[#EFECE7] py-5 lg:py-10 px-4 sm:px-8 flex items-center">
                 <div className="mx-auto max-w-[98%] w-full">
-                    <h2 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-[#030303] select-none">
+                    <h2 className="heading-section text-[#030303] select-none">
                         Explore our<br className="lg:hidden" /> QR-Enabled Range
                     </h2>
                 </div>
@@ -132,7 +132,7 @@ export default function QrEnabledRange() {
 
                             {/* Content (Text Centered) */}
                             <div className="relative z-10 text-center px-6 flex flex-col items-center justify-center h-full w-full">
-                                <h3 className="font-clashDisplay text-2xl font-semibold tracking-wide text-white transition-all duration-700 ease-out group-hover:scale-95">
+                                <h3 className="heading-sub text-white transition-all duration-700 ease-out group-hover:scale-95">
                                     {category.Name}
                                 </h3>
                             </div>

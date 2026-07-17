@@ -38,7 +38,7 @@ export default function Footer() {
                     {/* Left Column (Brand Slogan & Socials) */}
                     <div className="flex flex-col justify-between md:max-w-[30%] max-w-[100%] space-y-8">
                         <div className="space-y-6">
-                            <h2 className="font-geist text-2xl md:text-[2.5vw] font-medium leading-tight tracking-tight">
+                            <h2 className="font-sans text-2xl md:text-[2.5vw] font-medium leading-tight tracking-tight">
                                 Every person has a story worth wearing.
                             </h2>
                             {/* Social Icons */}
@@ -88,7 +88,7 @@ export default function Footer() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 md:-mr-10 mr-0">
                         {/* Brand Column */}
                         <div className="space-y-4">
-                            <h3 className="font-clashDisplay text-base md:text-[1.6vw] font-semibold tracking-wide">Brand</h3>
+                            <h3 className="font-clashDisplay text-base lg:text-lg font-semibold tracking-wide">Brand</h3>
                             <ul className="space-y-2.5">
                                 {brandLinks.map((link) => (
                                     <li key={link.name}>
@@ -102,7 +102,7 @@ export default function Footer() {
 
                         {/* Shop Column */}
                         <div className="space-y-4">
-                            <h3 className="font-clashDisplay text-base md:text-[1.6vw] font-semibold tracking-wide">Shop</h3>
+                            <h3 className="font-clashDisplay text-base lg:text-lg font-semibold tracking-wide">Shop</h3>
                             <ul className="space-y-2.5">
                                 {shopLinks.map((link) => (
                                     <li key={link.name}>
@@ -116,7 +116,7 @@ export default function Footer() {
 
                         {/* Support Column */}
                         <div className="space-y-4">
-                            <h3 className="font-clashDisplay text-base md:text-[1.6vw] font-semibold tracking-wide">Support</h3>
+                            <h3 className="font-clashDisplay text-base lg:text-lg font-semibold tracking-wide">Support</h3>
                             <ul className="space-y-2.5">
                                 {supportLinks.map((link) => (
                                     <li key={link.name}>
@@ -130,7 +130,7 @@ export default function Footer() {
 
                         {/* Identity Column */}
                         <div className="space-y-4">
-                            <h3 className="font-clashDisplay text-base md:text-[1.6vw] font-semibold tracking-wide">Identity</h3>
+                            <h3 className="font-clashDisplay text-base lg:text-lg font-semibold tracking-wide">Identity</h3>
                             <ul className="space-y-2.5">
                                 {identityLinks.map((link) => (
                                     <li key={link.name}>

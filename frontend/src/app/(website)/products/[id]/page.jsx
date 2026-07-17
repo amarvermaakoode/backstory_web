@@ -533,7 +533,7 @@ export default function ProductDetailPage({ params }) {
                                     {product.tag}
                                 </p>
                                 <div className="flex justify-between items-start">
-                                    <h1 className="font-geist text-3xl md:text-4xl lg:text-[2.5vw] font-semibold text-black tracking-tight leading-tight">
+                                    <h1 className="heading-page text-black">
                                         {product.name}
                                     </h1>
                                     <button
@@ -705,7 +705,7 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Reviews Section */}
                     <section className="mt-20 md:mt-28 pt-10 border-t border-neutral-200">
-                        <h2 className="font-clashDisplay text-2xl md:text-3xl font-semibold text-black tracking-tight">
+                        <h2 className="heading-sub text-black">
                             Reviews
                         </h2>
 
@@ -817,7 +817,7 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Recommendation Grid ("You might also like") */}
                     <section className="mt-20 md:mt-28">
-                        <h2 className="font-clashDisplay text-2xl md:text-3xl font-semibold text-black tracking-tight mb-8">
+                        <h2 className="heading-sub text-black mb-8">
                             You might also like
                         </h2>
 
@@ -873,7 +873,7 @@ export default function ProductDetailPage({ params }) {
                                     <X className="w-6 h-6" />
                                 </button>
 
-                                <h3 className="font-clashDisplay text-2xl font-bold mb-2">Share Your Story</h3>
+                                <h3 className="heading-sub mb-2">Share Your Story</h3>
                                 <p className="text-sm text-neutral-500 mb-6">Let other buyers know your thoughts on this piece.</p>
 
                                 <form onSubmit={handleReviewSubmit} className="space-y-5">
@@ -937,7 +937,7 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Frequently Asked Questions */}
                     <section className="mt-20 md:mt-28 pb-10">
-                        <h2 className="font-clashDisplay text-2xl md:text-3xl font-semibold text-black tracking-tight mb-8">
+                        <h2 className="heading-sub text-black mb-8">
                             Frequently Asked Questions
                         </h2>
 

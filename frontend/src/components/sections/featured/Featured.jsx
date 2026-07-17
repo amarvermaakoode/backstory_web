@@ -76,7 +76,7 @@ export default function FeaturedProducts() {
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">
-                    <h2 className="font-clashDisplay text-3xl md:text-[3.3vw] font-semibold tracking-tight">
+                    <h2 className="heading-section">
                         Featured Products
                     </h2>
                     <Button href="/product-list" hasArrow={false} variant="outline">
@@ -142,11 +142,11 @@ export default function FeaturedProducts() {
 
                             {/* Product Info (Below Card) */}
                             <div className="mt-2 md:mt-4 ml-3 flex justify-between items-end">
-                                <div>
-                                    <h3 className="font-sans text-base md:text-lg font-medium text-black">
+                                <div className="min-w-0">
+                                    <h3 className="font-sans text-sm sm:text-base md:text-lg font-normal text-black leading-snug truncate">
                                         {product.name}
                                     </h3>
-                                    <p className="font-clashDisplay text-lg md:text-[2vw] leading-[1.3] font-semibold text-black">
+                                    <p className="font-clashDisplay text-base sm:text-xl md:text-2xl font-semibold text-black mt-0.5">
                                         {product.price}
                                     </p>
                                 </div>

@@ -20,7 +20,7 @@ export default function DiscoverMore() {
 
             {/* Content Overlaid on Left */}
             <div className="absolute inset-y-0 left-0 z-10 pl-[5%] sm:pl-10 md:pl-16 lg:pl-[7%] max-w-[60%] sm:max-w-xl md:max-w-2xl flex flex-col justify-center gap-2 md:gap-6 text-left">
-                <h2 className="font-geist text-sm sm:text-lg md:text-2xl lg:text-[2.3vw] font-semibold tracking-wide text-[#DFD7CC] leading-[1.15]">
+                <h2 className="font-sans text-sm sm:text-lg md:text-2xl lg:text-[2.3vw] font-semibold tracking-wide text-[#DFD7CC] leading-[1.15]">
                     Every piece carries a story.<br />
                     Scan to uncover it.
                 </h2>

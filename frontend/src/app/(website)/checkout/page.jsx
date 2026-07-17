@@ -185,7 +185,7 @@ export default function CheckoutPage() {
                         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-neutral-200/50 shadow-xs">
                             {/* Contact Details Section */}
                             <div className="border-b border-neutral-100 pb-8">
-                                <h2 className="font-clashDisplay text-2xl font-semibold text-black tracking-tight mb-6">
+                                <h2 className="heading-sub text-black mb-6">
                                     Contact Details
                                 </h2>
                                 <div className="space-y-4">
@@ -211,7 +211,7 @@ export default function CheckoutPage() {
 
                             {/* Delivery Details Section */}
                             <div className="pt-8">
-                                <h2 className="font-clashDisplay text-2xl font-semibold text-black tracking-tight mb-1">
+                                <h2 className="heading-sub text-black mb-1">
                                     Delivery Details
                                 </h2>
                                 <p className="text-xs sm:text-sm text-neutral-400 font-normal mb-8">
@@ -584,7 +584,7 @@ export default function CheckoutPage() {
                             <CheckCircle2 className="w-9 h-9 stroke-[1.5]" />
                         </div>
 
-                        <h2 className="font-clashDisplay text-2xl font-bold text-black leading-tight">
+                        <h2 className="heading-sub text-black">
                             Order Placed Successfully!
                         </h2>
 

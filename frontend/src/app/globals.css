@@ -18,6 +18,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-geist: var(--font-geist-sans);
   --font-clashDisplay: "Clash Display", sans-serif;
 }
 
@@ -28,6 +29,108 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Unified Typography Utility Classes */
+.heading-hero {
+  font-family: var(--font-clashDisplay);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: 0.025em; /* tracking-wide */
+  line-height: 0.95;
+}
+@media (min-width: 480px) {
+  .heading-hero {
+    font-size: 38px;
+  }
+}
+@media (min-width: 640px) {
+  .heading-hero {
+    font-size: 3rem; /* sm:text-5xl */
+  }
+}
+@media (min-width: 768px) {
+  .heading-hero {
+    font-size: 5vw; /* md:text-[5vw] */
+  }
+}
+
+.heading-page {
+  font-family: var(--font-clashDisplay);
+  font-size: 1.875rem; /* text-3xl (30px) */
+  font-weight: 600;
+  letter-spacing: -0.025em; /* tracking-tight */
+  line-height: 1.25;
+}
+@media (min-width: 768px) {
+  .heading-page {
+    font-size: 3vw; /* md:text-[3vw] */
+  }
+}
+
+.heading-section {
+  font-family: var(--font-clashDisplay);
+  font-size: 1.875rem; /* text-3xl */
+  font-weight: 600;
+  letter-spacing: -0.025em; /* tracking-tight */
+  line-height: 1.15;
+}
+@media (min-width: 768px) {
+  .heading-section {
+    font-size: 3.5vw; /* md:text-[3.5vw] */
+  }
+}
+
+.heading-sub {
+  font-family: var(--font-clashDisplay);
+  font-size: 1.5rem; /* text-2xl (24px) */
+  font-weight: 600;
+  letter-spacing: -0.025em; /* tracking-tight */
+  line-height: 1.2;
+}
+@media (min-width: 768px) {
+  .heading-sub {
+    font-size: 1.875rem; /* md:text-3xl (30px) */
+  }
+}
+
+.body-large {
+  font-family: var(--font-sans);
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 400;
+  line-height: 1.625;
+}
+@media (min-width: 640px) {
+  .body-large {
+    font-size: 1rem; /* sm:text-base */
+  }
+}
+@media (min-width: 768px) {
+  .body-large {
+    font-size: 1.25rem; /* md:text-xl */
+  }
+}
+@media (min-width: 1024px) {
+  .body-large {
+    font-size: 1.8vw; /* lg:text-[1.8vw] */
+  }
+}
+
+.body-regular {
+  font-family: var(--font-sans);
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 400;
+  line-height: 1.5;
+}
+@media (min-width: 640px) {
+  .body-regular {
+    font-size: 0.875rem; /* sm:text-sm */
+  }
+}
+@media (min-width: 768px) {
+  .body-regular {
+    font-size: 1rem; /* md:text-base */
+  }
 }
 
 @keyframes fadeIn {

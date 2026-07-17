@@ -73,11 +73,11 @@ export default function ShopByTribe() {
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header */}
                 <div>
-                    <h2 className="font-clashDisplay text-3xl md:text-[3.5vw] font-semibold tracking-tight">
+                    <h2 className="heading-section">
                         Shop by Tribe
                     </h2>
                 </div>
-
+ 
                 {/* Flex Accordion of Tribes (Contiguous, no gap) */}
                 <div className="flex flex-col md:flex-row w-full overflow-hidden">
                     {activeTribes.map((tribe) => (
@@ -98,13 +98,13 @@ export default function ShopByTribe() {
                                     className="object-cover object-center select-none"
                                 />
                             </div>
-
+ 
                             {/* Top-to-Bottom Gradient Overlay for Text Readability */}
                             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/30 opacity-90 group-hover:opacity-105 transition-opacity duration-500" />
-
+ 
                             {/* Tribe Name Overlay (Top Left) */}
                             <div className="absolute top-8 left-8 z-10">
-                                <h3 className="font-clashDisplay text-2xl md:text-3xl font-semibold text-white tracking-wide">
+                                <h3 className="heading-sub text-white">
                                     {tribe.name}
                                 </h3>
                             </div>
