@@ -75,10 +75,10 @@ export default function WishlistCard({ item, onRemove, onAddToCart }) {
             <div className="p-4 flex flex-col flex-grow">
                 {/* Details info */}
                 <div className="flex flex-col gap-1 flex-1">
-                    <h3 className="font-sans text-sm sm:text-base font-semibold text-black leading-snug line-clamp-1">
+                    <h3 className="font-sans text-sm sm:text-base md:text-lg font-normal text-black leading-snug line-clamp-1">
                         {item.name}
                     </h3>
-                    <p className="font-clashDisplay text-lg sm:text-xl font-bold text-black mt-0.5">
+                    <p className="font-clashDisplay text-base sm:text-xl md:text-2xl font-semibold text-black mt-0.5">
                         {item.price}
                     </p>
                 </div>

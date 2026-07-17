@@ -21,6 +21,10 @@ export default function ProductsListing({
     const urlCollection = collectionSlug || searchParams.get("collection");
     const urlSubCategory = subCategorySlug || searchParams.get("subCategory");
 
+    const isCategoryPage = !!categorySlug;
+    const isCollectionPage = !!collectionSlug;
+    const isSubCategoryPage = !!subCategorySlug;
+
     // Page, filter, and sort states
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -37,7 +41,7 @@ export default function ProductsListing({
 
     // Sync selectedCategory
     useEffect(() => {
-        if (urlCategory) {
+        if (urlCategory && urlCategory.toUpperCase() !== "ALL") {
             setSelectedCategory(urlCategory);
         } else {
             setSelectedCategory("ALL");
@@ -47,7 +51,7 @@ export default function ProductsListing({
 
     // Sync selectedCollection
     useEffect(() => {
-        if (urlCollection) {
+        if (urlCollection && urlCollection.toUpperCase() !== "ALL") {
             setSelectedCollection(urlCollection);
         } else {
             setSelectedCollection("ALL");
@@ -57,7 +61,7 @@ export default function ProductsListing({
 
     // Sync selectedSubCategory
     useEffect(() => {
-        if (urlSubCategory) {
+        if (urlSubCategory && urlSubCategory.toUpperCase() !== "ALL") {
             setSelectedSubCategory(urlSubCategory);
         } else {
             setSelectedSubCategory("ALL");
@@ -162,40 +166,6 @@ export default function ProductsListing({
         fetchData();
     }, []);
 
-    const handleSubCategoryClick = (subSlugOrId) => {
-        setSelectedSubCategory(subSlugOrId);
-        setCurrentPage(1);
-
-        const params = new URLSearchParams(window.location.search);
-        if (subSlugOrId === "ALL") {
-            params.delete("subCategory");
-        } else {
-            params.set("subCategory", subSlugOrId);
-        }
-
-        let newUrl = window.location.pathname;
-        if (subCategorySlug) {
-            // On a subcategory dynamic route: Changing the subcategory means changing the path itself
-            if (subSlugOrId === "ALL") {
-                newUrl = "/product-list";
-                params.delete("subCategory");
-            } else {
-                newUrl = `/product-list/tribe/${subSlugOrId}`;
-                params.delete("subCategory"); // Slug is in path, no need for param
-            }
-        } else {
-            // On category, collection, or general listing. Clear conflicting category/collection parameters
-            params.delete("category");
-            params.delete("collection");
-            setSelectedCategory("ALL");
-            setSelectedCollection("ALL");
-        }
-
-        const queryStr = params.toString();
-        const finalUrl = queryStr ? `${newUrl}?${queryStr}` : newUrl;
-        window.history.pushState({}, "", finalUrl);
-    };
-
     const getActiveTitle = () => {
         if (selectedSubCategory !== "ALL") {
             const sub = subCategoriesList.find(
@@ -214,6 +184,16 @@ export default function ProductsListing({
                 c => c._id === selectedCategory || c.slug === selectedCategory || c.Name.toUpperCase() === selectedCategory.toUpperCase()
             );
             return cat ? cat.Name : "Category Products";
+        }
+        
+        if (isCategoryPage) {
+            return "Explore our QR-Enabled Range";
+        }
+        if (isCollectionPage) {
+            return "Shop our Collections";
+        }
+        if (isSubCategoryPage) {
+            return "Shop by Tribe";
         }
         return "Featured Products";
     };
@@ -274,9 +254,6 @@ export default function ProductsListing({
     }
 
     // Determine active tab context and list
-    const isCategoryPage = !!categorySlug;
-    const isCollectionPage = !!collectionSlug;
-
     const pillsList = isCategoryPage
         ? categories.map((c) => ({ id: c._id, slug: c.slug, name: c.Name }))
         : isCollectionPage
@@ -291,23 +268,31 @@ export default function ProductsListing({
 
     const handlePillClick = (slugOrId) => {
         setCurrentPage(1);
+        const normSlug = slugOrId.toUpperCase() === "ALL" ? "all" : slugOrId;
+
         if (isCategoryPage) {
-            setSelectedCategory(slugOrId);
+            setSelectedCategory(normSlug === "all" ? "ALL" : normSlug);
             setSelectedCollection("ALL");
             setSelectedSubCategory("ALL");
-            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/range/${slugOrId}`;
+            const newUrl = `/product-list/range/${normSlug}`;
             window.history.pushState({}, "", newUrl);
         } else if (isCollectionPage) {
             setSelectedCategory("ALL");
-            setSelectedCollection(slugOrId);
+            setSelectedCollection(normSlug === "all" ? "ALL" : normSlug);
             setSelectedSubCategory("ALL");
-            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/collection/${slugOrId}`;
+            const newUrl = `/product-list/collection/${normSlug}`;
+            window.history.pushState({}, "", newUrl);
+        } else if (isSubCategoryPage) {
+            setSelectedCategory("ALL");
+            setSelectedCollection("ALL");
+            setSelectedSubCategory(normSlug === "all" ? "ALL" : normSlug);
+            const newUrl = `/product-list/tribe/${normSlug}`;
             window.history.pushState({}, "", newUrl);
         } else {
             setSelectedCategory("ALL");
             setSelectedCollection("ALL");
-            setSelectedSubCategory(slugOrId);
-            const newUrl = slugOrId === "ALL" ? "/product-list" : `/product-list/tribe/${slugOrId}`;
+            setSelectedSubCategory(normSlug === "all" ? "ALL" : normSlug);
+            const newUrl = normSlug === "all" ? "/product-list" : `/product-list/tribe/${normSlug}`;
             window.history.pushState({}, "", newUrl);
         }
     };
@@ -329,7 +314,7 @@ export default function ProductsListing({
 
                     {/* Page Header */}
                     <div className="mt-6 md:mt-8 space-y-6 md:space-y-3">
-                        <h1 className="font-clashDisplay text-3xl md:text-[3vw] font-semibold tracking-tight text-black capitalize">
+                        <h1 className="heading-page text-black capitalize">
                             {getActiveTitle()}
                         </h1>
 

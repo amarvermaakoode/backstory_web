@@ -47,7 +47,7 @@ export default function Hero() {
                     <div className="flex flex-row items-end justify-between md:items-center gap-4 md:gap-4 w-full">
                         {/* Left Title */}
                         <div className="w-1/2 md:w-1/3 flex items-end">
-                            <h1 className="font-clashDisplay text-[34px] xs:text-[38px] sm:text-5xl md:text-[5vw] font-semibold tracking-wide text-[#C5B9AC] leading-[0.95] text-left select-none">
+                            <h1 className="heading-hero text-[#C5B9AC] text-left select-none">
                                 WEAR<br />YOUR<br />STORY
                             </h1>
                         </div>
@@ -55,7 +55,7 @@ export default function Hero() {
                         {/* Right Subtitle & Action */}
                         <div className="w-1/2 md:w-1/3 flex items-end justify-end">
                             <div className="max-w-[100%] xs:max-w-xs space-y-4 md:space-y-6 text-left">
-                                <p className="text-sm xs:text-sm sm:text-base md:text-xl lg:text-[2vw] text-white font-geist font-light md:font-normal leading-snug tracking-wide">
+                                <p className="body-large text-white text-left tracking-wide">
                                     Crafted as apparel.<br />Worn as identity.
                                 </p>
                                 <Button href="/product-list" hasArrow={true} variant="primary">
