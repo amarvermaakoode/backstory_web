@@ -15,6 +15,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import Image from "next/image";
+import { getImageUrl } from "@/lib/api";
 
 export default function ProductsAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -137,13 +138,6 @@ export default function ProductsAdminPage() {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const getImageUrl = (path) => {
-    if (!path) return "/images/placeholder.png";
-    if (path.startsWith("http")) return path;
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
   };
 
   const openCreateModal = () => {

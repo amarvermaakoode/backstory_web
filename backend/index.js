@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 const path = require("path");
 
 const connectDB = require("./config/db");
+const migrationAutoSlug = require("./scripts/migrateSlugs");
+const errorHandler = require("./middlewares/errorHandler");
 
 const adminAuthRoutes = require("./routes/admin/authRoutes");
 const categoryRoutes = require("./routes/admin/categoryRoutes");
@@ -26,43 +28,6 @@ const app = express();
 
 // Connect Database
 connectDB().then(() => {
-  // Run migration to auto-slug existing docs
-  const migrationAutoSlug = async () => {
-    try {
-      const Category = require("./models/category");
-      const SubCategory = require("./models/SubCategory");
-      const Collection = require("./models/collection");
-
-      // categories
-      const categories = await Category.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
-      for (let cat of categories) {
-        await cat.save();
-      }
-
-      // subcategories
-      const subcategories = await SubCategory.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
-      for (let sub of subcategories) {
-        await sub.save();
-      }
-
-      // collections
-      const collections = await Collection.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }] });
-      for (let col of collections) {
-        await col.save();
-      }
-
-      // products
-      const Product = require("./models/product");
-      const products = await Product.find({ $or: [{ slug: { $exists: false } }, { slug: "" }, { slug: null }, { slug: "undefined" }] });
-      for (let prod of products) {
-        await prod.save();
-      }
-
-      console.log("✅ Slug migration completed successfully.");
-    } catch (err) {
-      console.error("❌ Slug migration error:", err.message);
-    }
-  };
   migrationAutoSlug();
 
   const syncUserIndexes = async () => {
@@ -96,8 +61,6 @@ app.use("/api/admin/products", productRoutes);
 app.use("/api/admin/reviews", adminReviewRoutes);
 
 //frontend routes
-//app.use("/api/categories", categoryFrntRoutes);
-
 app.use("/api/frontend/categories", frontendCategoryRoutes);
 app.use("/api/frontend/sub-categories", frontendSubCategoryRoutes);
 app.use("/api/frontend/collections", frontendCollectionRoutes);
@@ -109,6 +72,9 @@ app.use("/api/frontend/auth", frontendAuthRoutes);
 app.get("/", (req, res) => {
   res.send("Backend is running successfully");
 });
+
+// Global Error Handler Middleware
+app.use(errorHandler);
 
 // Start Server
 const PORT = process.env.PORT || 5000;

@@ -8,9 +8,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import { API_BASE_URL } from "@/lib/api";
+
 const AdminAuthContext = createContext(null);
 
-export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+export { API_BASE_URL };
 
 export function AdminAuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
