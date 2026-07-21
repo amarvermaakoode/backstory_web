@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
 import WishlistCard from "@/components/ui/WishlistCard";
+import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 export default function WishlistPage() {
@@ -16,6 +17,7 @@ export default function WishlistPage() {
     const { addToCart } = useCart();
     const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
     // Categorize wishlist items
     const categorizeItem = (item) => {
@@ -84,7 +86,11 @@ export default function WishlistPage() {
     }, [wishlistItems]);
 
     const handleAddToCart = (item) => {
-        addToCart(item, 1, "M", item.colors?.[0] || { name: "Default", hex: "#000" });
+        setSelectedProductForOptions(item);
+    };
+
+    const handleConfirmAddToCart = (product, quantity, size, color) => {
+        addToCart(product, quantity, size, color);
     };
 
     return (
@@ -182,9 +188,9 @@ export default function WishlistPage() {
                                 <button
                                     key={page}
                                     onClick={() => setCurrentPage(page)}
-                                    className={`w-8 h-8 rounded-full text-xs font-semibold transition-all cursor-pointer ${currentPage === page
-                                        ? "bg-black text-white"
-                                        : "hover:bg-neutral-100 text-neutral-600"
+                                    className={`w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer ${currentPage === page
+                                            ? "bg-black text-white"
+                                            : "hover:bg-neutral-100 text-black"
                                         }`}
                                 >
                                     {page}
@@ -203,46 +209,39 @@ export default function WishlistPage() {
 
                 {/* Explore More Section */}
                 {exploreProducts.length > 0 && (
-                    <div className="mt-24 pt-12 border-t border-neutral-200/50">
-                        <h2 className="heading-sub text-black mb-8">
-                            Explore more Products
+                    <div className="mt-24 pt-16 border-t border-neutral-200/50">
+                        <h2 className="heading-section text-center text-black mb-10">
+                            YOU MAY ALSO LIKE
                         </h2>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-12">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {exploreProducts.map((product) => {
                                 const isWish = isInWishlist(product.id);
                                 return (
-                                    <div key={product.id} className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden">
-                                        <div className="relative w-full aspect-[4/5] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                                            {/* Top badges */}
-                                            <div className="absolute top-3 left-3 z-10 flex flex-row gap-1.5">
-                                                {product.offer && (
-                                                    <div className="text-[9px] font-bold tracking-tight px-2 rounded-full uppercase bg-[#C5B9AC] text-[#1F1108] w-fit h-5 flex items-center justify-center">
-                                                        {product.offer}
-                                                    </div>
-                                                )}
-                                                {product.tag && (
-                                                    <div className="bg-[#101820] text-white text-[8px] sm:text-[9px] font-bold tracking-wider px-3 rounded-full uppercase w-fit h-5 flex items-center justify-center select-none">
-                                                        {product.tag}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Heart Toggle Button */}
+                                    <div
+                                        key={product.id}
+                                        className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden w-full select-none"
+                                    >
+                                        {/* Image Box */}
+                                        <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden rounded-[18px] sm:rounded-[22px]">
+                                            {product.tag && (
+                                                <div className="absolute top-3 left-3 z-10 bg-[#101820] text-white text-[8px] sm:text-[9px] font-bold tracking-wider px-3 rounded-full uppercase w-fit h-5 flex items-center justify-center">
+                                                    {product.tag}
+                                                </div>
+                                            )}
                                             <button
                                                 onClick={() => toggleWishlist(product)}
-                                                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-white hover:scale-105 transition-transform cursor-pointer shadow-xs flex items-center justify-center text-neutral-500 hover:text-black"
+                                                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-white/40 backdrop-blur-xs hover:bg-white/60 transition-transform cursor-pointer shadow-xs flex items-center justify-center text-black"
                                                 aria-label="Toggle Wishlist"
                                             >
                                                 <Heart
-                                                    className={`h-4 w-4 transition-all ${isWish
-                                                        ? "fill-red-500 stroke-red-500 scale-110"
-                                                        : "stroke-neutral-500 hover:stroke-black"
-                                                        }`}
+                                                    className={`h-4.5 w-4.5 stroke-[1.5] ${isWish ? "fill-red-500 text-red-500 stroke-red-500" : ""}`}
                                                 />
                                             </button>
 
-                                            {/* Image */}
-                                            <Link href={`/products/${product.slug || product.id}`} className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105">
+                                            <Link
+                                                href={`/products/${product.slug || product.id}`}
+                                                className="relative w-[75%] h-[75%] transition-transform duration-300 group-hover:scale-105"
+                                            >
                                                 <Image
                                                     src={getImageUrl(product.image)}
                                                     alt={product.name}
@@ -253,16 +252,14 @@ export default function WishlistPage() {
                                                 />
                                             </Link>
 
-                                            {/* Rating badge (bottom-left) */}
                                             <div className="absolute bottom-3 left-3 z-10 bg-white border border-neutral-300/80 text-[10px] font-semibold text-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs select-none">
                                                 <span className="text-black">★</span>
                                                 <span>{product.rating || "4.7"} ({product.reviewsCount || 63})</span>
                                             </div>
                                         </div>
 
-                                        {/* Bottom Content Section (White Background details and button) */}
+                                        {/* Bottom Content Section */}
                                         <div className="p-4 flex flex-col flex-grow">
-                                            {/* Info */}
                                             <div className="flex flex-col gap-1 flex-1">
                                                 <h3 className="font-sans text-sm sm:text-base font-semibold text-black leading-snug line-clamp-1">
                                                     {product.name}
@@ -272,7 +269,6 @@ export default function WishlistPage() {
                                                 </p>
                                             </div>
 
-                                            {/* Add to Cart */}
                                             <button
                                                 onClick={() => handleAddToCart(product)}
                                                 className="w-full mt-4 py-2.5 bg-white border border-black rounded-full font-semibold text-xs sm:text-sm text-black hover:bg-black hover:text-white transition-all cursor-pointer text-center"
@@ -287,6 +283,14 @@ export default function WishlistPage() {
                     </div>
                 )}
             </main>
+
+            {/* Select Options Modal */}
+            <SelectOptionsModal
+                isOpen={!!selectedProductForOptions}
+                onClose={() => setSelectedProductForOptions(null)}
+                product={selectedProductForOptions}
+                onConfirmAddToCart={handleConfirmAddToCart}
+            />
 
             <Footer />
         </div>

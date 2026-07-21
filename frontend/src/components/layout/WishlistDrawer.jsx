@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { X, Heart } from "lucide-react";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
 import { getImageUrl } from "@/lib/api";
+import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 
 export default function WishlistDrawer() {
     const {
@@ -19,6 +20,7 @@ export default function WishlistDrawer() {
 
     const { addToCart } = useCart();
     const drawerRef = useRef(null);
+    const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
     // Close on Escape key press
     useEffect(() => {
@@ -43,16 +45,20 @@ export default function WishlistDrawer() {
         };
     }, [isWishlistOpen]);
 
-    const handleAddToCart = (item) => {
-        addToCart(item, 1, item.sizes?.[0] || "M", item.colors?.[0] || { name: "Default", hex: "#000" });
+    const handleOpenOptionsModal = (item) => {
+        setSelectedProductForOptions(item);
+    };
+
+    const handleConfirmAddToCart = (product, quantity, size, color) => {
+        addToCart(product, quantity, size, color);
         closeWishlist();
     };
 
     const handleAddAllToCart = () => {
-        wishlistItems.forEach((item) => {
-            addToCart(item, 1, item.sizes?.[0] || "M", item.colors?.[0] || { name: "Default", hex: "#000" });
-        });
-        closeWishlist();
+        if (wishlistItems.length > 0) {
+            // Prompt for the first item or handle options selection
+            setSelectedProductForOptions(wishlistItems[0]);
+        }
     };
 
     return (
@@ -175,7 +181,7 @@ export default function WishlistDrawer() {
 
                                             {/* Add to Cart button */}
                                             <button
-                                                onClick={() => handleAddToCart(item)}
+                                                onClick={() => handleOpenOptionsModal(item)}
                                                 className="w-full bg-[#DFD7CC]/80 hover:bg-[#DFD7CC] text-black font-semibold text-[10px] sm:text-xs py-2 rounded-full mt-3 cursor-pointer text-center select-none transition-colors"
                                             >
                                                 Add to Cart
@@ -200,6 +206,14 @@ export default function WishlistDrawer() {
                     </div>
                 )}
             </div>
+
+            {/* Select Options Modal for Wishlist Drawer */}
+            <SelectOptionsModal
+                isOpen={!!selectedProductForOptions}
+                onClose={() => setSelectedProductForOptions(null)}
+                product={selectedProductForOptions}
+                onConfirmAddToCart={handleConfirmAddToCart}
+            />
         </>
     );
 }
