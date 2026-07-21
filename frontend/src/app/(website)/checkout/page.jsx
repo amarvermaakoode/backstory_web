@@ -7,7 +7,7 @@ import { Lock, Check, ShoppingBag, User, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
-import { getImageUrl } from "@/lib/api";
+import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 // Fallback items matching the mockup exactly
 const mockCheckoutItems = [
@@ -83,9 +83,18 @@ export default function CheckoutPage() {
 
     const [shippingMethod, setShippingMethod] = useState("standard"); // standard, express, international
     const [promoInput, setPromoInput] = useState("");
-    const [appliedDiscount, setAppliedDiscount] = useState(0); // percentage discount
+    const [activePromo, setActivePromo] = useState(null);
     const [promoError, setPromoError] = useState("");
     const [promoSuccess, setPromoSuccess] = useState("");
+
+    // Clear coupon if cart subtotal drops below minimum spend requirement
+    useEffect(() => {
+        if (activePromo && activeSubtotal < activePromo.minOrderAmount) {
+            setActivePromo(null);
+            setPromoError(`Promo code cleared: requires minimum spend of Rs ${activePromo.minOrderAmount}`);
+            setPromoSuccess("");
+        }
+    }, [activeSubtotal, activePromo]);
 
     // Order complete state
     const [isOrderComplete, setIsOrderComplete] = useState(false);
@@ -109,34 +118,80 @@ export default function CheckoutPage() {
     const shippingCost = getShippingCost();
 
     // Promo code handler
-    const handleApplyPromo = (e) => {
+    const handleApplyPromo = async (e) => {
         e.preventDefault();
         setPromoError("");
         setPromoSuccess("");
 
         const code = promoInput.trim().toUpperCase();
-        if (code === "BACSTORY10") {
-            setAppliedDiscount(10);
-            setPromoSuccess("10% discount applied successfully!");
-        } else if (code === "") {
+        if (code === "") {
             setPromoError("Please enter a promo code.");
-        } else {
-            setPromoError("Invalid promo code.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/frontend/promo-codes/validate`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    code,
+                    orderAmount: activeSubtotal
+                })
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                setActivePromo(data.data);
+                setPromoSuccess(data.message || "Promo code applied successfully!");
+            } else {
+                setPromoError(data.message || "Invalid promo code.");
+                setActivePromo(null);
+            }
+        } catch (error) {
+            console.error("Error applying promo code:", error);
+            setPromoError("Failed to apply promo code. Please try again.");
+            setActivePromo(null);
         }
     };
 
     // Calculation values
-    const discountAmount = Math.round(activeSubtotal * (appliedDiscount / 100));
+    const discountAmount = activePromo 
+        ? (activePromo.discountType === "percentage" 
+            ? Math.round(activeSubtotal * (activePromo.discountValue / 100)) 
+            : Math.min(activeSubtotal, activePromo.discountValue)) 
+        : 0;
     const taxableAmount = activeSubtotal - discountAmount;
     const taxAmount = Math.round(taxableAmount * 0.05); // 5% GST as shown in mockup
     const totalAmount = taxableAmount + shippingCost + taxAmount;
 
     // Checkout submission
-    const handleCheckoutSubmit = (e) => {
+    const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
 
         // Generate random order ID
         const orderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
+
+        try {
+            const checkoutItems = activeItems.map(item => ({
+                productId: item.productId || item.id,
+                size: item.size,
+                color: item.color,
+                quantity: item.quantity
+            }));
+
+            await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ items: checkoutItems })
+            });
+        } catch (error) {
+            console.error("Error reducing stock during checkout:", error);
+        }
+
         setGeneratedOrderNum(orderId);
         setIsOrderComplete(true);
 
@@ -545,9 +600,9 @@ export default function CheckoutPage() {
                                     <span className="font-semibold text-black">Rs {activeSubtotal.toLocaleString()}</span>
                                 </div>
 
-                                {appliedDiscount > 0 && (
+                                {activePromo && (
                                     <div className="flex justify-between text-green-600 font-medium">
-                                        <span>Discount (10% off)</span>
+                                        <span>Discount ({activePromo.code} - {activePromo.discountType === "percentage" ? `${activePromo.discountValue}% off` : `Rs ${activePromo.discountValue} off`})</span>
                                         <span className="font-semibold">-Rs {discountAmount.toLocaleString()}</span>
                                     </div>
                                 )}

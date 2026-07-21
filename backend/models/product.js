@@ -97,6 +97,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    variantStock: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
     timestamps: true,

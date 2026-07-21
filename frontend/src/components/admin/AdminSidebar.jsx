@@ -12,7 +12,8 @@ import {
   X,
   ShoppingBag,
   Palette,
-  Ruler
+  Ruler,
+  Percent
 } from "lucide-react";
 
 export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
@@ -54,6 +55,11 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Size Guides",
       path: "/admin/size-guides",
       icon: <Ruler className="w-5 h-5" />,
+    },
+    {
+      name: "Promo Codes",
+      path: "/admin/promo-codes",
+      icon: <Percent className="w-5 h-5" />,
     },
   ];
 

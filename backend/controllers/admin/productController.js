@@ -22,6 +22,7 @@ const createProduct = async (req, res) => {
       care,
       status,
       featured,
+      variantStock,
     } = req.body;
 
     // Standard validations
@@ -190,6 +191,7 @@ const createProduct = async (req, res) => {
       care: care ? care.trim() : undefined,
       status: status === undefined ? true : status,
       featured: featured === 'true' || featured === true,
+      variantStock: variantStock ? (typeof variantStock === 'string' ? JSON.parse(variantStock) : variantStock) : {},
     });
 
     return res.status(201).json({
@@ -301,6 +303,7 @@ const updateProduct = async (req, res) => {
       care,
       status,
       featured,
+      variantStock,
     } = req.body;
 
     // Validate new updates if provided
@@ -441,6 +444,15 @@ const updateProduct = async (req, res) => {
 
     if (featured !== undefined) {
       product.featured = featured === 'true' || featured === true;
+    }
+
+    if (variantStock !== undefined) {
+      try {
+        product.variantStock = typeof variantStock === 'string' ? JSON.parse(variantStock) : variantStock;
+        product.markModified("variantStock");
+      } catch (error) {
+        console.error("Invalid variantStock JSON format:", error);
+      }
     }
 
     // If colors are supplied, update them

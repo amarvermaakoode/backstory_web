@@ -189,9 +189,46 @@ const getProductById = async (req, res) => {
   }
 };
 
+// Reduce Stock on Checkout
+const reduceStock = async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: "Items array is required." });
+    }
+
+    for (const item of items) {
+      const pId = item.productId || item.product || item.id;
+      const size = item.size;
+      const colorName = typeof item.color === "object" ? item.color?.name : item.color;
+      const qty = Number(item.quantity) || 1;
+
+      if (!pId || !size || !colorName) continue;
+
+      const product = await Product.findById(pId);
+      if (!product) continue;
+
+      const key = `${size.toUpperCase().trim()}_${colorName.toLowerCase().trim()}`;
+      if (!product.variantStock) {
+        product.variantStock = {};
+      }
+      const curStock = typeof product.variantStock[key] === "number" ? product.variantStock[key] : 10;
+      product.variantStock[key] = Math.max(0, curStock - qty);
+      product.markModified("variantStock");
+      await product.save();
+    }
+
+    return res.status(200).json({ success: true, message: "Stock reduced successfully." });
+  } catch (error) {
+    console.error("Reduce stock error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getProducts,
   getFeaturedProducts,
   getProductById,
+  reduceStock,
 };
 

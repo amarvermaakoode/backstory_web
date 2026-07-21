@@ -16,7 +16,7 @@ export function getStockForSizeAndColor(size, color, product) {
     if (!size) return 0;
 
     // 1. Explicit out of stock product status
-    if (product && (product.status === false || product.outOfStock === true || product.stock === 0)) {
+    if (product && (product.status === false || product.outOfStock === true)) {
         return 0;
     }
 

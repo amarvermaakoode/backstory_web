@@ -8,7 +8,8 @@ import {
   Menu, 
   Palette, 
   Ruler, 
-  ShoppingBag
+  ShoppingBag,
+  Percent
 } from "lucide-react";
 
 function AdminLayoutShell({ children }) {
@@ -66,6 +67,11 @@ function AdminLayoutShell({ children }) {
       name: "Size Guides",
       path: "/admin/size-guides",
       icon: <Ruler className="w-5 h-5" />,
+    },
+    {
+      name: "Promo Codes",
+      path: "/admin/promo-codes",
+      icon: <Percent className="w-5 h-5" />,
     },
   ];
 

@@ -77,6 +77,7 @@ export default function ProductsAdminPage() {
   const [care, setCare] = useState("");
   const [status, setStatus] = useState(true);
   const [featured, setFeatured] = useState(false);
+  const [variantStock, setVariantStock] = useState({});
 
   // Selected colors with local image previews and files
   // Structure: { colorId: string, name: string, hexCode: string, existingImages: [string], newFiles: [File], newPreviews: [string] }
@@ -155,6 +156,7 @@ export default function ProductsAdminPage() {
     setCare("");
     setStatus(true);
     setFeatured(false);
+    setVariantStock({});
     setProductColors([]);
     setFaqs([]);
     setSlug("");
@@ -191,6 +193,7 @@ export default function ProductsAdminPage() {
     setCare(product.care || "");
     setStatus(product.status === undefined ? true : product.status);
     setFeatured(product.featured === undefined ? false : product.featured);
+    setVariantStock(product.variantStock || {});
 
     // Map existing colors
     const mappedColors = (product.colors || []).map(item => {
@@ -324,6 +327,7 @@ export default function ProductsAdminPage() {
       formData.append("care", care.trim());
       formData.append("status", status);
       formData.append("featured", featured);
+      formData.append("variantStock", JSON.stringify(variantStock));
 
       // Serialize colors array mapping color references & existing images
       const colorsPayload = productColors.map(c => ({
@@ -496,6 +500,7 @@ export default function ProductsAdminPage() {
                   <th className="py-4 px-6">Product Title</th>
                   <th className="py-4 px-6">Category/Sub</th>
                   <th className="py-4 px-6">Price</th>
+                  <th className="py-4 px-6">Stock</th>
                   <th className="py-4 px-6">Colors</th>
                   <th className="py-4 px-6">Featured</th>
                   <th className="py-4 px-6">Status</th>
@@ -536,6 +541,16 @@ export default function ProductsAdminPage() {
                       </td>
                       <td className="py-4 px-6 font-semibold text-neutral-900 text-sm">
                         Rs {Number(product.price)}
+                      </td>
+                      <td className="py-4 px-6 text-sm">
+                        {(() => {
+                          const totalStock = Object.values(product.variantStock || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+                          return totalStock === 0 ? (
+                            <span className="text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Out of Stock</span>
+                          ) : (
+                            <span className="text-neutral-700 font-semibold">{totalStock} pcs</span>
+                          );
+                        })()}
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-1">
@@ -930,6 +945,54 @@ export default function ProductsAdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* Variant Stock Levels */}
+              {productColors.length > 0 && selectedSizeGuide && (
+                <div className="space-y-4 pt-4 border-t border-neutral-100">
+                  <div>
+                    <h4 className="font-clashDisplay font-bold text-neutral-900 text-sm uppercase tracking-wider">
+                      Stock Inventory per Variant (Size + Color)
+                    </h4>
+                    <p className="text-xs text-neutral-500 font-semibold">Enter stock levels for each color and size combination.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                    {(() => {
+                      const selectedGuide = sizeGuides.find(sg => sg._id === selectedSizeGuide);
+                      const sizes = selectedGuide?.chart?.map(item => item.size) || ["S", "M", "L", "XL"];
+                      
+                      return productColors.flatMap(color => 
+                        sizes.map(size => {
+                          const key = `${size.toUpperCase().trim()}_${color.name.toLowerCase().trim()}`;
+                          const currentStockValue = variantStock[key] !== undefined ? variantStock[key] : 10;
+                          
+                          return (
+                            <div key={key} className="space-y-1 bg-white p-2.5 rounded-lg border border-neutral-200 shadow-2xs">
+                              <div className="flex items-center gap-1.5 justify-between">
+                                <span className="text-[10px] font-bold text-neutral-800 truncate">{color.name}</span>
+                                <span className="text-[10px] font-extrabold text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded">{size}</span>
+                              </div>
+                              <input
+                                type="number"
+                                min="0"
+                                required
+                                value={currentStockValue}
+                                onChange={(e) => {
+                                  setVariantStock(prev => ({
+                                    ...prev,
+                                    [key]: Number(e.target.value)
+                                  }));
+                                }}
+                                className="w-full bg-neutral-50 border border-neutral-200 focus:border-[#a39889] rounded px-2 py-1 text-xs text-neutral-900 font-semibold"
+                              />
+                            </div>
+                          );
+                        })
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               <hr className="border-neutral-200" />
 

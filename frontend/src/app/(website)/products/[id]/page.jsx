@@ -92,7 +92,8 @@ const mapProductDetail = (dbProd) => ({
     })),
     sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
     reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
-    faqs: dbProd.faqs || []
+    faqs: dbProd.faqs || [],
+    variantStock: dbProd.variantStock || {}
 });
 
 // Map a backend product document to the "related product" card view model.
@@ -115,7 +116,8 @@ const mapRelatedProduct = (item) => {
         sizes: sizesList,
         colors: colorsList,
         tag: item.subCategory?.name || item.category?.Name || "Product",
-        link: `/products/${item.slug || item._id}`
+        link: `/products/${item.slug || item._id}`,
+        variantStock: item.variantStock || {}
     };
 };
 
@@ -229,6 +231,9 @@ export default function ProductDetailPage({ params }) {
                     if (mapped.colors && mapped.colors.length > 0) {
                         setSelectedColor(mapped.colors[0]);
                     }
+                    if (mapped.sizes && mapped.sizes.length > 0) {
+                        setSelectedSize(mapped.sizes[0]);
+                    }
 
                     // Fetch related
                     fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
@@ -249,6 +254,9 @@ export default function ProductDetailPage({ params }) {
                 setProduct(fb);
                 if (fb.colors && fb.colors.length > 0) {
                     setSelectedColor(fb.colors[0]);
+                }
+                if (fb.sizes && fb.sizes.length > 0) {
+                    setSelectedSize(fb.sizes[0]);
                 }
                 setRelatedProducts(defaultProducts.filter(p => p.id !== fb.id));
             } else {
@@ -562,7 +570,7 @@ export default function ProductDetailPage({ params }) {
                                                                     <XCircle className="w-3.5 h-3.5" />
                                                                     Out of Stock
                                                                 </span>
-                                                            ) : currentDetailStock <= 3 ? (
+                                                            ) : currentDetailStock <= 5 ? (
                                                                 <span className="text-amber-700 flex items-center gap-1 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 font-semibold">
                                                                     <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                                                                     Only {currentDetailStock} {currentDetailStock === 1 ? "piece" : "pieces"} left!
@@ -584,7 +592,7 @@ export default function ProductDetailPage({ params }) {
                                                 {product.sizes.map((size) => {
                                                     const sizeStock = getStockForSizeAndColor(size, selectedColor, product);
                                                     const isSizeOutOfStock = sizeStock === 0;
-                                                    const isLowStock = sizeStock > 0 && sizeStock <= 3;
+                                                    const isLowStock = sizeStock > 0 && sizeStock <= 5;
                                                     const isSelected = selectedSize === size;
 
                                                     return (

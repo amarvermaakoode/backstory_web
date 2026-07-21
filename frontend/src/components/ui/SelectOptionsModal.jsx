@@ -13,6 +13,11 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
     const [availableSizes, setAvailableSizes] = useState([]);
     const [availableColors, setAvailableColors] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [activeProduct, setActiveProduct] = useState(product);
+
+    useEffect(() => {
+        setActiveProduct(product);
+    }, [product]);
 
     useEffect(() => {
         if (!isOpen || !product) return;
@@ -22,8 +27,8 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
         let sizes = product.sizes || [];
         let colors = product.colors || [];
 
-        // If product already has sizes and colors, use them
-        if (sizes.length > 0 && colors.length > 0) {
+        // If product already has sizes, colors, and variantStock, use them
+        if (sizes.length > 0 && colors.length > 0 && product.variantStock) {
             setAvailableSizes(sizes);
             setAvailableColors(colors);
 
@@ -31,7 +36,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
             setSelectedColor(initialColor);
 
             // Pick first in-stock size for initial color
-            const firstInStockSize = sizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || sizes[0] || "M";
+            const firstInStockSize = sizes.find((sz) => getStockForSizeAndColor(sz, initialColor, activeProduct) > 0) || sizes[0] || "M";
             setSelectedSize(firstInStockSize);
             return;
         }
@@ -59,11 +64,12 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
 
                     setAvailableSizes(finalSizes);
                     setAvailableColors(finalColors);
+                    setActiveProduct(dbProd);
 
                     const initialColor = finalColors[0] || { name: "Default", hex: "#000000" };
                     setSelectedColor(initialColor);
 
-                    const firstInStock = finalSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || finalSizes[0] || "M";
+                    const firstInStock = finalSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, dbProd) > 0) || finalSizes[0] || "M";
                     setSelectedSize(firstInStock);
                 } else {
                     useFallbacks();
@@ -90,7 +96,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
             const initialColor = defaultColors[0];
             setSelectedColor(initialColor);
 
-            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || defaultSizes[0] || "M";
+            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, activeProduct) > 0) || defaultSizes[0] || "M";
             setSelectedSize(firstInStock);
         };
 
@@ -115,14 +121,14 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
     if (!isOpen || !product) return null;
 
     // Full conditional stock check for currently selected size AND color
-    const currentStock = getStockForSizeAndColor(selectedSize, selectedColor, product);
+    const currentStock = getStockForSizeAndColor(selectedSize, selectedColor, activeProduct);
     const isOutOfStock = currentStock === 0;
 
     const handleConfirm = () => {
         if (isOutOfStock) return;
         const finalSize = selectedSize || availableSizes[0] || "M";
         const finalColor = selectedColor || availableColors[0] || { name: "Default", hex: "#000000" };
-        onConfirmAddToCart(product, quantity, finalSize, finalColor);
+        onConfirmAddToCart(activeProduct, quantity, finalSize, finalColor);
         onClose();
     };
 
@@ -233,7 +239,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                                     <XCircle className="w-3.5 h-3.5" />
                                                     Out of Stock
                                                 </span>
-                                            ) : currentStock <= 3 ? (
+                                            ) : currentStock <= 5 ? (
                                                 <span className="text-amber-700 flex items-center gap-1 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                                                     <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                                                     Only {currentStock} {currentStock === 1 ? "piece" : "pieces"} left!
@@ -246,9 +252,9 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {availableSizes.map((size) => {
                                         const isSelected = selectedSize === size;
-                                        const stock = getStockForSizeAndColor(size, selectedColor, product);
+                                        const stock = getStockForSizeAndColor(size, selectedColor, activeProduct);
                                         const sizeOutOfStock = stock === 0;
-                                        const isLowStock = stock > 0 && stock <= 3;
+                                        const isLowStock = stock > 0 && stock <= 5;
 
                                         return (
                                             <button
