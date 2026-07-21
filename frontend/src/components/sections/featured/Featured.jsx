@@ -9,11 +9,12 @@ import { useWishlist } from "@/context/WishlistContext";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
+import { defaultProducts } from "@/lib/mockData";
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
     const { toggleWishlist, wishlistItems } = useWishlist();
-    const [products, setProducts] = useState([]);
+    const [products, setProducts] = useState(defaultProducts);
 
     useEffect(() => {
         const fetchFeatured = async () => {
@@ -46,11 +47,11 @@ export default function FeaturedProducts() {
                     });
                     setProducts(mapped);
                 } else {
-                    setProducts([]);
+                    setProducts(defaultProducts);
                 }
             } catch (err) {
                 console.error("Failed to fetch featured products:", err);
-                setProducts([]);
+                setProducts(defaultProducts);
             }
         };
 

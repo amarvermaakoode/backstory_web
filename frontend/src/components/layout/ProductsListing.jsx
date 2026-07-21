@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { API_BASE_URL } from "@/lib/api";
+import { defaultProducts, defaultCategories, defaultTribes, defaultCollections } from "@/lib/mockData";
 
 export default function ProductsListing({
     categorySlug, 
@@ -25,10 +26,10 @@ export default function ProductsListing({
     const isSubCategoryPage = !!subCategorySlug;
 
     // Page, filter, and sort states
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [collectionsList, setCollectionsList] = useState([]);
-    const [subCategoriesList, setSubCategoriesList] = useState([]);
+    const [products, setProducts] = useState(defaultProducts);
+    const [categories, setCategories] = useState(defaultCategories);
+    const [collectionsList, setCollectionsList] = useState(defaultCollections);
+    const [subCategoriesList, setSubCategoriesList] = useState(defaultTribes);
     const [selectedCategory, setSelectedCategory] = useState("ALL");
     const [selectedCollection, setSelectedCollection] = useState("ALL");
     const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
@@ -86,34 +87,34 @@ export default function ProductsListing({
                 // Fetch categories
                 const catRes = await fetch(`${API_BASE_URL}/frontend/categories`);
                 const catData = await catRes.json();
-                if (catData && catData.success && Array.isArray(catData.data)) {
+                if (catData && catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
                     setCategories(catData.data);
                 } else {
-                    setCategories([]);
+                    setCategories(defaultCategories);
                 }
 
                 // Fetch collections
                 const colRes = await fetch(`${API_BASE_URL}/frontend/collections`);
                 const colData = await colRes.json();
-                if (colData && colData.success && Array.isArray(colData.data)) {
+                if (colData && colData.success && Array.isArray(colData.data) && colData.data.length > 0) {
                     setCollectionsList(colData.data);
                 } else {
-                    setCollectionsList([]);
+                    setCollectionsList(defaultCollections);
                 }
 
                 // Fetch subcategories
                 const subRes = await fetch(`${API_BASE_URL}/frontend/sub-categories`);
                 const subData = await subRes.json();
-                if (subData && subData.success && Array.isArray(subData.data)) {
+                if (subData && subData.success && Array.isArray(subData.data) && subData.data.length > 0) {
                     setSubCategoriesList(subData.data);
                 } else {
-                    setSubCategoriesList([]);
+                    setSubCategoriesList(defaultTribes);
                 }
 
                 // Fetch products
                 const prodRes = await fetch(`${API_BASE_URL}/frontend/products`);
                 const prodData = await prodRes.json();
-                if (prodData && prodData.success && Array.isArray(prodData.data)) {
+                if (prodData && prodData.success && Array.isArray(prodData.data) && prodData.data.length > 0) {
                     const mapped = prodData.data.map(item => {
                         const colorsList = (item.colors || []).map(c => ({
                             name: c.color?.name || "Default",
@@ -149,14 +150,13 @@ export default function ProductsListing({
                     });
                     setProducts(mapped);
                 } else {
-                    setProducts([]);
+                    setProducts(defaultProducts);
                 }
             } catch (err) {
                 console.error("Failed to fetch products or catalogs:", err);
-                setProducts([]);
-                setCategories([]);
-                setCollectionsList([]);
-                setSubCategoriesList([]);
+                setProducts(defaultProducts);
+                setCategories(defaultCategories);
+                setCollectionsList(defaultCollections);
             } finally {
                 setLoading(false);
             }

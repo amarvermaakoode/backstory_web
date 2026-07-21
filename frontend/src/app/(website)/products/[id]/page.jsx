@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
+import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
 
 const renderStars = (rating, sizeClass = "w-4 h-4") => {
     const ratingNum = Number(rating) || 0;
@@ -219,13 +220,26 @@ export default function ProductDetailPage({ params }) {
                     // Fetch related
                     fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
                 } else {
-                    setError("Product not found");
+                    useFallback();
                 }
             } catch (err) {
                 console.error("Error fetching product:", err);
-                setError("Product not found");
+                useFallback();
             } finally {
                 setLoading(false);
+            }
+        };
+
+        const useFallback = () => {
+            const fb = getFallbackProduct(id);
+            if (fb) {
+                setProduct(fb);
+                if (fb.colors && fb.colors.length > 0) {
+                    setSelectedColor(fb.colors[0]);
+                }
+                setRelatedProducts(defaultProducts.filter(p => p.id !== fb.id));
+            } else {
+                setError("Product not found");
             }
         };
 
