@@ -47,13 +47,13 @@ export default function AdminLoginPage() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#dfd7cc]/30 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-md bg-white border border-neutral-200/80 p-8 rounded-2xl shadow-xl relative z-10">
-        
+
         {/* Brand Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-neutral-100 border border-neutral-200 mb-3">
             <Lock className="w-6 h-6 text-neutral-800" />
           </div>
-          <h1 className="font-clashDisplay text-2xl font-bold tracking-widest text-neutral-900 uppercase">
+          <h1 className="font-clashDisplay text-2xl font-semibold tracking-widest text-neutral-900 uppercase">
             BACSTORY
           </h1>
           <p className="text-xs text-neutral-500 tracking-wider uppercase mt-1 font-semibold">
@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
               Email Address
             </label>
             <div className="relative">
@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+            <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
               Password
             </label>
             <div className="relative">
@@ -112,7 +112,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-sm tracking-wider uppercase py-3.5 rounded-xl transition-all duration-300 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+            className="w-full bg-neutral-900 text-white hover:bg-neutral-800 font-semibold text-sm tracking-wider uppercase py-3.5 rounded-xl transition-all duration-300 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
           >
             {isSubmitting ? (
               <>

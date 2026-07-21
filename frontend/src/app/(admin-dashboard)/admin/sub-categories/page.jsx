@@ -2,18 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Loader, 
-  Upload, 
-  X, 
-  Check, 
-  AlertTriangle 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Loader,
+  Upload,
+  X,
+  Check,
+  AlertTriangle
 } from "lucide-react";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function SubCategoriesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -45,7 +46,7 @@ export default function SubCategoriesAdminPage() {
     try {
       setLoading(true);
       setError("");
-      
+
       // Fetch Categories first (needed for the dropdown)
       const catRes = await adminFetch("/categories");
       const catData = await catRes.json();
@@ -201,21 +202,20 @@ export default function SubCategoriesAdminPage() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-clashDisplay text-2xl font-bold tracking-wide text-neutral-900">
+          <h1 className="font-clashDisplay text-[5vw] md:text-[3vw] lg:text-[1.8vw] font-semibold tracking-wide text-neutral-900">
             Manage Sub-Categories
           </h1>
-          <p className="text-sm text-neutral-500 font-semibold">
-            Create refined collections nested under parent categories.
+          <p className="text-sm md:text-lg lg:text-sm text-neutral-500 font-semibold">            Create refined collections nested under parent categories.
           </p>
         </div>
         <button
           onClick={openCreateModal}
           disabled={categories.length === 0}
-          className="bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+          className="bg-neutral-900 text-white hover:bg-neutral-800 font-semibold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Sub-Category
@@ -255,22 +255,22 @@ export default function SubCategoriesAdminPage() {
             <p className="text-neutral-500 text-sm font-semibold">No sub-categories found. Click "Add Sub-Category" to get started.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-center border-collapse whitespace-nowrap min-w-max">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-bold uppercase tracking-widest">
-                  <th className="py-4 px-6">Image</th>
-                  <th className="py-4 px-6">Sub-Category Name</th>
-                  <th className="py-4 px-6">Parent Category</th>
-                  <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-semibold uppercase tracking-widest whitespace-nowrap">
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Image</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Sub-Category Name</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Parent Category</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Status</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {subCategories.map((subCategory) => (
                   <tr key={subCategory._id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <div className="relative w-11 h-11 md:w-14 md:h-14 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 mx-auto">
                         <Image
                           src={getImageUrl(subCategory.image)}
                           alt={subCategory.name || "SubCategory"}
@@ -281,36 +281,35 @@ export default function SubCategoriesAdminPage() {
                         />
                       </div>
                     </td>
-                    <td className="py-4 px-6 font-bold text-neutral-900 text-sm">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5 font-semibold text-neutral-900 text-sm">
                       {subCategory.name}
                     </td>
-                    <td className="py-4 px-6 text-neutral-700 text-sm">
-                      <span className="bg-neutral-50 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs uppercase tracking-wider font-bold text-neutral-500">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5 text-neutral-700 text-sm">
+                      <span className="bg-neutral-50 px-2.5 py-1 rounded-lg border border-neutral-200 text-xs uppercase tracking-wider font-semibold text-neutral-500">
                         {getCategoryName(subCategory.category)}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        subCategory.status !== false
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                      }`}>
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${subCategory.status !== false
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                        }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${subCategory.status !== false ? "bg-emerald-500" : "bg-neutral-400"}`}></span>
                         {subCategory.status !== false ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <div className="flex items-center justify-center gap-2 sm:gap-3">
                         <button
                           onClick={() => openEditModal(subCategory)}
-                          className="p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteSubCategory(subCategory._id, subCategory.name)}
-                          className="p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -329,10 +328,10 @@ export default function SubCategoriesAdminPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-xs">
           <div className="bg-white border border-neutral-200 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-              <h3 className="font-clashDisplay text-lg font-bold text-neutral-900">
+              <h3 className="font-clashDisplay text-lg font-semibold text-neutral-900">
                 {modalMode === "create" ? "Add Sub-Category" : "Edit Sub-Category"}
               </h3>
               <button
@@ -345,10 +344,10 @@ export default function SubCategoriesAdminPage() {
 
             {/* Modal Form */}
             <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
-              
+
               {/* Sub-Category Name */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Sub-Category Name
                 </label>
                 <input
@@ -363,7 +362,7 @@ export default function SubCategoriesAdminPage() {
 
               {/* Sub-Category Slug */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Slug (Optional)
                 </label>
                 <input
@@ -377,41 +376,33 @@ export default function SubCategoriesAdminPage() {
 
               {/* Category Dropdown */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Parent Category
                 </label>
-                <select
+                <CustomSelect
                   required
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3.5 px-4 outline-none text-sm transition-all duration-300 cursor-pointer focus:bg-white"
-                >
-                  <option value="" disabled>Select Category</option>
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.Name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select Category"
+                  options={categories.map((cat) => ({ value: cat._id, label: cat.Name }))}
+                />
               </div>
 
               {/* Status Toggle */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Sub-Category Status
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setStatus(!status)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${
-                      status ? "bg-[#dfd7cc]" : "bg-neutral-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${status ? "bg-[#dfd7cc]" : "bg-neutral-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        status ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${status ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                   <span className="text-sm text-neutral-600 font-semibold">
@@ -422,10 +413,10 @@ export default function SubCategoriesAdminPage() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Sub-Category Image
                 </label>
-                
+
                 {imagePreview ? (
                   <div className="relative w-full h-40 bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden mb-3 group">
                     <Image
@@ -450,7 +441,7 @@ export default function SubCategoriesAdminPage() {
                   <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-neutral-200 hover:border-[#a39889] rounded-xl cursor-pointer bg-neutral-50 hover:bg-neutral-100/40 transition-all duration-300">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="w-8 h-8 text-neutral-400 mb-2" />
-                      <p className="text-xs text-neutral-500 font-bold tracking-wide">
+                      <p className="text-xs text-neutral-500 font-semibold tracking-wide">
                         Click to upload image file
                       </p>
                       <p className="text-[10px] text-neutral-400 uppercase mt-1 font-semibold">
@@ -472,14 +463,14 @@ export default function SubCategoriesAdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-bold transition-all"
+                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-semibold transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
+                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
                 >
                   {submitLoading && <Loader className="w-3.5 h-3.5 animate-spin" />}
                   {modalMode === "create" ? "Save Sub-Category" : "Update Sub-Category"}

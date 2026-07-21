@@ -145,8 +145,11 @@ export default function ProductCard({
                         className={`font-sans text-black leading-snug truncate ${
                             isSmall ? "text-xs sm:text-sm font-medium" : "text-sm sm:text-base md:text-lg font-normal"
                         }`}
+                        title={product.name}
                     >
-                        {product.name}
+                        {product.name && product.name.length > 15
+                            ? `${product.name.slice(0, 15)}...`
+                            : product.name}
                     </h3>
                     
                     {/* Price & original strike-through if discount exists */}

@@ -171,8 +171,10 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                 {product.tag}
                             </span>
                         )}
-                        <h3 className="font-sans text-base font-bold text-black leading-snug line-clamp-1">
-                            {product.name}
+                        <h3 className="font-sans text-base font-bold text-black leading-snug line-clamp-1" title={product.name}>
+                            {product.name && product.name.length > 15
+                                ? `${product.name.slice(0, 15)}...`
+                                : product.name}
                         </h3>
                         <p className="font-clashDisplay text-lg font-bold text-black mt-1">
                             {product.price}

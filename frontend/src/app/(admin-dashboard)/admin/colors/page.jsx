@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Loader, 
-  X, 
-  Check, 
-  AlertTriangle 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Loader,
+  X,
+  Check,
+  AlertTriangle
 } from "lucide-react";
 
 export default function ColorsAdminPage() {
@@ -40,7 +40,7 @@ export default function ColorsAdminPage() {
       setError("");
       const res = await adminFetch("/colors");
       const data = await res.json();
-      
+
       if (Array.isArray(data)) {
         setColors(data);
       } else if (data && Array.isArray(data.data)) {
@@ -156,20 +156,19 @@ export default function ColorsAdminPage() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-clashDisplay text-2xl font-bold tracking-wide text-neutral-900">
+          <h1 className="font-clashDisplay text-[5vw] md:text-[3vw] lg:text-[1.8vw] font-semibold tracking-wide text-neutral-900">
             Manage Colors
           </h1>
-          <p className="text-sm text-neutral-500 font-semibold">
-            Define color configurations used across your catalog.
+          <p className="text-sm md:text-lg lg:text-sm text-neutral-500 font-semibold">            Define color configurations used across your catalog.
           </p>
         </div>
         <button
           onClick={openCreateModal}
-          className="bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-xs"
+          className="bg-neutral-900 text-white hover:bg-neutral-800 font-semibold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Color
@@ -202,54 +201,53 @@ export default function ColorsAdminPage() {
             <p className="text-neutral-500 text-sm font-semibold">No colors found. Click "Add Color" to get started.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-center border-collapse whitespace-nowrap min-w-max">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-bold uppercase tracking-widest">
-                  <th className="py-4 px-6">Preview</th>
-                  <th className="py-4 px-6">Color Name</th>
-                  <th className="py-4 px-6">Hex Code</th>
-                  <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-semibold uppercase tracking-widest whitespace-nowrap">
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Preview</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Color Name</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Hex Code</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Status</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {colors.map((color) => (
                   <tr key={color._id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div 
-                        className="w-8 h-8 rounded-full border border-neutral-300 shadow-xs"
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <div
+                        className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-neutral-300 shadow-xs mx-auto"
                         style={{ backgroundColor: color.hexCode || "#CCCCCC" }}
                       />
                     </td>
-                    <td className="py-4 px-6 font-bold text-neutral-900 text-sm">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5 font-semibold text-neutral-900 text-sm">
                       {color.name}
                     </td>
-                    <td className="py-4 px-6 font-mono text-neutral-600 text-xs uppercase">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5 font-mono text-neutral-600 text-xs uppercase font-semibold">
                       {color.hexCode || "-"}
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        color.status !== false
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                      }`}>
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${color.status !== false
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                        }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${color.status !== false ? "bg-emerald-500" : "bg-neutral-400"}`}></span>
                         {color.status !== false ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
+                      <div className="flex items-center justify-center gap-2 sm:gap-3">
                         <button
                           onClick={() => openEditModal(color)}
-                          className="p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteColor(color._id, color.name)}
-                          className="p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -268,10 +266,10 @@ export default function ColorsAdminPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-xs">
           <div className="bg-white border border-neutral-200 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-              <h3 className="font-clashDisplay text-lg font-bold text-neutral-900">
+              <h3 className="font-clashDisplay text-lg font-semibold text-neutral-900">
                 {modalMode === "create" ? "Add Color" : "Edit Color"}
               </h3>
               <button
@@ -284,10 +282,10 @@ export default function ColorsAdminPage() {
 
             {/* Modal Form */}
             <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
-              
+
               {/* Color Name */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Color Name
                 </label>
                 <input
@@ -302,7 +300,7 @@ export default function ColorsAdminPage() {
 
               {/* Hex Code & Color Picker */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Hex Code Color
                 </label>
                 <div className="flex items-center gap-3">
@@ -329,21 +327,19 @@ export default function ColorsAdminPage() {
 
               {/* Status Toggle */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Color Status
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setStatus(!status)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${
-                      status ? "bg-[#dfd7cc]" : "bg-neutral-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${status ? "bg-[#dfd7cc]" : "bg-neutral-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        status ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${status ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                   <span className="text-sm text-neutral-600 font-semibold">
@@ -357,14 +353,14 @@ export default function ColorsAdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-bold transition-all"
+                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-semibold transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
+                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
                 >
                   {submitLoading && <Loader className="w-3.5 h-3.5 animate-spin" />}
                   {modalMode === "create" ? "Save Color" : "Update Color"}

@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Loader, 
-  X, 
-  Check, 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Loader,
+  X,
+  Check,
   AlertTriangle,
   Percent,
   Coins
 } from "lucide-react";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function PromoCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -44,7 +45,7 @@ export default function PromoCodesAdminPage() {
       setError("");
       const res = await adminFetch("/promo-codes");
       const data = await res.json();
-      
+
       if (data && Array.isArray(data.data)) {
         setPromoCodes(data.data);
       } else {
@@ -163,14 +164,14 @@ export default function PromoCodesAdminPage() {
   return (
     <div className="space-y-6">
       {/* Header Panel */}
-      <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-clashDisplay text-2xl font-bold text-neutral-900">Promo Codes</h1>
-          <p className="text-neutral-500 text-xs font-semibold mt-1">Manage e-commerce coupon codes and discount levels.</p>
+          <h1 className="font-clashDisplay text-[5vw] md:text-[3vw] lg:text-[1.8vw] font-semibold tracking-wide text-neutral-900">Manage Promo Codes</h1>
+          <p className="text-sm md:text-lg lg:text-sm text-neutral-500 font-semibold">Manage e-commerce coupon codes and discount levels.</p>
         </div>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 bg-[#dfd7cc] hover:bg-[#d0c5b7] text-black font-semibold text-xs uppercase tracking-wider px-4 py-3 rounded-xl transition-all duration-300 active:scale-95 cursor-pointer"
+          className="bg-neutral-900 text-white hover:bg-neutral-800 font-semibold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Add Promo Code
         </button>
@@ -202,26 +203,26 @@ export default function PromoCodesAdminPage() {
             No promo codes found. Click "Add Promo Code" to create one.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-center border-collapse whitespace-nowrap min-w-max">
               <thead>
-                <tr className="bg-neutral-50 text-neutral-500 font-bold uppercase tracking-wider text-[10px] border-b border-neutral-200">
-                  <th className="py-4 px-6">Promo Code</th>
-                  <th className="py-4 px-6">Type</th>
-                  <th className="py-4 px-6">Discount Value</th>
-                  <th className="py-4 px-6">Min Order (Spend)</th>
-                  <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="bg-neutral-50 text-neutral-500 font-semibold uppercase tracking-wider text-xs border-b border-neutral-200 whitespace-nowrap">
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Promo Code</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Type</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Discount Value</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Min Order (Spend)</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Status</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {promoCodes.map((promo) => (
                   <tr key={promo._id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-4 px-6 font-clashDisplay font-bold text-neutral-900 text-sm tracking-wide">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6 font-clashDisplay font-semibold text-neutral-900 text-sm tracking-wide">
                       {promo.code}
                     </td>
-                    <td className="py-4 px-6 text-xs font-semibold capitalize text-neutral-600">
-                      <div className="flex items-center gap-1.5">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6 text-xs font-semibold capitalize text-neutral-600">
+                      <div className="flex items-center justify-center gap-1.5">
                         {promo.discountType === "percentage" ? (
                           <Percent className="w-3.5 h-3.5 text-neutral-500" />
                         ) : (
@@ -230,39 +231,38 @@ export default function PromoCodesAdminPage() {
                         <span>{promo.discountType}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 font-semibold text-neutral-900 text-sm">
-                      {promo.discountType === "percentage" 
-                        ? `${promo.discountValue}%` 
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6 font-semibold text-neutral-900 text-sm">
+                      {promo.discountType === "percentage"
+                        ? `${promo.discountValue}%`
                         : `Rs ${promo.discountValue}`
                       }
                     </td>
-                    <td className="py-4 px-6 text-neutral-600 font-semibold text-xs">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6 text-neutral-600 font-semibold text-xs">
                       Rs {promo.minOrderAmount || 0}
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                        promo.status !== false 
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                          : "bg-neutral-100 text-neutral-500 border-neutral-200"
-                      }`}>
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border ${promo.status !== false
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                        }`}>
                         {promo.status !== false ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex justify-end gap-2">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6">
+                      <div className="flex justify-center gap-2 sm:gap-3">
                         <button
                           onClick={() => openEditModal(promo)}
-                          className="p-2 border border-neutral-200 text-neutral-500 hover:text-black hover:bg-neutral-100 rounded-lg transition-all"
+                          className="p-1.5 sm:p-2 border border-neutral-200 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Edit"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeletePromo(promo._id)}
-                          className="p-2 border border-red-100 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                          className="p-1.5 sm:p-2 border border-neutral-200 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Delete"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -280,7 +280,7 @@ export default function PromoCodesAdminPage() {
           <div className="bg-white border border-neutral-200 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-neutral-100 bg-neutral-50/50">
-              <h3 className="font-clashDisplay text-base font-bold text-neutral-900">
+              <h3 className="font-clashDisplay text-base font-semibold text-neutral-900">
                 {modalMode === "create" ? "Add Promo Code" : "Edit Promo Code"}
               </h3>
               <button
@@ -295,7 +295,7 @@ export default function PromoCodesAdminPage() {
             <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
               {/* Code */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold font-sans">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold font-sans">
                   Promo Code Name *
                 </label>
                 <input
@@ -310,23 +310,23 @@ export default function PromoCodesAdminPage() {
 
               {/* Discount Type */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Discount Type *
                 </label>
-                <select
+                <CustomSelect
                   required
                   value={discountType}
                   onChange={(e) => setDiscountType(e.target.value)}
-                  className="w-full bg-neutral-50 text-neutral-900 border border-neutral-200 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50 rounded-xl py-3 px-4 outline-none text-sm transition-all duration-300 focus:bg-white font-sans font-semibold cursor-pointer"
-                >
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="flat">Flat Amount (Rs)</option>
-                </select>
+                  options={[
+                    { value: "percentage", label: "Percentage (%)" },
+                    { value: "flat", label: "Flat Amount (Rs)" }
+                  ]}
+                />
               </div>
 
               {/* Discount Value */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold font-sans">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold font-sans">
                   Discount Value *
                 </label>
                 <input
@@ -342,7 +342,7 @@ export default function PromoCodesAdminPage() {
 
               {/* Min Order Spend */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold font-sans">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold font-sans">
                   Minimum Order Spend (Rs)
                 </label>
                 <input
@@ -364,7 +364,7 @@ export default function PromoCodesAdminPage() {
                   onChange={(e) => setStatus(e.target.checked)}
                   className="w-4 h-4 rounded border-neutral-300 text-black focus:ring-black accent-black cursor-pointer"
                 />
-                <label htmlFor="status" className="text-xs uppercase tracking-wider text-neutral-700 font-bold select-none cursor-pointer">
+                <label htmlFor="status" className="text-xs uppercase tracking-wider text-neutral-700 font-semibold select-none cursor-pointer">
                   Active (Allow usage)
                 </label>
               </div>

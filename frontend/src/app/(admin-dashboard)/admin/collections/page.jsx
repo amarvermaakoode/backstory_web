@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-import { 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Loader, 
-  Upload, 
-  X, 
-  Check, 
-  AlertTriangle 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Loader,
+  Upload,
+  X,
+  Check,
+  AlertTriangle
 } from "lucide-react";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
@@ -45,7 +45,7 @@ export default function CollectionsAdminPage() {
       setError("");
       const res = await adminFetch("/collections");
       const data = await res.json();
-      
+
       if (Array.isArray(data)) {
         setCollections(data);
       } else if (data && Array.isArray(data.data)) {
@@ -179,20 +179,18 @@ export default function CollectionsAdminPage() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-clashDisplay text-2xl font-bold tracking-wide text-neutral-900">
+          <h1 className="font-clashDisplay text-[5vw] md:text-[3vw] lg:text-[1.8vw] font-semibold tracking-wide text-neutral-900">
             Manage Collections
           </h1>
-          <p className="text-sm text-neutral-500 font-semibold">
-            Define thematic lines or story drops (e.g. Biker Series, Retro Capsule).
-          </p>
+          <p className="text-sm md:text-lg lg:text-sm text-neutral-500 font-semibold">Define thematic lines or story drops (e.g. Biker Series, Retro Capsule).</p>
         </div>
         <button
           onClick={openCreateModal}
-          className="bg-neutral-900 text-white hover:bg-neutral-800 font-bold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-xs"
+          className="bg-neutral-900 text-white hover:bg-neutral-800 font-semibold text-xs tracking-wider uppercase px-4 py-3 rounded-xl flex items-center gap-2 transition-all duration-200 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Collection
@@ -225,21 +223,21 @@ export default function CollectionsAdminPage() {
             <p className="text-neutral-500 text-sm font-semibold">No collections found. Click "Add Collection" to get started.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-center border-collapse whitespace-nowrap min-w-max">
               <thead>
-                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-bold uppercase tracking-widest">
-                  <th className="py-4 px-6">Image</th>
-                  <th className="py-4 px-6">Collection Name</th>
-                  <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="border-b border-neutral-200 bg-neutral-50 text-neutral-500 text-xs font-semibold uppercase tracking-widest whitespace-nowrap">
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">Image</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">Collection Name</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">Status</th>
+                  <th className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {collections.map((collection) => (
                   <tr key={collection._id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">
+                      <div className="relative w-11 h-11 md:w-14 md:h-14 rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 mx-auto">
                         <Image
                           src={getImageUrl(collection.image)}
                           alt={collection.Name || "Collection"}
@@ -250,31 +248,30 @@ export default function CollectionsAdminPage() {
                         />
                       </div>
                     </td>
-                    <td className="py-4 px-6 font-bold text-neutral-900 text-sm">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4 font-semibold text-neutral-900 text-sm">
                       {collection.Name}
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        collection.status !== false
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-neutral-100 text-neutral-500 border border-neutral-200"
-                      }`}>
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${collection.status !== false
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                        }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${collection.status !== false ? "bg-emerald-500" : "bg-neutral-400"}`}></span>
                         {collection.status !== false ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                    <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4">
+                      <div className="flex items-center justify-center gap-2 sm:gap-3">
                         <button
                           onClick={() => openEditModal(collection)}
-                          className="p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-neutral-600 hover:text-neutral-900 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteCollection(collection._id, collection.Name)}
-                          className="p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs"
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-500 bg-white hover:bg-red-50 border border-neutral-200 rounded-lg transition-all shadow-xs cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -293,10 +290,10 @@ export default function CollectionsAdminPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/50 backdrop-blur-xs">
           <div className="bg-white border border-neutral-200 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-neutral-100">
-              <h3 className="font-clashDisplay text-lg font-bold text-neutral-900">
+              <h3 className="font-clashDisplay text-lg font-semibold text-neutral-900">
                 {modalMode === "create" ? "Add Collection" : "Edit Collection"}
               </h3>
               <button
@@ -309,10 +306,10 @@ export default function CollectionsAdminPage() {
 
             {/* Modal Form */}
             <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
-              
+
               {/* Collection Name */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Collection Name
                 </label>
                 <input
@@ -327,7 +324,7 @@ export default function CollectionsAdminPage() {
 
               {/* Collection Slug */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Slug (Optional)
                 </label>
                 <input
@@ -341,21 +338,19 @@ export default function CollectionsAdminPage() {
 
               {/* Status Toggle */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Collection Status
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setStatus(!status)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${
-                      status ? "bg-[#dfd7cc]" : "bg-neutral-200"
-                    }`}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none ${status ? "bg-[#dfd7cc]" : "bg-neutral-200"
+                      }`}
                   >
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        status ? "translate-x-6" : "translate-x-1"
-                      }`}
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${status ? "translate-x-6" : "translate-x-1"
+                        }`}
                     />
                   </button>
                   <span className="text-sm text-neutral-600 font-semibold">
@@ -366,10 +361,10 @@ export default function CollectionsAdminPage() {
 
               {/* Image Upload */}
               <div>
-                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-bold">
+                <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
                   Collection Image
                 </label>
-                
+
                 {imagePreview ? (
                   <div className="relative w-full h-40 bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden mb-3 group">
                     <Image
@@ -394,7 +389,7 @@ export default function CollectionsAdminPage() {
                   <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-neutral-200 hover:border-[#a39889] rounded-xl cursor-pointer bg-neutral-50 hover:bg-neutral-100/40 transition-all duration-300">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="w-8 h-8 text-neutral-400 mb-2" />
-                      <p className="text-xs text-neutral-500 font-bold tracking-wide">
+                      <p className="text-xs text-neutral-500 font-semibold tracking-wide">
                         Click to upload image file
                       </p>
                       <p className="text-[10px] text-neutral-400 uppercase mt-1 font-semibold">
@@ -416,14 +411,14 @@ export default function CollectionsAdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-bold transition-all"
+                  className="px-5 py-3 border border-neutral-200 hover:bg-neutral-50 text-neutral-600 hover:text-neutral-800 rounded-xl text-xs uppercase tracking-widest font-semibold transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
+                  className="bg-neutral-900 text-white hover:bg-neutral-800 px-5 py-3 rounded-xl text-xs uppercase tracking-widest font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all shadow-xs"
                 >
                   {submitLoading && <Loader className="w-3.5 h-3.5 animate-spin" />}
                   {modalMode === "create" ? "Save Collection" : "Update Collection"}
