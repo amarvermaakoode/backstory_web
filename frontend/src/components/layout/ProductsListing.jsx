@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import ProductCard from "@/components/ui/ProductCard";
+import FilterDrawer from "@/components/ui/FilterDrawer";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -35,6 +36,15 @@ export default function ProductsListing({
     const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
     const [sortBy, setSortBy] = useState("featured");
     const [isSortOpen, setIsSortOpen] = useState(false);
+    const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+    const [drawerFilters, setDrawerFilters] = useState({
+        minPrice: 0,
+        maxPrice: 10000,
+        gender: "ALL",
+        sizes: [],
+        series: [],
+        colors: []
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const sortDropdownRef = useRef(null);
@@ -213,8 +223,29 @@ export default function ProductsListing({
             product.subCategoryId === selectedSubCategory ||
             product.subCategorySlug === selectedSubCategory ||
             product.subCategoryName?.toUpperCase() === selectedSubCategory.toUpperCase();
-            
-        return matchesCategory && matchesCollection && matchesSubCategory;
+
+        // Drawer filters
+        const priceNum = Number(product.priceNum) || 0;
+        const matchesPrice = priceNum >= drawerFilters.minPrice && priceNum <= drawerFilters.maxPrice;
+
+        const matchesGender = drawerFilters.gender === "ALL" || 
+            !product.gender || 
+            product.gender.toUpperCase() === drawerFilters.gender.toUpperCase() ||
+            drawerFilters.gender === "Unisex";
+
+        const matchesSizes = drawerFilters.sizes.length === 0 ||
+            (product.sizes && product.sizes.some(sz => drawerFilters.sizes.includes(sz)));
+
+        const matchesSeries = drawerFilters.series.length === 0 ||
+            drawerFilters.series.some(s => 
+                product.tag?.toLowerCase().includes(s.toLowerCase().replace(" series", "")) ||
+                product.subCategoryName?.toLowerCase().includes(s.toLowerCase().replace(" series", ""))
+            );
+
+        const matchesColors = drawerFilters.colors.length === 0 ||
+            (product.colors && product.colors.some(c => drawerFilters.colors.includes(c.hex)));
+
+        return matchesCategory && matchesCollection && matchesSubCategory && matchesPrice && matchesGender && matchesSizes && matchesSeries && matchesColors;
     });
 
     // Sort products
@@ -398,8 +429,11 @@ export default function ProductsListing({
                                     )}
                                 </div>
 
-                                {/* Filter button */}
-                                <button className="flex items-center bg-[#F4F0EA] gap-2 px-2 py-1 rounded-full text-xs md:text-sm font-semibold text-black hover:border-black transition-colors cursor-pointer">
+                                 {/* Filter button */}
+                                <button
+                                    onClick={() => setIsFilterDrawerOpen(true)}
+                                    className="flex items-center bg-[#F4F0EA] gap-2 px-3 py-1.5 rounded-full text-xs md:text-sm font-semibold text-black hover:bg-neutral-200 transition-colors cursor-pointer"
+                                >
                                     Filter
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -468,6 +502,15 @@ export default function ProductsListing({
                 </div>
             </main>
 
+            <FilterDrawer
+                isOpen={isFilterDrawerOpen}
+                onClose={() => setIsFilterDrawerOpen(false)}
+                initialFilters={drawerFilters}
+                onApplyFilters={(filters) => {
+                    setDrawerFilters(filters);
+                    setCurrentPage(1);
+                }}
+            />
             <Footer />
         </div>
     );
