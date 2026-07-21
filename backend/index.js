@@ -18,6 +18,7 @@ const frontendSubCategoryRoutes = require("./routes/frontend/subcategoryFrntRout
 const frontendCollectionRoutes = require("./routes/frontend/collectionFrntRoutes");
 const frontendProductRoutes = require("./routes/frontend/productFrntRoutes");
 const frontendReviewRoutes = require("./routes/frontend/reviewFrntRoutes");
+const frontendAuthRoutes = require("./routes/frontend/authFrntRoutes");
 
 dotenv.config();
 
@@ -63,6 +64,17 @@ connectDB().then(() => {
     }
   };
   migrationAutoSlug();
+
+  const syncUserIndexes = async () => {
+    try {
+      const User = require("./models/user");
+      await User.syncIndexes();
+      console.log("✅ User indexes synchronized successfully.");
+    } catch (err) {
+      console.error("❌ User index synchronization error:", err.message);
+    }
+  };
+  syncUserIndexes();
 });
 
 // Middlewares
@@ -91,6 +103,7 @@ app.use("/api/frontend/sub-categories", frontendSubCategoryRoutes);
 app.use("/api/frontend/collections", frontendCollectionRoutes);
 app.use("/api/frontend/products", frontendProductRoutes);
 app.use("/api/frontend/reviews", frontendReviewRoutes);
+app.use("/api/frontend/auth", frontendAuthRoutes);
 
 // Health Check
 app.get("/", (req, res) => {
