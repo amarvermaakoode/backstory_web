@@ -43,8 +43,8 @@ export default function Hero() {
 
 
                 {/* Grid Overlay Content */}
-                <div className="relative z-10 mx-auto max-w-[90%] md:max-w-[88%] px-4 sm:px-8 h-full flex flex-col justify-center">
-                    <div className="flex flex-row items-end justify-between md:items-center gap-4 md:gap-4 w-full">
+                <div className="relative z-10 mx-auto max-w-[90%] md:max-w-[88%] px-4 sm:px-8 h-full flex flex-col lg:justify-center justify-end">
+                    <div className="flex flex-row items-end justify-between md:items-center gap-4 md:gap-4 w-full mb-[20%] lg:mb-0">
                         {/* Left Title */}
                         <div className="w-1/2 md:w-1/3 flex items-end">
                             <h1 className="heading-hero text-[#C5B9AC] text-left select-none">
