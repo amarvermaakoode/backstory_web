@@ -22,6 +22,7 @@ const frontendProductRoutes = require("./routes/frontend/productFrntRoutes");
 const frontendReviewRoutes = require("./routes/frontend/reviewFrntRoutes");
 const frontendAuthRoutes = require("./routes/frontend/authFrntRoutes");
 const frontendWishlistRoutes = require("./routes/frontend/wishlistFrntRoutes");
+const frontendCartRoutes = require("./routes/frontend/cartFrntRoutes");
 
 dotenv.config();
 
@@ -69,6 +70,7 @@ app.use("/api/frontend/products", frontendProductRoutes);
 app.use("/api/frontend/reviews", frontendReviewRoutes);
 app.use("/api/frontend/auth", frontendAuthRoutes);
 app.use("/api/frontend/wishlist", frontendWishlistRoutes);
+app.use("/api/frontend/cart", frontendCartRoutes);
 
 // Health Check
 app.get("/", (req, res) => {
