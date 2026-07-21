@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Footer() {
     const brandLinks = [
@@ -10,17 +11,17 @@ export default function Footer() {
     ];
 
     const shopLinks = [
-        { name: "Shop All", href: "#shop" },
-        { name: "New Arrivals", href: "#new-arrivals" },
-        { name: "Collection", href: "#collection" },
-        { name: "Tribes", href: "#tribes" },
+        { name: "Shop All", href: "/product-list" },
+        { name: "New Arrivals", href: "/product-list" },
+        { name: "Collection", href: "/product-list" },
+        { name: "Tribes", href: "/product-list" },
     ];
 
     const supportLinks = [
         { name: "Customer Support", href: "#support" },
         { name: "Track Order", href: "#track-order" },
         { name: "Return & Exchange", href: "#returns" },
-        { name: "FAQs", href: "#faqs" },
+        { name: "FAQs", href: "/faq" },
     ];
 
     const identityLinks = [
@@ -92,9 +93,9 @@ export default function Footer() {
                             <ul className="space-y-2.5">
                                 {brandLinks.map((link) => (
                                     <li key={link.name}>
-                                        <a href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
+                                        <Link href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
                                             {link.name}
-                                        </a>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
@@ -106,9 +107,9 @@ export default function Footer() {
                             <ul className="space-y-2.5">
                                 {shopLinks.map((link) => (
                                     <li key={link.name}>
-                                        <a href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
+                                        <Link href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
                                             {link.name}
-                                        </a>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
@@ -120,9 +121,9 @@ export default function Footer() {
                             <ul className="space-y-2.5">
                                 {supportLinks.map((link) => (
                                     <li key={link.name}>
-                                        <a href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
+                                        <Link href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
                                             {link.name}
-                                        </a>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
@@ -134,9 +135,9 @@ export default function Footer() {
                             <ul className="space-y-2.5">
                                 {identityLinks.map((link) => (
                                     <li key={link.name}>
-                                        <a href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
+                                        <Link href={link.href} className="text-neutral-400 hover:text-white transition-colors duration-200 text-sm md:text-[1.2vw] font-sans font-light">
                                             {link.name}
-                                        </a>
+                                        </Link>
                                     </li>
                                 ))}
                             </ul>
