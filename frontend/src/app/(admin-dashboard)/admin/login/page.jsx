@@ -49,13 +49,11 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md bg-white border border-neutral-200/80 p-8 rounded-2xl shadow-xl relative z-10">
 
         {/* Brand Header */}
-        <div className="text-center mb-8">
+        <div className="text-center flex flex-col items-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-neutral-100 border border-neutral-200 mb-3">
             <Lock className="w-6 h-6 text-neutral-800" />
           </div>
-          <h1 className="font-clashDisplay text-2xl font-semibold tracking-widest text-neutral-900 uppercase">
-            BACSTORY
-          </h1>
+          <img src="/images/logo-dark.svg"></img>
           <p className="text-xs text-neutral-500 tracking-wider uppercase mt-1 font-semibold">
             Admin Management Portal
           </p>

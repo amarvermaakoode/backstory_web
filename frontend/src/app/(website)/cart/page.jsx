@@ -20,7 +20,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-import { getImageUrl } from "@/lib/api";
+import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 
 export default function CartPage() {
@@ -33,10 +33,12 @@ export default function CartPage() {
 
     const { toggleWishlist, isInWishlist } = useWishlist();
     
-    const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [selectedItems, setSelectedItems] = useState([]);
     const [promoCode, setPromoCode] = useState("");
     const [discount, setDiscount] = useState(0);
+    const [promoError, setPromoError] = useState("");
+    const [promoSuccess, setPromoSuccess] = useState("");
+    const [activePromo, setActivePromo] = useState(null);
 
     // Initialize all items as selected on load
     useEffect(() => {
@@ -44,22 +46,6 @@ export default function CartPage() {
             setSelectedItems(cartItems.map(item => item.id));
         }
     }, [cartItems]);
-
-    const categorizeItem = (item) => {
-        const name = item.name.toLowerCase();
-        if (name.includes("hoodie") || name.includes("sweater") || name.includes("zip")) {
-            return "HOODIES";
-        }
-        if (name.includes("accessory") || name.includes("bag") || name.includes("cap") || name.includes("mug")) {
-            return "ACCESSORIES";
-        }
-        return "T-SHIRTS";
-    };
-
-    // Filter cart items by tab category
-    const filteredItems = cartItems.filter(
-        (item) => categorizeItem(item) === activeCategory
-    );
 
     const toggleSelectItem = (id) => {
         if (selectedItems.includes(id)) {
@@ -70,21 +56,13 @@ export default function CartPage() {
     };
 
     const toggleSelectAll = () => {
-        const filteredItemIds = filteredItems.map(item => item.id);
-        const allFilteredSelected = filteredItemIds.every(id => selectedItems.includes(id));
+        const allItemIds = cartItems.map(item => item.id);
+        const allSelected = allItemIds.every(id => selectedItems.includes(id));
 
-        if (allFilteredSelected) {
-            // Deselect all items in the current category
-            setSelectedItems(selectedItems.filter(id => !filteredItemIds.includes(id)));
+        if (allSelected) {
+            setSelectedItems([]);
         } else {
-            // Select all items in the current category
-            const newSelected = [...selectedItems];
-            filteredItemIds.forEach(id => {
-                if (!newSelected.includes(id)) {
-                    newSelected.push(id);
-                }
-            });
-            setSelectedItems(newSelected);
+            setSelectedItems(allItemIds);
         }
     };
 
@@ -159,12 +137,54 @@ export default function CartPage() {
         }));
     };
 
-    const handleApplyPromo = () => {
-        if (promoCode.toUpperCase() === "BACSTORY10") {
-            setDiscount(Math.round(subtotal * 0.1));
-            alert("10% discount applied!");
-        } else {
-            alert("Invalid promo code. Try 'BACSTORY10'");
+    const handleApplyPromo = async (e) => {
+        if (e) e.preventDefault();
+        setPromoError("");
+        setPromoSuccess("");
+
+        const code = promoCode.trim().toUpperCase();
+        if (!code) {
+            setPromoError("Please enter a promo code.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/frontend/promo-codes/validate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, orderAmount: subtotal })
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                setActivePromo(data.data);
+                const disc = data.data.discountType === "percentage" 
+                    ? Math.round(subtotal * (data.data.discountValue / 100)) 
+                    : Math.min(subtotal, data.data.discountValue);
+                setDiscount(disc);
+                setPromoSuccess(data.message || "Promo code applied successfully!");
+            } else {
+                if (code === "BACSTORY10") {
+                    const disc = Math.round(subtotal * 0.1);
+                    setDiscount(disc);
+                    setPromoSuccess("10% discount applied successfully!");
+                } else {
+                    setDiscount(0);
+                    setActivePromo(null);
+                    setPromoError(data.message || "Invalid promo code. Try 'BACSTORY10'");
+                }
+            }
+        } catch (error) {
+            console.error("Error applying promo code:", error);
+            if (code === "BACSTORY10") {
+                const disc = Math.round(subtotal * 0.1);
+                setDiscount(disc);
+                setPromoSuccess("10% discount applied successfully!");
+            } else {
+                setDiscount(0);
+                setActivePromo(null);
+                setPromoError("Invalid promo code. Try 'BACSTORY10'");
+            }
         }
     };
 
@@ -175,7 +195,7 @@ export default function CartPage() {
     const tax = Math.round(subtotal * 0.05);
     const total = subtotal + shipping + tax - discount;
 
-    const allFilteredSelected = filteredItems.length > 0 && filteredItems.every(item => selectedItems.includes(item.id));
+    const allSelected = cartItems.length > 0 && cartItems.every(item => selectedItems.includes(item.id));
 
     return (
         <div className="min-h-screen mt-16 bg-[#FAF9F6] text-black selection:bg-neutral-200">
@@ -193,34 +213,6 @@ export default function CartPage() {
                 <h1 className="heading-page text-black mt-4">
                     Cart
                 </h1>
-
-                {/* Categories Tab and Filter Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-8 pb-5 border-b border-neutral-200/50">
-                    <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
-                        {["T-SHIRTS", "HOODIES", "ACCESSORIES"].map((category) => {
-                            const isActive = activeCategory === category;
-                            return (
-                                <button
-                                    key={category}
-                                    onClick={() => setActiveCategory(category)}
-                                    className={`text-xs font-semibold tracking-wider uppercase whitespace-nowrap transition-colors duration-200 cursor-pointer relative py-1 ${
-                                        isActive ? "text-black" : "text-neutral-400 hover:text-black"
-                                    }`}
-                                >
-                                    {category}
-                                    {isActive && (
-                                        <span className="absolute bottom-0 left-0 w-full h-[2px] bg-black" />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <button className="flex items-center bg-[#F4F0EA] gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-black hover:border-black transition-colors cursor-pointer self-end sm:self-auto">
-                        Filter
-                        <SlidersHorizontal className="stroke-2 w-3 h-3" />
-                    </button>
-                </div>
 
                 {cartItems.length === 0 ? (
                     <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
@@ -248,15 +240,15 @@ export default function CartPage() {
                                     <button 
                                         onClick={toggleSelectAll}
                                         className={`w-5 h-5 border-2 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                                            allFilteredSelected 
+                                            allSelected 
                                                 ? "bg-black border-black text-white" 
                                                 : "border-neutral-300 hover:border-black"
                                         }`}
                                     >
-                                        {allFilteredSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                        {allSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                     </button>
                                     <span className="font-semibold text-sm text-black">
-                                        {selectedCartItems.filter(item => categorizeItem(item) === activeCategory).length}/{filteredItems.length} Items Selected
+                                        {selectedCartItems.length}/{cartItems.length} Items Selected
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-4 text-neutral-400">
@@ -280,14 +272,9 @@ export default function CartPage() {
                             </div>
 
                             {/* Items List */}
-                            {filteredItems.length === 0 ? (
-                                <div className="text-center py-12 bg-white rounded-xl border border-neutral-100/70">
-                                    <p className="text-neutral-500 text-sm">No items in this category.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {filteredItems.map((item) => {
-                                        const isSelected = selectedItems.includes(item.id);
+                            <div className="space-y-4">
+                                {cartItems.map((item) => {
+                                    const isSelected = selectedItems.includes(item.id);
                                         
                                         return (
                                             <div 
@@ -415,8 +402,7 @@ export default function CartPage() {
                                         );
                                     })}
                                 </div>
-                            )}
-                        </div>
+                            </div>
 
                         {/* Right column: Order Summary */}
                         <div className="lg:col-span-4">
@@ -426,20 +412,43 @@ export default function CartPage() {
                                 </h3>
 
                                 {/* Promo Code */}
-                                <div className="flex">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Promo code" 
-                                        value={promoCode}
-                                        onChange={(e) => setPromoCode(e.target.value)}
-                                        className="flex-1 border border-neutral-200 rounded-l-full px-4 text-sm focus:outline-none focus:border-black font-sans bg-neutral-50 h-11"
-                                    />
-                                    <button 
-                                        onClick={handleApplyPromo}
-                                        className="bg-black hover:bg-neutral-800 text-white font-semibold text-xs uppercase tracking-wider rounded-r-full px-6 h-11 transition-colors cursor-pointer"
-                                    >
-                                        Apply
-                                    </button>
+                                <div>
+                                    <div className="flex">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Promo code" 
+                                            value={promoCode}
+                                            onChange={(e) => {
+                                                setPromoCode(e.target.value);
+                                                if (promoError) setPromoError("");
+                                                if (promoSuccess) setPromoSuccess("");
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleApplyPromo();
+                                                }
+                                            }}
+                                            className="flex-1 border border-neutral-200 rounded-l-full px-4 text-sm focus:outline-none focus:border-black font-sans bg-neutral-50 h-11"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={handleApplyPromo}
+                                            className="bg-black hover:bg-neutral-800 text-white font-semibold text-xs uppercase tracking-wider rounded-r-full px-6 h-11 transition-colors cursor-pointer"
+                                        >
+                                            Apply
+                                        </button>
+                                    </div>
+                                    {promoError && (
+                                        <p className="text-xs text-red-600 font-semibold mt-2 ml-1">
+                                            {promoError}
+                                        </p>
+                                    )}
+                                    {promoSuccess && (
+                                        <p className="text-xs text-emerald-600 font-semibold mt-2 ml-1">
+                                            {promoSuccess}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Calculation Rows */}
