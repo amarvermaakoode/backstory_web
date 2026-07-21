@@ -4,58 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { X, Plus, Minus, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
-
-// Comprehensive Dummy Variant Stock Matrix (Color + Size)
-const DUMMY_VARIANT_STOCK_MATRIX = {
-    blue: { S: 2, M: 8, L: 12, XL: 0, XXL: 0 },
-    black: { S: 0, M: 3, L: 6, XL: 1, XXL: 0 },
-    white: { S: 15, M: 0, L: 4, XL: 0, XXL: 5 },
-    beige: { S: 1, M: 5, L: 0, XL: 2, XXL: 0 },
-    navy: { S: 0, M: 0, L: 7, XL: 3, XXL: 0 },
-    grey: { S: 4, M: 2, L: 0, XL: 0, XXL: 1 },
-    default: { S: 2, M: 8, L: 5, XL: 0, XXL: 0 }
-};
-
-// Full conditional check for stock based on BOTH Size AND Color
-function getStockForSizeAndColor(size, color, product) {
-    if (!size) return 0;
-
-    // 1. Explicit out of stock product status
-    if (product && (product.status === false || product.outOfStock === true || product.stock === 0)) {
-        return 0;
-    }
-
-    const colorName = (typeof color === "object" ? color?.name : color || "Default").toLowerCase().trim();
-    const sizeUpper = (size || "").toUpperCase().trim();
-
-    // 2. Backend Inventory / Variant Stock check (if present on product object)
-    if (product && Array.isArray(product.inventory)) {
-        const match = product.inventory.find(
-            (inv) => inv.size?.toUpperCase() === sizeUpper && inv.color?.toLowerCase() === colorName
-        );
-        if (match && typeof match.stock === "number") return match.stock;
-    }
-
-    if (product && product.variantStock && typeof product.variantStock[`${sizeUpper}_${colorName}`] === "number") {
-        return product.variantStock[`${sizeUpper}_${colorName}`];
-    }
-
-    // 3. Fallback dummy stock matrix lookup by Color and Size
-    const colorMatrix = DUMMY_VARIANT_STOCK_MATRIX[colorName] || DUMMY_VARIANT_STOCK_MATRIX["default"];
-    if (colorMatrix && colorMatrix[sizeUpper] !== undefined) {
-        return colorMatrix[sizeUpper];
-    }
-
-    // 4. Seeded deterministic stock calculation for any custom color/size pair
-    const seed = `${product?.id || product?.slug || "prod"}-${colorName}-${sizeUpper}`;
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-        hash = (hash << 5) - hash + seed.charCodeAt(i);
-        hash |= 0;
-    }
-    const val = Math.abs(hash % 10);
-    return val < 2 ? 0 : (val < 4 ? 2 : val + 2);
-}
+import { getStockForSizeAndColor } from "@/lib/stock";
 
 export default function SelectOptionsModal({ isOpen, onClose, product, onConfirmAddToCart }) {
     const [selectedSize, setSelectedSize] = useState("");
@@ -80,7 +29,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
 
             const initialColor = colors[0] || { name: "Default", hex: "#000000" };
             setSelectedColor(initialColor);
-            
+
             // Pick first in-stock size for initial color
             const firstInStockSize = sizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || sizes[0] || "M";
             setSelectedSize(firstInStockSize);
@@ -256,9 +205,8 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                                     setSelectedColor(newColor);
                                                     setQuantity(1);
                                                 }}
-                                                className={`group relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                                                    isSelected ? "ring-2 ring-offset-2 ring-black scale-110" : "hover:scale-105 opacity-80 hover:opacity-100"
-                                                }`}
+                                                className={`group relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${isSelected ? "ring-2 ring-offset-2 ring-black scale-110" : "hover:scale-105 opacity-80 hover:opacity-100"
+                                                    }`}
                                                 style={{ backgroundColor: hex }}
                                                 title={colorName}
                                             >
@@ -277,7 +225,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                         Select Size: <span className="text-black font-extrabold">{selectedSize}</span>
                                     </span>
 
-                                    {/* Conditional Stock Badge based on selected Size & Color */}
+                                    {/* Conditional Stock Badge: Only show for Few Left or Out of Stock */}
                                     {selectedSize && (
                                         <div className="flex items-center gap-1.5 text-xs font-semibold">
                                             {currentStock === 0 ? (
@@ -290,12 +238,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                                     <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                                                     Only {currentStock} {currentStock === 1 ? "piece" : "pieces"} left!
                                                 </span>
-                                            ) : (
-                                                <span className="text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                    In Stock ({currentStock} available)
-                                                </span>
-                                            )}
+                                            ) : null}
                                         </div>
                                     )}
                                 </div>
@@ -317,7 +260,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                                 }}
                                                 className={`min-w-[48px] h-10 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center border relative ${
                                                     sizeOutOfStock
-                                                        ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-pointer hover:border-neutral-300"
+                                                        ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-not-allowed"
                                                         : isSelected
                                                         ? "bg-black text-white border-black shadow-sm scale-[1.02] cursor-pointer"
                                                         : "bg-white text-black border-neutral-300 hover:border-black hover:bg-neutral-50 cursor-pointer"
@@ -376,7 +319,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                                 : "bg-black hover:bg-neutral-800 text-white cursor-pointer active:scale-[0.99]"
                         }`}
                     >
-                        {isOutOfStock ? "Out of Stock - No Items Left" : "Add to Cart"}
+                        {isOutOfStock ? "Out of Stock" : "Add to Cart"}
                     </button>
                 </div>
             </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Plus, Minus, Star, ChevronDown, X } from "lucide-react";
+import { Heart, Plus, Minus, Star, ChevronDown, X, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -13,6 +13,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
+import { getStockForSizeAndColor } from "@/lib/stock";
 
 const renderStars = (rating, sizeClass = "w-4 h-4") => {
     const ratingNum = Number(rating) || 0;
@@ -544,107 +545,171 @@ export default function ProductDetailPage({ params }) {
                             </div>
 
                             {/* Size selector */}
-                            <div className="space-y-3 pt-2">
-                                <div className="flex justify-between items-center text-xs md:text-sm">
-                                    <span className="font-regular text-black">SIZE</span>
-                                    <button
-                                        onClick={() => setIsSizeGuideOpen(true)}
-                                        className="text-neutral-400 hover:text-black transition-colors underline cursor-pointer"
-                                    >
-                                        Size Guide
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {product.sizes.map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setSelectedSize(size)}
-                                            className={`h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 cursor-pointer ${selectedSize === size
-                                                ? "bg-black border-black text-white"
-                                                : "border-neutral-200 text-black hover:border-black"
-                                                }`}
-                                        >
-                                            {size}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            {(() => {
+                                const currentDetailStock = getStockForSizeAndColor(selectedSize, selectedColor, product);
+                                const isDetailOutOfStock = currentDetailStock === 0;
 
-                            {/* Color Selector */}
-                            {selectedColor && (
-                                <div className="space-y-3 pt-2">
-                                    <p className="text-xs md:text-sm font-semibold text-black">
-                                        COLOUR: <span className="text-gray-500 font-normal ml-1">{selectedColor.name}</span>
-                                    </p>
-                                    <div className="flex gap-3">
-                                        {product.colors.map((color) => (
+                                return (
+                                    <>
+                                        <div className="space-y-3 pt-2">
+                                            <div className="flex justify-between items-center text-xs md:text-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-semibold text-black">SIZE</span>
+                                                    {selectedSize && (
+                                                        <div className="flex items-center gap-1.5 text-xs">
+                                                            {currentDetailStock === 0 ? (
+                                                                <span className="text-red-600 flex items-center gap-1 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-200 font-semibold">
+                                                                    <XCircle className="w-3.5 h-3.5" />
+                                                                    Out of Stock
+                                                                </span>
+                                                            ) : currentDetailStock <= 3 ? (
+                                                                <span className="text-amber-700 flex items-center gap-1 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 font-semibold">
+                                                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                                                    Only {currentDetailStock} {currentDetailStock === 1 ? "piece" : "pieces"} left!
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setIsSizeGuideOpen(true)}
+                                                    className="text-neutral-400 hover:text-black transition-colors underline cursor-pointer"
+                                                >
+                                                    Size Guide
+                                                </button>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {product.sizes.map((size) => {
+                                                    const sizeStock = getStockForSizeAndColor(size, selectedColor, product);
+                                                    const isSizeOutOfStock = sizeStock === 0;
+                                                    const isLowStock = sizeStock > 0 && sizeStock <= 3;
+                                                    const isSelected = selectedSize === size;
+
+                                                    return (
+                                                        <button
+                                                            key={size}
+                                                            onClick={() => {
+                                                                setSelectedSize(size);
+                                                                setQuantity(1);
+                                                            }}
+                                                            className={`min-w-[48px] h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 relative ${
+                                                                isSizeOutOfStock
+                                                                    ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-not-allowed"
+                                                                    : isSelected
+                                                                    ? "bg-black border-black text-white shadow-xs cursor-pointer"
+                                                                    : "border-neutral-200 text-black hover:border-black bg-white cursor-pointer"
+                                                            }`}
+                                                        >
+                                                            <span>{size}</span>
+                                                            {isLowStock && !isSelected && (
+                                                                <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 border border-white" title={`Only ${sizeStock} left!`} />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Color Selector */}
+                                        {selectedColor && (
+                                            <div className="space-y-3 pt-2">
+                                                <p className="text-xs md:text-sm font-semibold text-black">
+                                                    COLOUR: <span className="text-gray-500 font-normal ml-1">{selectedColor.name}</span>
+                                                </p>
+                                                <div className="flex gap-3">
+                                                    {product.colors.map((color) => (
+                                                        <button
+                                                            key={color.name}
+                                                            onClick={() => {
+                                                                setSelectedColor(color);
+                                                                setQuantity(1);
+                                                            }}
+                                                            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+                                                                selectedColor.name === color.name
+                                                                    ? "border-black ring-2 ring-offset-1 ring-black"
+                                                                    : "border-transparent"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className="w-6 h-6 rounded-full border border-black/10"
+                                                                style={{ backgroundColor: color.hex }}
+                                                            />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Quantity and Actions */}
+                                        <div className="flex items-center gap-3 pt-4">
+                                            {/* Quantity */}
+                                            <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-14 w-36 select-none flex-shrink-0">
+                                                <button
+                                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                                    disabled={quantity <= 1 || isDetailOutOfStock}
+                                                    className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all disabled:opacity-30 disabled:hover:bg-[#FAF6F0]"
+                                                    aria-label="Decrease quantity"
+                                                >
+                                                    <Minus className="w-5 h-5" strokeWidth={2} />
+                                                </button>
+                                                <span className="font-semibold text-sm sm:text-base md:text-[1.2vw] text-black text-center w-8">
+                                                    {isDetailOutOfStock ? 0 : quantity}
+                                                </span>
+                                                <button
+                                                    onClick={() => setQuantity(Math.min(currentDetailStock, quantity + 1))}
+                                                    disabled={quantity >= currentDetailStock || isDetailOutOfStock}
+                                                    className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all disabled:opacity-30 disabled:hover:bg-[#FAF6F0]"
+                                                    aria-label="Increase quantity"
+                                                >
+                                                    <Plus className="w-5 h-5" strokeWidth={2} />
+                                                </button>
+                                            </div>
+
+                                            {/* Add to Cart */}
                                             <button
-                                                key={color.name}
-                                                onClick={() => setSelectedColor(color)}
-                                                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${selectedColor.name === color.name
-                                                    ? "border-black"
-                                                    : "border-transparent"
-                                                    }`}
+                                                disabled={isDetailOutOfStock}
+                                                onClick={() => {
+                                                    if (!selectedSize) {
+                                                        alert("Please select a size.");
+                                                        return;
+                                                    }
+                                                    if (isDetailOutOfStock) return;
+                                                    addToCart(product, quantity, selectedSize, selectedColor);
+                                                }}
+                                                className={`flex-1 h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${
+                                                    isDetailOutOfStock
+                                                        ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                                                        : "bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] cursor-pointer"
+                                                }`}
                                             >
-                                                <span
-                                                    className="w-6 h-6 rounded-full border border-black/10"
-                                                    style={{ backgroundColor: color.hex }}
-                                                />
+                                                {isDetailOutOfStock ? "Out of Stock" : "Add to Cart"}
                                             </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                        </div>
 
-                            {/* Quantity and Actions */}
-                            <div className="flex items-center gap-3 pt-4">
-                                {/* Quantity */}
-                                <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-14 w-36 select-none flex-shrink-0">
-                                    <button
-                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                        className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
-                                        aria-label="Decrease quantity"
-                                    >
-                                        <Minus className="w-5 h-5" strokeWidth={2} />
-                                    </button>
-                                    <span className="font-semibold text-sm sm:text-base md:text-[1.2vw] text-black text-center w-8">{quantity}</span>
-                                    <button
-                                        onClick={() => setQuantity(quantity + 1)}
-                                        className="w-11 h-11 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
-                                        aria-label="Increase quantity"
-                                    >
-                                        <Plus className="w-5 h-5" strokeWidth={2} />
-                                    </button>
-                                </div>
-
-                                {/* Add to Cart */}
-                                <button
-                                    onClick={() => {
-                                        if (!selectedSize) {
-                                            alert("Please select a size.");
-                                            return;
-                                        }
-                                        addToCart(product, quantity, selectedSize, selectedColor);
-                                    }}
-                                    className="flex-1 h-14 bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] transition-colors rounded-full font-medium text-sm md:text-[1vw] tracking-wide cursor-pointer"
-                                >
-                                    Add to Cart
-                                </button>
-                            </div>
-
-                            {/* Buy Now */}
-                            <button
-                                onClick={() => {
-                                    if (!selectedSize) {
-                                        alert("Please select a size.");
-                                        return;
-                                    }
-                                    addToCart(product, quantity, selectedSize, selectedColor);
-                                }}
-                                className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-sm md:text-[1vw] tracking-wide cursor-pointer"
-                            >
-                                Buy Now
-                            </button>
+                                        {/* Buy Now */}
+                                        <button
+                                            disabled={isDetailOutOfStock}
+                                            onClick={() => {
+                                                if (!selectedSize) {
+                                                    alert("Please select a size.");
+                                                    return;
+                                                }
+                                                if (isDetailOutOfStock) return;
+                                                addToCart(product, quantity, selectedSize, selectedColor);
+                                            }}
+                                            className={`w-full h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${
+                                                isDetailOutOfStock
+                                                    ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                                                    : "bg-black text-white hover:bg-neutral-800 cursor-pointer"
+                                            }`}
+                                        >
+                                            {isDetailOutOfStock ? "Out of Stock" : "Buy Now"}
+                                        </button>
+                                    </>
+                                );
+                            })()}
 
                             {/* Product Details Specs */}
                             <div className="space-y-4 pt-6 border-t border-neutral-200">
