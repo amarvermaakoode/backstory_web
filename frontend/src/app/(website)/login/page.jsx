@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Mail, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 const slideshowImages = [
   "/images/login/login1.png",
@@ -17,6 +18,7 @@ const slideshowImages = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const { sendOtp, verifyOtp } = useUserAuth();
   const [activeTab, setActiveTab] = useState("mobile");
 
   // Mobile Auth States
@@ -24,6 +26,7 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [otpError, setOtpError] = useState("");
+  const [mockOtpCode, setMockOtpCode] = useState("");
   const otpRefs = useRef([]);
 
   // Email Auth States
@@ -83,17 +86,45 @@ export default function LoginPage() {
     }
   };
 
-  // Simulate OTP send
-  const handleSendOtp = (e) => {
+  // Send OTP from actual API
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     const isValid = activeTab === "mobile" ? phoneNumber.length === 10 : email.includes("@");
-    if (isValid) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        setOtpSent(true);
-        setOtpError("");
-      }, 1000);
+    if (!isValid) return;
+
+    setLoading(true);
+    setOtpError("");
+    const res = await sendOtp(
+      activeTab === "mobile" ? { phoneNumber } : { email }
+    );
+    setLoading(false);
+
+    if (res.success) {
+      setOtpSent(true);
+      if (res.mockOtp) {
+        setMockOtpCode(res.mockOtp);
+      }
+    } else {
+      setOtpError(res.error || "Failed to send verification code. Please try again.");
+    }
+  };
+
+  // Resend OTP handler
+  const handleResendOtp = async () => {
+    setOtpCode(["", "", "", "", "", ""]);
+    setOtpError("");
+    setLoading(true);
+    const res = await sendOtp(
+      activeTab === "mobile" ? { phoneNumber } : { email }
+    );
+    setLoading(false);
+    if (res.success) {
+      if (res.mockOtp) {
+        setMockOtpCode(res.mockOtp);
+      }
+      otpRefs.current[0]?.focus();
+    } else {
+      setOtpError(res.error || "Failed to resend verification code.");
     }
   };
 
@@ -117,24 +148,27 @@ export default function LoginPage() {
     }
   };
 
-  // Simulate OTP verification
-  const handleVerifyOtp = (e) => {
+  // Verify OTP from actual API
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     const completeOtp = otpCode.join("");
     if (completeOtp.length === 6) {
       setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        if (completeOtp === "123456" || completeOtp.startsWith("123")) {
-          // Success
-          setAuthSuccess(true);
-          setTimeout(() => {
-            router.push("/");
-          }, 1500);
-        } else {
-          setOtpError("Invalid OTP. Try 123456 or a code starting with 123.");
-        }
-      }, 1200);
+      setOtpError("");
+      const res = await verifyOtp({
+        otp: completeOtp,
+        ...(activeTab === "mobile" ? { phoneNumber } : { email }),
+      });
+      setLoading(false);
+
+      if (res.success) {
+        setAuthSuccess(true);
+        setTimeout(() => {
+          router.push("/");
+        }, 1500);
+      } else {
+        setOtpError(res.error || "Invalid verification code. Please try again.");
+      }
     }
   };
 
@@ -199,7 +233,12 @@ export default function LoginPage() {
                   <div className="mb-8">
                     {otpSent && (
                       <button
-                        onClick={() => setOtpSent(false)}
+                        onClick={() => {
+                          setOtpSent(false);
+                          setMockOtpCode("");
+                          setOtpCode(["", "", "", "", "", ""]);
+                          setOtpError("");
+                        }}
                         className="text-xs sm:text-sm text-neutral-400 hover:text-black font-semibold mb-4 transition-colors cursor-pointer"
                       >
                         &lt; Back
@@ -246,6 +285,13 @@ export default function LoginPage() {
                   {otpSent ? (
                     /* OTP Verification Form (shared by both Mobile and Email) */
                     <form onSubmit={handleVerifyOtp} className="space-y-6">
+                      {mockOtpCode && (
+                        <div className="bg-amber-50 border border-amber-200/50 rounded-xl p-3 text-center">
+                          <p className="text-[11px] font-semibold text-amber-800">
+                            Mock Verification Code: <span className="font-bold text-sm tracking-widest">{mockOtpCode}</span>
+                          </p>
+                        </div>
+                      )}
                       {otpError && (
                         <p className="text-xs font-semibold text-red-500 bg-red-50 border border-red-100 rounded-xl p-3 text-center">
                           {otpError}
@@ -270,11 +316,7 @@ export default function LoginPage() {
                           Didn't receive the code?{" "}
                           <button
                             type="button"
-                            onClick={() => {
-                              setOtpCode(["", "", "", "", "", ""]);
-                              setOtpError("");
-                              otpRefs.current[0]?.focus();
-                            }}
+                            onClick={handleResendOtp}
                             className="text-black font-bold hover:underline transition-colors cursor-pointer"
                           >
                             Resend

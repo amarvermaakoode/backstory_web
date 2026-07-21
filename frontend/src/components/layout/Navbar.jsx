@@ -7,6 +7,7 @@ import { Menu, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 export default function Navbar({ onSearchClick, solid = false, light = false }) {
     const [scrolled, setScrolled] = useState(false);
@@ -15,6 +16,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     const router = useRouter();
     const { cartCount, openCart } = useCart();
     const { wishlistCount, openWishlist } = useWishlist();
+    const { user, logout } = useUserAuth();
 
     const handleWishlistClick = () => {
         if (pathname === "/" && wishlistCount > 0) {
@@ -151,15 +153,43 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             </span>
                         )}
                     </button>
-                    <Link href="/login" className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
-                        <Image
-                            src="/images/landing-page/user.svg"
-                            alt="Account"
-                            width={22}
-                            height={22}
-                            className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
-                        />
-                    </Link>
+                    {user ? (
+                        <div className="relative group select-none flex items-center">
+                            <button className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
+                                <Image
+                                    src="/images/landing-page/user.svg"
+                                    alt="Account"
+                                    width={22}
+                                    height={22}
+                                    className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                                />
+                            </button>
+                            <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block transition-all z-50">
+                                <div className="bg-white border border-neutral-200/80 rounded-2xl shadow-xl py-2">
+                                    <div className="px-4 py-2 border-b border-neutral-100">
+                                        <p className="text-[10px] text-neutral-400 font-medium">Logged in via</p>
+                                        <p className="text-xs font-bold text-neutral-800 truncate mt-0.5">{user.email || user.phoneNumber}</p>
+                                    </div>
+                                    <button
+                                        onClick={logout}
+                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                    >
+                                        Log Out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <Link href="/login" className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
+                            <Image
+                                src="/images/landing-page/user.svg"
+                                alt="Account"
+                                width={22}
+                                height={22}
+                                className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
+                            />
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -198,6 +228,30 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                         >
                             The Brand
                         </Link>
+                        {user ? (
+                            <div className="flex flex-col pt-4 border-t border-neutral-200/40">
+                                <span className={`text-xs font-medium mb-2 ${light ? "text-neutral-500" : "text-neutral-400"}`}>
+                                    Logged in as <span className="font-bold text-black dark:text-white">{user.name}</span>
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        setIsMobileMenuOpen(false);
+                                        logout();
+                                    }}
+                                    className="transition-colors py-2 text-red-600 font-bold cursor-pointer text-sm"
+                                >
+                                    Log Out
+                                </button>
+                            </div>
+                        ) : (
+                            <Link
+                                href="/login"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`transition-colors py-2 border-t border-neutral-200/40 text-sm font-bold ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
+                            >
+                                Login / Sign Up
+                            </Link>
+                        )}
                     </nav>
                 </div>
             )}

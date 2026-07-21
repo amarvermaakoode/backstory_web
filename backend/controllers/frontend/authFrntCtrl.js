@@ -108,15 +108,7 @@ const verifyOtp = async (req, res) => {
       // User doesn't exist, create a new user (Signup)
       isNewUser = true;
 
-      let name = "";
-      if (formattedEmail) {
-        name = formattedEmail.split("@")[0];
-      } else if (formattedPhone) {
-        name = "User_" + formattedPhone.slice(-4);
-      }
-
       user = await User.create({
-        name,
         email: formattedEmail,
         phoneNumber: formattedPhone,
         role: "user",
@@ -133,7 +125,6 @@ const verifyOtp = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
         email: user.email,
         phoneNumber: user.phoneNumber,
         role: user.role,

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Lock, Check, ShoppingBag, User, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
 import { getImageUrl } from "@/lib/api";
 
@@ -38,6 +39,7 @@ const mockCheckoutItems = [
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
+    const { user } = useUserAuth();
 
     // Check if the cart has items; if not, use mock items for visual exactness
     const isCartEmpty = cartItems.length === 0;
@@ -61,6 +63,23 @@ export default function CheckoutPage() {
         pinCode: "400001",
         country: "India"
     });
+
+    useEffect(() => {
+        if (user) {
+            const nameParts = user.name ? user.name.split(" ") : ["", ""];
+            const fName = nameParts[0] || "";
+            const lName = nameParts.slice(1).join(" ") || "";
+            
+            setFormData(prev => ({
+                ...prev,
+                contactEmail: user.email || prev.contactEmail,
+                deliveryEmail: user.email || prev.deliveryEmail,
+                phoneNumber: user.phoneNumber || prev.phoneNumber,
+                firstName: fName || prev.firstName,
+                lastName: lName || prev.lastName,
+            }));
+        }
+    }, [user]);
 
     const [shippingMethod, setShippingMethod] = useState("standard"); // standard, express, international
     const [promoInput, setPromoInput] = useState("");

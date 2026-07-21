@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
@@ -137,12 +138,20 @@ export default function ProductDetailPage({ params }) {
     // States for size guide
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
+    const { user } = useUserAuth();
+
     // States for reviews
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [reviewAuthor, setReviewAuthor] = useState("");
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewText, setReviewText] = useState("");
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (user && !reviewAuthor) {
+            setReviewAuthor(user.name || "");
+        }
+    }, [user]);
 
     const isFavorite = isInWishlist(product?.id || "");
 
@@ -152,10 +161,12 @@ export default function ProductDetailPage({ params }) {
 
         try {
             setReviewSubmitting(true);
+            const token = localStorage.getItem("userToken");
             const res = await fetch(`${API_BASE_URL}/frontend/reviews`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...(token && { "Authorization": `Bearer ${token}` }),
                 },
                 body: JSON.stringify({
                     product: product.id,

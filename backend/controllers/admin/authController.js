@@ -34,7 +34,7 @@ const loginAdmin = async (req, res) => {
       token,
       admin: {
         id: user._id,
-        name: user.name,
+        name: user.email ? user.email.split("@")[0] : "Admin",
         email: user.email,
         role: user.role,
       },
