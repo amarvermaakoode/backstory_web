@@ -20,6 +20,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import { getImageUrl } from "@/lib/api";
 
 
 export default function CartPage() {
@@ -35,14 +36,6 @@ export default function CartPage() {
     const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [selectedItems, setSelectedItems] = useState([]);
     const [promoCode, setPromoCode] = useState("");
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
     const [discount, setDiscount] = useState(0);
 
     // Initialize all items as selected on load

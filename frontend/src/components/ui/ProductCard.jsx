@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Heart, Plus } from "lucide-react";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { getImageUrl } from "@/lib/api";
 
 export default function ProductCard({ 
     product, 
@@ -23,15 +24,6 @@ export default function ProductCard({
         e.preventDefault();
         e.stopPropagation();
         toggleWishlist(product);
-    };
-
-    // Helper to get image URL safely
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
     };
 
     // Calculate visibilities dynamically with fallback to defaults

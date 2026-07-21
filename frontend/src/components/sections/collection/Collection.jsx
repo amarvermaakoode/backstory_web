@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import ExploreButton from "@/components/ui/ExploreButton";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 const defaultCollections = [
     {
@@ -22,7 +21,6 @@ const defaultCollections = [
 
 export default function QrEnabledRange() {
     const [collections, setCollections] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchCollections = async () => {
@@ -37,25 +35,11 @@ export default function QrEnabledRange() {
             } catch (err) {
                 console.error("Failed to fetch landing collections:", err);
                 setCollections(defaultCollections);
-            } finally {
-                setLoading(false);
             }
         };
 
         fetchCollections();
     }, []);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        
-        // Local public assets start with /images/
-        if (path.startsWith("/images/")) return path;
-        
-        // Backend upload asset
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     const activeCollections = collections.length > 0 ? collections : defaultCollections;
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Lock, Check, ShoppingBag, User, CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import Button from "@/components/ui/Button";
+import { getImageUrl } from "@/lib/api";
 
 // Fallback items matching the mockup exactly
 const mockCheckoutItems = [
@@ -37,14 +38,6 @@ const mockCheckoutItems = [
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     // Check if the cart has items; if not, use mock items for visual exactness
     const isCartEmpty = cartItems.length === 0;

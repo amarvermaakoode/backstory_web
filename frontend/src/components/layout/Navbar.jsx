@@ -46,9 +46,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     return (
         <header
             className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${light
-                ? scrolled || isMobileMenuOpen
-                    ? "bg-[#FAF9F6] text-black"
-                    : "bg-[#FAF9F6] text-black"
+                ? "bg-[#FAF9F6] text-black"
                 : scrolled || isMobileMenuOpen || solid
                     ? "bg-black/90 backdrop-blur-md text-white"
                     : "bg-transparent text-white"

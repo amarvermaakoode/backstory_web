@@ -76,7 +76,7 @@ const getSubCategories = async (req, res) => {
   try {
 
     const subCategories = await SubCategory.find()
-      .populate("category", "name")
+      .populate("category", "Name")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -110,7 +110,7 @@ const getSubCategoryById = async (req, res) => {
     }
 
     const subCategory = await SubCategory.findById(id)
-      .populate("category", "name");
+      .populate("category", "Name");
 
     if (!subCategory) {
       return res.status(404).json({

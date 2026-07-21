@@ -9,20 +9,13 @@ import Footer from "@/components/layout/Footer";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
 import WishlistCard from "@/components/ui/WishlistCard";
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 export default function WishlistPage() {
     const { wishlistItems, removeFromWishlist, toggleWishlist, isInWishlist } = useWishlist();
     const { addToCart } = useCart();
     const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [currentPage, setCurrentPage] = useState(1);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     // Categorize wishlist items
     const categorizeItem = (item) => {
@@ -51,8 +44,7 @@ export default function WishlistPage() {
     useEffect(() => {
         const fetchExplore = async () => {
             try {
-                const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-                const res = await fetch(`${apiBase}/api/frontend/products`);
+                const res = await fetch(`${API_BASE_URL}/frontend/products`);
                 const json = await res.json();
                 if (json.success && Array.isArray(json.data)) {
                     const mapped = json.data.map(item => {

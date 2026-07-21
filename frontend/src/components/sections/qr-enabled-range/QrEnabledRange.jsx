@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 const defaultCategories = [
     {
@@ -31,7 +30,6 @@ const defaultCategories = [
 
 export default function QrEnabledRange() {
     const [categories, setCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -56,25 +54,11 @@ export default function QrEnabledRange() {
             } catch (err) {
                 console.error("Failed to fetch landing categories:", err);
                 setCategories(defaultCategories);
-            } finally {
-                setLoading(false);
             }
         };
 
         fetchCategories();
     }, []);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        
-        // If it's a local public asset path, keep it relative
-        if (path.startsWith("/images/")) return path;
-        
-        // Otherwise, resolve against backend server
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     return (
         <section className="w-full bg-[#050505] overflow-hidden">

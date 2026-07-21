@@ -6,6 +6,7 @@ import { X, Heart } from "lucide-react";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { getImageUrl } from "@/lib/api";
 
 export default function WishlistDrawer() {
     const {
@@ -18,14 +19,6 @@ export default function WishlistDrawer() {
 
     const { addToCart } = useCart();
     const drawerRef = useRef(null);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     // Close on Escape key press
     useEffect(() => {
