@@ -4,7 +4,8 @@ import { use, Suspense } from "react";
 import ProductsListing from "@/components/layout/ProductsListing";
 
 export default function CategoryListingPage({ params }) {
-    const { slug } = use(params);
+    const resolvedParams = params && typeof params.then === "function" ? use(params) : (params || {});
+    const slug = resolvedParams?.slug || "";
 
     return (
         <Suspense fallback={

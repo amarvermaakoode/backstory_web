@@ -119,8 +119,9 @@ const mapRelatedProduct = (item) => {
 };
 
 export default function ProductDetailPage({ params }) {
-    // Unwrap route parameter promise
-    const { id } = use(params);
+    // Unwrap route parameter safely whether params is a Promise or an Object
+    const resolvedParams = params && typeof params.then === "function" ? use(params) : (params || {});
+    const id = resolvedParams?.id || "";
     const { addToCart } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
 

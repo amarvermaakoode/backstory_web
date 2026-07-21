@@ -82,7 +82,7 @@ export default function FeaturedProducts() {
                             scrollbar-width: none;
                         }
                     `}</style>
-                    {products.map((product) => (
+                    {products.slice(0, 3).map((product) => (
                         <Link
                             key={product.id}
                             href={product.link || `/products/${product.slug || product.id}`}
