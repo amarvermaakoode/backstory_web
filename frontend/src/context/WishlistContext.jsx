@@ -1,6 +1,9 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
+import { useUserAuth } from "@/context/UserAuthContext";
+import { mapProductItem } from "@/services/productService";
+import { API_BASE_URL } from "@/lib/api";
 
 const WishlistContext = createContext(undefined);
 
@@ -32,66 +35,191 @@ export function WishlistProvider({ children }) {
     const [wishlistItems, setWishlistItems] = useState([]);
     const [isWishlistOpen, setIsWishlistOpen] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const { user, token } = useUserAuth();
 
-    // Load wishlist from localStorage on mount
+    // Load and sync wishlist when user logs in/changes
     useEffect(() => {
-        try {
-            const savedWishlist = localStorage.getItem("bacstory_wishlist");
-            if (savedWishlist) {
-                setWishlistItems(JSON.parse(savedWishlist));
+        const syncAndLoadWishlist = async () => {
+            if (user) {
+                try {
+                    const localSaved = localStorage.getItem("bacstory_wishlist");
+                    let localItems = [];
+                    if (localSaved) {
+                        try {
+                            localItems = JSON.parse(localSaved);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
+
+                    const activeToken = token || localStorage.getItem("userToken");
+                    if (!activeToken) return;
+
+                    // If we have items in localStorage, sync them with backend
+                    if (localItems.length > 0) {
+                        const productIds = localItems.map(item => item.id || item._id).filter(Boolean);
+                        const res = await fetch(`${API_BASE_URL}/frontend/wishlist/sync`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${activeToken}`
+                            },
+                            body: JSON.stringify({ productIds })
+                        });
+                        const data = await res.json();
+                        if (data.success && Array.isArray(data.wishlist)) {
+                            setWishlistItems(data.wishlist.map(mapProductItem));
+                            // Clear localStorage once merged
+                            localStorage.removeItem("bacstory_wishlist");
+                        }
+                    } else {
+                        // Just fetch the backend wishlist
+                        const res = await fetch(`${API_BASE_URL}/frontend/wishlist`, {
+                            headers: {
+                                "Authorization": `Bearer ${activeToken}`
+                            }
+                        });
+                        const data = await res.json();
+                        if (data.success && Array.isArray(data.wishlist)) {
+                            setWishlistItems(data.wishlist.map(mapProductItem));
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to sync/load wishlist with backend:", error);
+                }
+            } else {
+                // Logged out: restore from localStorage
+                try {
+                    const savedWishlist = localStorage.getItem("bacstory_wishlist");
+                    if (savedWishlist) {
+                        setWishlistItems(JSON.parse(savedWishlist));
+                    } else {
+                        setWishlistItems([]);
+                    }
+                } catch (error) {
+                    console.error("Failed to load wishlist from localStorage:", error);
+                }
             }
-        } catch (error) {
-            console.error("Failed to load wishlist from localStorage:", error);
-        }
-        setIsInitialized(true);
-    }, []);
+            setIsInitialized(true);
+        };
 
-    // Save wishlist to localStorage whenever it changes
+        syncAndLoadWishlist();
+    }, [user, token]);
+
+    // Save wishlist to localStorage whenever it changes (only for guest)
     useEffect(() => {
-        if (!isInitialized) return;
+        if (!isInitialized || user) return;
         try {
             localStorage.setItem("bacstory_wishlist", JSON.stringify(wishlistItems));
         } catch (error) {
             console.error("Failed to save wishlist to localStorage:", error);
         }
-    }, [wishlistItems, isInitialized]);
+    }, [wishlistItems, isInitialized, user]);
 
     const wishlistCount = wishlistItems.length;
 
-    const addToWishlist = (product) => {
-        setWishlistItems((prevItems) => {
-            if (prevItems.some((item) => areProductsEqual(item, product))) {
-                return prevItems; // already exists
-            }
-            return [...prevItems, product];
-        });
-    };
-
-    const removeFromWishlist = (productOrId) => {
-        setWishlistItems((prevItems) => {
-            return prevItems.filter((item) => {
-                if (typeof productOrId === "object" && productOrId !== null) {
-                    return !areProductsEqual(item, productOrId);
-                } else {
-                    const isMatch = item.id === productOrId || 
-                                    item._id === productOrId || 
-                                    item.slug === productOrId ||
-                                    (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
-                                    (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
-                    return !isMatch;
+    const addToWishlist = async (product) => {
+        if (user) {
+            const exists = wishlistItems.some((item) => areProductsEqual(item, product));
+            if (exists) return; // already exists
+            try {
+                const productId = product.id || product._id;
+                const activeToken = token || localStorage.getItem("userToken");
+                const res = await fetch(`${API_BASE_URL}/frontend/wishlist/toggle`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${activeToken}`
+                    },
+                    body: JSON.stringify({ productId })
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.wishlist)) {
+                    setWishlistItems(data.wishlist.map(mapProductItem));
                 }
+            } catch (error) {
+                console.error("Failed to add to database wishlist:", error);
+            }
+        } else {
+            setWishlistItems((prevItems) => {
+                if (prevItems.some((item) => areProductsEqual(item, product))) {
+                    return prevItems; // already exists
+                }
+                return [...prevItems, product];
             });
-        });
+        }
     };
 
-    const toggleWishlist = (product) => {
-        setWishlistItems((prevItems) => {
-            const exists = prevItems.some((item) => areProductsEqual(item, product));
-            if (exists) {
-                return prevItems.filter((item) => !areProductsEqual(item, product));
+    const removeFromWishlist = async (productOrId) => {
+        if (user) {
+            try {
+                const productId = typeof productOrId === "object" && productOrId !== null
+                    ? (productOrId.id || productOrId._id)
+                    : productOrId;
+
+                const activeToken = token || localStorage.getItem("userToken");
+                const res = await fetch(`${API_BASE_URL}/frontend/wishlist/toggle`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${activeToken}`
+                    },
+                    body: JSON.stringify({ productId })
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.wishlist)) {
+                    setWishlistItems(data.wishlist.map(mapProductItem));
+                }
+            } catch (error) {
+                console.error("Failed to remove from database wishlist:", error);
             }
-            return [...prevItems, product];
-        });
+        } else {
+            setWishlistItems((prevItems) => {
+                return prevItems.filter((item) => {
+                    if (typeof productOrId === "object" && productOrId !== null) {
+                        return !areProductsEqual(item, productOrId);
+                    } else {
+                        const isMatch = item.id === productOrId || 
+                                        item._id === productOrId || 
+                                        item.slug === productOrId ||
+                                        (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
+                                        (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+                        return !isMatch;
+                    }
+                });
+            });
+        }
+    };
+
+    const toggleWishlist = async (product) => {
+        if (user) {
+            try {
+                const productId = product.id || product._id;
+                const activeToken = token || localStorage.getItem("userToken");
+                const res = await fetch(`${API_BASE_URL}/frontend/wishlist/toggle`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${activeToken}`
+                    },
+                    body: JSON.stringify({ productId })
+                });
+                const data = await res.json();
+                if (data.success && Array.isArray(data.wishlist)) {
+                    setWishlistItems(data.wishlist.map(mapProductItem));
+                }
+            } catch (error) {
+                console.error("Failed to toggle wishlist in database:", error);
+            }
+        } else {
+            setWishlistItems((prevItems) => {
+                const exists = prevItems.some((item) => areProductsEqual(item, product));
+                if (exists) {
+                    return prevItems.filter((item) => !areProductsEqual(item, product));
+                }
+                return [...prevItems, product];
+            });
+        }
     };
 
     const isInWishlist = (productOrId) => {
