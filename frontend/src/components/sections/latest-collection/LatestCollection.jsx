@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ChevronRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+import { API_BASE_URL } from "@/lib/api";
 
 const defaultProducts = [
     {
@@ -45,7 +44,6 @@ const defaultProducts = [
 
 export default function Collections() {
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     // Carousel Ref
     const carouselRef = useRef(null);
@@ -92,25 +90,11 @@ export default function Collections() {
             } catch (err) {
                 console.error("Failed to fetch landing products:", err);
                 setProducts(defaultProducts);
-            } finally {
-                setLoading(false);
             }
         };
 
         fetchProducts();
     }, []);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-
-        // Local public assets start with /images/
-        if (path.startsWith("/images/")) return path;
-
-        // Backend upload asset
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     const scroll = (direction) => {
         if (carouselRef.current) {

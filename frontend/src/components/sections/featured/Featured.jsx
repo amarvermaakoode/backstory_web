@@ -8,16 +8,12 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
-
-
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
     const { toggleWishlist, wishlistItems } = useWishlist();
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchFeatured = async () => {
@@ -55,21 +51,11 @@ export default function FeaturedProducts() {
             } catch (err) {
                 console.error("Failed to fetch featured products:", err);
                 setProducts([]);
-            } finally {
-                setLoading(false);
             }
         };
 
         fetchFeatured();
     }, []);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     return (
         <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">

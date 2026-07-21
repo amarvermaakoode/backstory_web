@@ -8,10 +8,9 @@ import ProductCard from "@/components/ui/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
-
-export default function ProductsListing({ 
+export default function ProductsListing({
     categorySlug, 
     collectionSlug, 
     subCategorySlug 

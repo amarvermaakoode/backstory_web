@@ -10,8 +10,7 @@ import Footer from "@/components/layout/Footer";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductCard from "@/components/ui/ProductCard";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 const renderStars = (rating, sizeClass = "w-4 h-4") => {
     const ratingNum = Number(rating) || 0;
@@ -65,6 +64,57 @@ const fallbackReviews = [
         text: "The Biker Series concept is brilliant. This isn't just a t-shirt — it's a piece of art that starts conversations. Will definitely be back for more."
     }
 ];
+
+// Map a backend product document to the detail-page view model.
+const mapProductDetail = (dbProd) => ({
+    id: dbProd._id,
+    name: dbProd.title,
+    price: `Rs ${dbProd.price}`,
+    priceNum: Number(dbProd.price),
+    image: dbProd.colors?.[0]?.images?.[0] || "",
+    tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
+    rating: dbProd.rating || "4.7",
+    reviewsCount: dbProd.reviewsCount || 63,
+    description: dbProd.description || "",
+    details: {
+        material: dbProd.material || "100% Cotton",
+        fit: dbProd.fit || "Standard Fit",
+        weight: dbProd.weight || "240 GSM",
+        care: dbProd.care || "Machine wash cold"
+    },
+    colors: (dbProd.colors || []).map(c => ({
+        name: c.color?.name || "Default",
+        hex: c.color?.hexCode || "#CCCCCC",
+        images: c.images || []
+    })),
+    sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
+    reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
+    faqs: dbProd.faqs || []
+});
+
+// Map a backend product document to the "related product" card view model.
+const mapRelatedProduct = (item) => {
+    const colorsList = (item.colors || []).map(c => ({
+        name: c.color?.name || "Default",
+        hex: c.color?.hexCode || "#CCCCCC"
+    }));
+    const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+    const mainImg = item.colors?.[0]?.images?.[0] || "";
+    const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
+
+    return {
+        id: item._id,
+        name: item.title,
+        price: `Rs ${item.price}`,
+        priceNum: Number(item.price),
+        image: mainImg,
+        hoverImage: hoverImg,
+        sizes: sizesList,
+        colors: colorsList,
+        tag: item.subCategory?.name || item.category?.Name || "Product",
+        link: `/products/${item.slug || item._id}`
+    };
+};
 
 export default function ProductDetailPage({ params }) {
     // Unwrap route parameter promise
@@ -130,33 +180,7 @@ export default function ProductDetailPage({ params }) {
                             const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
                             const json = await res.json();
                             if (json.success && json.data) {
-                                const dbProd = json.data;
-                                const mapped = {
-                                    id: dbProd._id,
-                                    name: dbProd.title,
-                                    price: `Rs ${dbProd.price}`,
-                                    priceNum: Number(dbProd.price),
-                                    image: dbProd.colors?.[0]?.images?.[0] || "",
-                                    tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
-                                    rating: dbProd.rating || "4.7",
-                                    reviewsCount: dbProd.reviewsCount || 63,
-                                    description: dbProd.description || "",
-                                    details: {
-                                        material: dbProd.material || "100% Cotton",
-                                        fit: dbProd.fit || "Standard Fit",
-                                        weight: dbProd.weight || "240 GSM",
-                                        care: dbProd.care || "Machine wash cold"
-                                    },
-                                    colors: (dbProd.colors || []).map(c => ({
-                                        name: c.color?.name || "Default",
-                                        hex: c.color?.hexCode || "#CCCCCC",
-                                        images: c.images || []
-                                    })),
-                                    sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
-                                    reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
-                                    faqs: dbProd.faqs || []
-                                };
-                                setProduct(mapped);
+                                setProduct(mapProductDetail(json.data));
                             }
                         }
                     } catch (err) {
@@ -175,14 +199,6 @@ export default function ProductDetailPage({ params }) {
         }
     };
 
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
-
     useEffect(() => {
         const fetchProductData = async () => {
             try {
@@ -193,31 +209,7 @@ export default function ProductDetailPage({ params }) {
                 const json = await res.json();
                 if (json.success && json.data) {
                     const dbProd = json.data;
-                    const mapped = {
-                        id: dbProd._id,
-                        name: dbProd.title,
-                        price: `Rs ${dbProd.price}`,
-                        priceNum: Number(dbProd.price),
-                        image: dbProd.colors?.[0]?.images?.[0] || "",
-                        tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
-                        rating: dbProd.rating || "4.7",
-                        reviewsCount: dbProd.reviewsCount || 63,
-                        description: dbProd.description || "",
-                        details: {
-                            material: dbProd.material || "100% Cotton",
-                            fit: dbProd.fit || "Standard Fit",
-                            weight: dbProd.weight || "240 GSM",
-                            care: dbProd.care || "Machine wash cold"
-                        },
-                        colors: (dbProd.colors || []).map(c => ({
-                            name: c.color?.name || "Default",
-                            hex: c.color?.hexCode || "#CCCCCC",
-                            images: c.images || []
-                        })),
-                        sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
-                        reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
-                        faqs: dbProd.faqs || []
-                    };
+                    const mapped = mapProductDetail(dbProd);
                     setProduct(mapped);
 
                     if (mapped.colors && mapped.colors.length > 0) {
@@ -250,28 +242,7 @@ export default function ProductDetailPage({ params }) {
                 if (json.success && Array.isArray(json.data)) {
                     const mapped = json.data
                         .filter(item => item._id !== currentId)
-                        .map(item => {
-                            const colorsList = (item.colors || []).map(c => ({
-                                name: c.color?.name || "Default",
-                                hex: c.color?.hexCode || "#CCCCCC"
-                            }));
-                            const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
-                            const mainImg = item.colors?.[0]?.images?.[0] || "";
-                            const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-
-                            return {
-                                id: item._id,
-                                name: item.title,
-                                price: `Rs ${item.price}`,
-                                priceNum: Number(item.price),
-                                image: mainImg,
-                                hoverImage: hoverImg,
-                                sizes: sizesList,
-                                colors: colorsList,
-                                tag: item.subCategory?.name || item.category?.Name || "Product",
-                                link: `/products/${item.slug || item._id}`
-                            };
-                        })
+                        .map(mapRelatedProduct)
                         .slice(0, 4);
 
                     if (mapped.length > 0) {
@@ -295,28 +266,7 @@ export default function ProductDetailPage({ params }) {
                 if (json.success && Array.isArray(json.data)) {
                     const mapped = json.data
                         .filter(item => item._id !== currentId)
-                        .map(item => {
-                            const colorsList = (item.colors || []).map(c => ({
-                                name: c.color?.name || "Default",
-                                hex: c.color?.hexCode || "#CCCCCC"
-                            }));
-                            const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
-                            const mainImg = item.colors?.[0]?.images?.[0] || "";
-                            const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-
-                            return {
-                                id: item._id,
-                                name: item.title,
-                                price: `Rs ${item.price}`,
-                                priceNum: Number(item.price),
-                                image: mainImg,
-                                hoverImage: hoverImg,
-                                sizes: sizesList,
-                                colors: colorsList,
-                                tag: item.subCategory?.name || item.category?.Name || "Product",
-                                link: `/products/${item.slug || item._id}`
-                            };
-                        })
+                        .map(mapRelatedProduct)
                         .slice(0, 4);
                     setRelatedProducts(mapped);
                 } else {

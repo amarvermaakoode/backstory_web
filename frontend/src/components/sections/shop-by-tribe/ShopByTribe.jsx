@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api`;
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 const defaultTribes = [
     {
@@ -31,7 +30,6 @@ const defaultTribes = [
 
 export default function ShopByTribe() {
     const [subCategories, setSubCategories] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchSubCategories = async () => {
@@ -46,25 +44,11 @@ export default function ShopByTribe() {
             } catch (err) {
                 console.error("Failed to fetch landing subcategories/tribes:", err);
                 setSubCategories(defaultTribes);
-            } finally {
-                setLoading(false);
             }
         };
 
         fetchSubCategories();
     }, []);
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        
-        // Local public assets start with /images/
-        if (path.startsWith("/images/")) return path;
-        
-        // Backend upload asset
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     const activeTribes = subCategories.length > 0 ? subCategories : defaultTribes;
 

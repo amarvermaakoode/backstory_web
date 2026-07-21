@@ -3,20 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
+import { getImageUrl } from "@/lib/api";
 
 export default function WishlistCard({ item, onRemove, onAddToCart }) {
     const displayOffer = item.offer;
     const displayTag = item.tag;
     const displayRating = item.rating || "4.7";
     const displayReviewsCount = item.reviewsCount || item.reviews || 63;
-
-    const getImageUrl = (path) => {
-        if (!path) return "/images/placeholder.png";
-        if (path.startsWith("http") || path.startsWith("data:")) return path;
-        if (path.startsWith("/images/")) return path;
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-        return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-    };
 
     return (
         <div className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden w-full select-none">
