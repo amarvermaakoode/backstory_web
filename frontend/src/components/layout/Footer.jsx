@@ -18,16 +18,16 @@ export default function Footer() {
     ];
 
     const supportLinks = [
-        { name: "Customer Support", href: "#support" },
-        { name: "Track Order", href: "#track-order" },
+        { name: "Customer Support", href: "#" },
+        { name: "Track Order", href: "#" },
         { name: "Return & Exchange", href: "/return-and-exchange" },
         { name: "FAQs", href: "/faq" },
     ];
 
     const identityLinks = [
-        { name: "How It Works", href: "#how-it-works" },
-        { name: "Profiles", href: "#profiles" },
-        { name: "Community", href: "#community" },
+        { name: "How It Works", href: "#" },
+        { name: "Profiles", href: "#" },
+        { name: "Community", href: "#" },
     ];
 
     return (
