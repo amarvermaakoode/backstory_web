@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 // Policy summary data for landing state
 const policyItems = [
@@ -115,7 +116,6 @@ const mockOrderItems = [
 ];
 
 const reasonOptions = [
-    "Select a reason",
     "Product is too small/large",
     "Received wrong item",
     "Item defective or damaged",
@@ -614,20 +614,14 @@ export default function ReturnAndExchangePage() {
                                         </div>
 
                                         {/* Reason Select Dropdown */}
-                                        <div className="relative">
-                                            <select
-                                                value={selectedReason}
-                                                onChange={(e) => setSelectedReason(e.target.value)}
-                                                className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl px-6 py-4 text-sm text-black appearance-none focus:outline-none focus:bg-white focus:border-black transition-all cursor-pointer"
-                                            >
-                                                {reasonOptions.map((reason) => (
-                                                    <option key={reason} value={reason}>
-                                                        {reason}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                                        </div>
+                                        <CustomSelect
+                                            options={reasonOptions}
+                                            value={selectedReason}
+                                            placeholder="Select a reason"
+                                            showPlaceholderInMenu={false}
+                                            onChange={(e) => setSelectedReason(e.target.value)}
+                                            className="!bg-[#F4F4F4] !border-transparent !rounded-2xl !py-4 !px-6 !text-sm !font-normal text-black hover:!border-neutral-300"
+                                        />
 
                                         {/* Additional Notes Textarea */}
                                         <textarea
