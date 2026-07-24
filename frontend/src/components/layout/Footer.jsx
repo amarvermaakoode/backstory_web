@@ -20,7 +20,7 @@ export default function Footer() {
     const supportLinks = [
         { name: "Customer Support", href: "#support" },
         { name: "Track Order", href: "#track-order" },
-        { name: "Return & Exchange", href: "#returns" },
+        { name: "Return & Exchange", href: "/return-and-exchange" },
         { name: "FAQs", href: "/faq" },
     ];
 
