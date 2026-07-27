@@ -66,7 +66,7 @@ export default function FeaturedProducts() {
                     <h2 className="heading-section">
                         Featured Products
                     </h2>
-                    <Button href="/product-list" hasArrow={false} variant="outline">
+                    <Button href="/product-list" hasArrow={false} variant="outline" className="whitespace-nowrap">
                         See All
                     </Button>
                 </div>

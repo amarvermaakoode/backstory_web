@@ -68,7 +68,6 @@ export default function Collections() {
                         // Image resolving logic (front view and hover view)
                         const mainImg = item.colors?.[0]?.images?.[0] || "";
                         const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-
                         return {
                             id: item._id,
                             slug: item.slug,
@@ -98,7 +97,7 @@ export default function Collections() {
 
     const scroll = (direction) => {
         if (carouselRef.current) {
-            const cardWidth = 380; // card width + gap
+            const cardWidth = 380;
             const scrollAmount = direction === "left" ? -cardWidth : cardWidth;
             carouselRef.current.scrollBy({
                 left: scrollAmount,
