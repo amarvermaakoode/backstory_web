@@ -121,7 +121,7 @@ export default function Collections() {
                             <p className="text-black body-large md:mt-2 mt-2">
                                 Inspired by journeys.<br />Designed to be remembered.
                             </p>
-                            <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4">
+                            <Button href="/product-list" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4 whitespace-nowrap">
                                 Shop Now
                             </Button>
                         </div>
