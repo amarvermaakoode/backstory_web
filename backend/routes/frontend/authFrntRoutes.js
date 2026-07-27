@@ -13,4 +13,3 @@ router.post("/verify-otp", verifyOtp);
 router.get("/me", protect, getCurrentUser);
 
 module.exports = router;
-
