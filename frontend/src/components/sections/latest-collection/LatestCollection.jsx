@@ -114,7 +114,7 @@ export default function Collections() {
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
                         <h2 className="heading-section text-[#030303]">
-                            Shop our <br className="hidden md:block" />Latest Collection
+                            Shop our <br />Latest Collection
                         </h2>
                         <div className="flex md:flex-col flex-row justify-between">
                             <p className="text-black body-large md:mt-2 mt-2">
