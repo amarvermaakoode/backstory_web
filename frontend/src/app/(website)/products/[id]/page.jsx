@@ -409,7 +409,7 @@ export default function ProductDetailPage({ params }) {
         <div className="min-h-screen bg-white text-black selection:bg-neutral-200 selection:text-black flex flex-col font-sans">
             <Navbar solid={true} light={true} />
 
-            <main className="flex-1 w-full pt-22 md:pt-28 pb-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none">
+            <main className="flex-1 w-full pt-22 md:pt-28 pb-16 px-6 sm:px-10 md:px-16 lg:px-[4%]">
                 <div className="mx-auto max-w-[1600px] flex flex-col">
 
                     {/* Breadcrumbs */}

@@ -65,7 +65,7 @@ export default function QrEnabledRange() {
             {/* Header Banner with Cream Background */}
             <div className="bg-[#EFECE7] py-5 lg:py-10 px-4 sm:px-8 flex items-center">
                 <div className="mx-auto max-w-[98%] w-full">
-                    <h2 className="heading-section text-[#030303] select-none">
+                    <h2 className="heading-section text-[#030303]">
                         Explore our<br className="lg:hidden" /> QR-Enabled Range
                     </h2>
                 </div>

@@ -59,7 +59,7 @@ export default function FeaturedProducts() {
     }, []);
 
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] text-black">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
                 <div className="flex items-center justify-between">

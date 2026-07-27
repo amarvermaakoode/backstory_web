@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 relative overflow-hidden select-none">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 relative overflow-hidden">
       {/* Background radial glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#dfd7cc]/30 rounded-full blur-[100px] pointer-events-none" />
 

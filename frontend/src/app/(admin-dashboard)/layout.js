@@ -78,7 +78,7 @@ function AdminLayoutShell({ children }) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-neutral-900 flex select-none">
+    <div className="min-h-screen bg-[#F8F9FA] text-neutral-900 flex">
 
       {/* Sidebar Component */}
       <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />

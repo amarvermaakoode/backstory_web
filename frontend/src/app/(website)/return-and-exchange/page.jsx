@@ -201,7 +201,7 @@ export default function ReturnAndExchangePage() {
     }, 0);
 
     return (
-        <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col font-sans select-none">
+        <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col font-sans">
             <Navbar solid={true} light={true} />
 
             <main className="flex-1 w-full pt-10">

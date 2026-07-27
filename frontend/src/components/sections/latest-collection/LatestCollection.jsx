@@ -108,13 +108,13 @@ export default function Collections() {
     };
 
     return (
-        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%] select-none">
+        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%]">
             <div className=" max-w-full flex flex-col md:flex-row gap-12 md:gap-14 items-start">
 
                 {/* Left Content (Static) */}
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
-                        <h2 className="heading-section text-[#030303] select-none">
+                        <h2 className="heading-section text-[#030303]">
                             Shop our <br className="hidden md:block" />Latest Collection
                         </h2>
                         <div className="flex md:flex-col flex-row justify-between">

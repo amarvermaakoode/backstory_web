@@ -332,7 +332,7 @@ export default function ProductsListing({
             <Navbar solid={true} light={true} />
 
             {/* Main Listing Wrapper */}
-            <main className="flex-1 w-full pt-28 pb-20 px-6 sm:px-10 md:px-12 select-none">
+            <main className="flex-1 w-full pt-28 pb-20 px-6 sm:px-10 md:px-12">
                 <div className="mx-auto max-w-[100%] flex flex-col">
 
                     {/* Breadcrumbs */}

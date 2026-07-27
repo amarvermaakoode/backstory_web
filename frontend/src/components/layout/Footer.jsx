@@ -31,7 +31,7 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-12 select-none overflow-hidden">
+        <footer className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-12 overflow-hidden">
             <div className="mx-auto max-w-[1600px] space-y-16">
 
                 {/* Top Section */}

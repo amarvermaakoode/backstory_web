@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 
 export default function DiscoverMore() {
     return (
-        <section className="relative w-full overflow-hidden select-none">
+        <section className="relative w-full overflow-hidden">
             {/* Background Image */}
             <div className="w-full">
                 <Image
