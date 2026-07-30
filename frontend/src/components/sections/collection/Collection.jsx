@@ -44,7 +44,7 @@ export default function QrEnabledRange() {
     const activeCollections = collections.length > 0 ? collections : defaultCollections;
 
     return (
-        <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 select-none">
+        <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12">
             <div className="mx-auto max-w-[100%] grid grid-cols-1 md:grid-cols-2 gap-6">
                 {activeCollections.map((collection) => (
                     <Link

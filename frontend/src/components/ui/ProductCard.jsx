@@ -34,7 +34,7 @@ export default function ProductCard({
     return (
         <Link
             href={product.link || `/products/${product.slug || product.id}`}
-            className="group flex flex-col cursor-pointer w-full select-none"
+            className="group flex flex-col cursor-pointer w-full"
         >
             {/* Image Container */}
             <div 

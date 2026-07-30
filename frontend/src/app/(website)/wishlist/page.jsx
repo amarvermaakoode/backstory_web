@@ -219,7 +219,7 @@ export default function WishlistPage() {
                                 return (
                                     <div
                                         key={product.id}
-                                        className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden w-full select-none"
+                                        className="group bg-white rounded-[24px] sm:rounded-[28px] border border-neutral-200/60 flex flex-col relative transition-all duration-300 hover:shadow-xs overflow-hidden w-full"
                                     >
                                         {/* Image Box */}
                                         <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden rounded-[18px] sm:rounded-[22px]">

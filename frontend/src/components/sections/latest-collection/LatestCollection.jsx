@@ -68,7 +68,6 @@ export default function Collections() {
                         // Image resolving logic (front view and hover view)
                         const mainImg = item.colors?.[0]?.images?.[0] || "";
                         const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-
                         return {
                             id: item._id,
                             slug: item.slug,
@@ -98,7 +97,7 @@ export default function Collections() {
 
     const scroll = (direction) => {
         if (carouselRef.current) {
-            const cardWidth = 380; // card width + gap
+            const cardWidth = 380;
             const scrollAmount = direction === "left" ? -cardWidth : cardWidth;
             carouselRef.current.scrollBy({
                 left: scrollAmount,
@@ -108,20 +107,20 @@ export default function Collections() {
     };
 
     return (
-        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%] select-none">
+        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%]">
             <div className=" max-w-full flex flex-col md:flex-row gap-12 md:gap-14 items-start">
 
                 {/* Left Content (Static) */}
                 <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
                     <div>
-                        <h2 className="heading-section text-[#030303] select-none">
-                            Shop our <br className="hidden md:block" />Latest Collection
+                        <h2 className="heading-section text-[#030303]">
+                            Shop our <br />Latest Collection
                         </h2>
                         <div className="flex md:flex-col flex-row justify-between">
                             <p className="text-black body-large md:mt-2 mt-2">
                                 Inspired by journeys.<br />Designed to be remembered.
                             </p>
-                            <Button href="#shop" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4">
+                            <Button href="/product-list" hasArrow={false} variant="outline" className="md:mt-6 mt-4 md:mr-0 mr-4 whitespace-nowrap">
                                 Shop Now
                             </Button>
                         </div>

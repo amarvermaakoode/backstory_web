@@ -66,7 +66,7 @@ export default function FAQPage() {
     });
 
     return (
-        <div className="min-h-screen bg-[#F7F7F7] text-black flex flex-col font-sans select-none">
+        <div className="min-h-screen bg-[#F7F7F7] text-black flex flex-col font-sans">
             <Navbar solid={true} light={true} />
 
             <main className="flex-1 w-full pt-20">

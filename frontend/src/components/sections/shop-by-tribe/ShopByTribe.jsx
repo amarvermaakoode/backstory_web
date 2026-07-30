@@ -53,7 +53,7 @@ export default function ShopByTribe() {
     const activeTribes = subCategories.length > 0 ? subCategories : defaultTribes;
 
     return (
-        <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] select-none text-black">
+        <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] text-black">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header */}
                 <div>
