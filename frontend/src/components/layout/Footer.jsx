@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Heart } from "lucide-react";
 
 export default function Footer() {
     const brandLinks = [
-        { name: "About", href: "#about" },
-        { name: "Mission", href: "#mission" },
-        { name: "Stories", href: "#stories" },
+        { name: "About", href: "/about-us" },
+        { name: "Mission", href: "/about-us#philosophy" },
+        { name: "Stories", href: "/about-us" },
     ];
 
     const shopLinks = [
@@ -37,7 +38,7 @@ export default function Footer() {
                 {/* Top Section */}
                 <div className="flex flex-col md:flex-row justify-between gap-12 lg:gap-8">
                     {/* Left Column (Brand Slogan & Socials) */}
-                    <div className="flex flex-col justify-between md:max-w-[30%] max-w-[100%] space-y-8">
+                    <div className="flex flex-col justify-between md:max-w-[42%] max-w-[100%] space-y-8">
                         <div className="space-y-6">
                             <h2 className="font-sans text-2xl md:text-[2.5vw] font-medium leading-tight tracking-tight">
                                 Every person has a story worth wearing.
@@ -75,13 +76,30 @@ export default function Footer() {
                         </div>
 
                         {/* Copyright Details */}
-                        <div className="text-[11px] md:text-xs text-white space-y-1 font-sans">
-                            <p>© 2026 Backstory</p>
-                            <p className="space-x-1.5">
-                                <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-                                <span>•</span>
-                                <a href="#terms" className="hover:text-white transition-colors">Terms & Conditions</a>
-                            </p>
+                        <div className="flex items-start gap-8 sm:gap-14 text-sm md:text-base text-white font-sans">
+                            <a
+                                href="https://www.akoode.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Akoode Technology - AI & Software Company"
+                                className="relative inline-flex items-center gap-1 group hover:text-white transition-colors shrink-0 font-light text-white"
+                            >
+                                <span>Made with</span>
+                                <Heart className="text-white fill-white w-3.5 h-3.5" />
+                                <span className="sr-only">Akoode Technology</span>
+
+                                <span className="absolute bottom-full left-0 mb-2.5 hidden group-hover:block bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
+                                    AI & Software company in India | USA
+                                </span>
+                            </a>
+                            <div className="space-y-1">
+                                <p className="font-normal text-white">© 2026 Backstory</p>
+                                <p className="whitespace-nowrap space-x-1.5 text-neutral-300 font-light">
+                                    <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+                                    <span>•</span>
+                                    <a href="#terms" className="hover:text-white transition-colors">Terms & Conditions</a>
+                                </p>
+                            </div>
                         </div>
                     </div>
 

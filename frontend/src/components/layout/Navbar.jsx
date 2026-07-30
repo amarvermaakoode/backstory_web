@@ -89,13 +89,13 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <Link href="/#tribe" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Tribe
                     </Link>
-                    <Link href="/#identity" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/about-us#philosophy" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Identity
                     </Link>
-                    <Link href="/#shop" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/product-list" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Shop
                     </Link>
-                    <Link href="/#brand" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/about-us" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         The Brand
                     </Link>
                 </nav>
@@ -208,21 +208,21 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             Tribe
                         </Link>
                         <Link
-                            href="/#identity"
+                            href="/about-us#philosophy"
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`transition-colors py-2 ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
                         >
                             Identity
                         </Link>
                         <Link
-                            href="/#shop"
+                            href="/product-list"
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`transition-colors py-2 ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
                         >
                             Shop
                         </Link>
                         <Link
-                            href="/#brand"
+                            href="/about-us"
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`transition-colors py-2 ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
                         >
