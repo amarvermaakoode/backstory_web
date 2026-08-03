@@ -42,5 +42,21 @@ const adminOnly = (req, res, next) => {
   }
 };
 
-module.exports = { protect, adminOnly };
+const optionalAuth = async (req, res, next) => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      const token = req.headers.authorization.split(" ")[1];
+      const decoded = verifyToken(token);
+      req.user = await User.findById(decoded.id).select("-password");
+    } catch (error) {
+      console.error("Optional auth error:", error.message);
+    }
+  }
+  next();
+};
+
+module.exports = { protect, adminOnly, optionalAuth };
 

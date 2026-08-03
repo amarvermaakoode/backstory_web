@@ -23,6 +23,34 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "user"],
       default: "user",
     },
+    name: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    gender: {
+      type: String,
+      default: "Female",
+    },
+    dateOfBirth: {
+      type: String,
+      default: "",
+    },
+    isDeactivated: {
+      type: Boolean,
+      default: false,
+    },
+    addresses: [
+      {
+        name: { type: String, required: true },
+        recipientName: { type: String, default: "" },
+        addressLine1: { type: String, required: true },
+        addressLine2: { type: String, default: "" },
+        cityStatePin: { type: String, default: "" },
+        phone: { type: String, default: "" },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,

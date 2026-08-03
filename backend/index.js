@@ -25,6 +25,8 @@ const frontendWishlistRoutes = require("./routes/frontend/wishlistFrntRoutes");
 const frontendCartRoutes = require("./routes/frontend/cartFrntRoutes");
 const adminPromoCodeRoutes = require("./routes/admin/promoCodeRoutes");
 const frontendPromoCodeRoutes = require("./routes/frontend/promoCodeFrntRoutes");
+const adminSupportRoutes = require("./routes/admin/supportAdminRoutes");
+const frontendSupportRoutes = require("./routes/frontend/supportFrntRoutes");
 
 dotenv.config();
 
@@ -64,6 +66,7 @@ app.use("/api/admin/size-guides", sizeGuideRoutes);
 app.use("/api/admin/products", productRoutes);
 app.use("/api/admin/reviews", adminReviewRoutes);
 app.use("/api/admin/promo-codes", adminPromoCodeRoutes);
+app.use("/api/admin/support-tickets", adminSupportRoutes);
 
 //frontend routes
 app.use("/api/frontend/categories", frontendCategoryRoutes);
@@ -75,6 +78,7 @@ app.use("/api/frontend/auth", frontendAuthRoutes);
 app.use("/api/frontend/wishlist", frontendWishlistRoutes);
 app.use("/api/frontend/cart", frontendCartRoutes);
 app.use("/api/frontend/promo-codes", frontendPromoCodeRoutes);
+app.use("/api/frontend/support", frontendSupportRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

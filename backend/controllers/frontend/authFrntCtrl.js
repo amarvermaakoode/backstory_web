@@ -127,7 +127,12 @@ const verifyOtp = async (req, res) => {
         id: user._id,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        name: user.name || "",
+        gender: user.gender || "Female",
+        dateOfBirth: user.dateOfBirth || "",
         role: user.role,
+        addresses: user.addresses || [],
+        isDeactivated: user.isDeactivated || false,
       },
     });
   } catch (error) {
@@ -142,9 +147,24 @@ const verifyOtp = async (req, res) => {
 // Get current user profile
 const getCurrentUser = async (req, res) => {
   try {
+    const user = await User.findById(req.user.id || req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     return res.status(200).json({
       success: true,
-      user: req.user,
+      user: {
+        id: user._id,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        name: user.name || "",
+        gender: user.gender || "Female",
+        dateOfBirth: user.dateOfBirth || "",
+        role: user.role,
+        addresses: user.addresses || [],
+        isDeactivated: user.isDeactivated || false,
+      },
     });
   } catch (error) {
     return res.status(500).json({
@@ -154,8 +174,269 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+// Update profile details (Name, Gender, Phone, Email, DOB)
+const updateProfile = async (req, res) => {
+  try {
+    const { name, gender, phone, phoneNumber, email, dob, dateOfBirth } = req.body;
+    const user = await User.findById(req.user.id || req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const newEmail = email ? email.toLowerCase().trim() : user.email;
+    const newPhone = (phone || phoneNumber) ? (phone || phoneNumber).trim() : user.phoneNumber;
+
+    if (newEmail && newEmail !== user.email) {
+      const existingEmail = await User.findOne({ email: newEmail, _id: { $ne: user._id } });
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: "Email is already in use by another account." });
+      }
+      user.email = newEmail;
+    }
+
+    if (newPhone && newPhone !== user.phoneNumber) {
+      const existingPhone = await User.findOne({ phoneNumber: newPhone, _id: { $ne: user._id } });
+      if (existingPhone) {
+        return res.status(400).json({ success: false, message: "Phone number is already in use by another account." });
+      }
+      user.phoneNumber = newPhone;
+    }
+
+    if (name !== undefined) user.name = name.trim();
+    if (gender !== undefined) user.gender = gender;
+    if (dob !== undefined || dateOfBirth !== undefined) user.dateOfBirth = dob || dateOfBirth;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile details updated successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        name: user.name || "",
+        gender: user.gender || "Female",
+        dateOfBirth: user.dateOfBirth || "",
+        role: user.role,
+        addresses: user.addresses || [],
+        isDeactivated: user.isDeactivated || false,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Add new address
+const addAddress = async (req, res) => {
+  try {
+    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, isDefault } = req.body;
+    if ((!name && !label) || !addressLine1) {
+      return res.status(400).json({ success: false, message: "Address label and address line 1 are required." });
+    }
+
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const setAsDefault = isDefault || user.addresses.length === 0;
+
+    if (setAsDefault) {
+      user.addresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
+    }
+
+    user.addresses.push({
+      name: name || label || "Home",
+      recipientName: recipientName || name || "",
+      addressLine1: addressLine1.trim(),
+      addressLine2: addressLine2 ? addressLine2.trim() : "",
+      cityStatePin: cityStatePin ? cityStatePin.trim() : "",
+      phone: phone ? phone.trim() : user.phoneNumber || "",
+      isDefault: setAsDefault,
+    });
+
+    await user.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Address added successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Add address error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update existing address
+const updateAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, isDefault } = req.body;
+
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const target = user.addresses.id(addressId);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "Address not found." });
+    }
+
+    if (name !== undefined || label !== undefined) target.name = name || label;
+    if (recipientName !== undefined) target.recipientName = recipientName;
+    if (addressLine1 !== undefined) target.addressLine1 = addressLine1;
+    if (addressLine2 !== undefined) target.addressLine2 = addressLine2;
+    if (cityStatePin !== undefined) target.cityStatePin = cityStatePin;
+    if (phone !== undefined) target.phone = phone;
+
+    if (isDefault) {
+      user.addresses.forEach((addr) => {
+        addr.isDefault = addr._id.toString() === addressId;
+      });
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Update address error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete address
+const deleteAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const user = await User.findById(req.user.id || req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const target = user.addresses.id(addressId);
+    if (!target) {
+      return res.status(404).json({ success: false, message: "Address not found." });
+    }
+
+    const wasDefault = target.isDefault;
+    user.addresses.pull({ _id: addressId });
+
+    if (wasDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Address removed successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Delete address error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Set default address
+const setDefaultAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const user = await User.findById(req.user.id || req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let found = false;
+    user.addresses.forEach((addr) => {
+      if (addr._id.toString() === addressId) {
+        addr.isDefault = true;
+        found = true;
+      } else {
+        addr.isDefault = false;
+      }
+    });
+
+    if (!found) {
+      return res.status(404).json({ success: false, message: "Address not found." });
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Default address updated",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Set default address error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Deactivate account
+const deactivateAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.isDeactivated = true;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deactivated successfully",
+    });
+  } catch (error) {
+    console.error("Deactivate account error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete account
+const deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.user.id || req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete account error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
   getCurrentUser,
+  updateProfile,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
+  deactivateAccount,
+  deleteAccount,
 };
+
