@@ -198,8 +198,8 @@ export default function CartPage() {
     const allSelected = cartItems.length > 0 && cartItems.every(item => selectedItems.includes(item.id));
 
     return (
-        <div className="min-h-screen mt-16 bg-[#FAF9F6] text-black selection:bg-neutral-200">
-            <Navbar solid={true} light={true} />
+        <div className="min-h-screen pt-17 bg-[#FAF9F6] text-black selection:bg-neutral-200">
+            <Navbar light={true} />
 
             <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 py-10">
                 {/* Breadcrumbs */}

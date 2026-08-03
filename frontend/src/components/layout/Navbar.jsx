@@ -3,11 +3,20 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, Package, Heart, Tag, Scan, Headphones, LogOut } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useUserAuth } from "@/context/UserAuthContext";
+
+const userMenuItems = [
+    { label: "Account", href: "/account", icon: User },
+    { label: "Orders", href: "/account/orders", icon: Package },
+    { label: "Wishlist", href: "/account/wishlist", icon: Heart },
+    { label: "Coupons", href: "/account/coupons", icon: Tag },
+    { label: "QR Identity", href: "/account/qr-identity", icon: Scan },
+    { label: "Support", href: "/account/support", icon: Headphones },
+];
 
 export default function Navbar({ onSearchClick, solid = false, light = false }) {
     const [scrolled, setScrolled] = useState(false);
@@ -48,7 +57,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     return (
         <header
             className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${light
-                ? "bg-[#FAF9F6] text-black"
+                ? "bg-[#FAF9F6] text-black border-b border-neutral-200/60"
                 : scrolled || isMobileMenuOpen || solid
                     ? "bg-black/90 backdrop-blur-md text-white"
                     : "bg-transparent text-white"
@@ -75,8 +84,6 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <Image
                         src="/images/logo.png"
                         alt="bacstory logo"
-                        href="/"
-                        cursor="pointer"
                         width={120}
                         height={26}
                         className={`h-6 sm:h-7 w-auto object-contain ${light ? "invert" : ""}`}
@@ -155,7 +162,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     </button>
                     {user ? (
                         <div className="relative group select-none flex items-center">
-                            <button className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
+                            <Link href="/account" className={`transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`} aria-label="Account">
                                 <Image
                                     src="/images/landing-page/user.svg"
                                     alt="Account"
@@ -163,19 +170,31 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                                     height={22}
                                     className={`h-5.5 w-5.5 object-contain transition-transform hover:scale-105 ${light ? "invert" : ""}`}
                                 />
-                            </button>
-                            <div className="absolute right-0 top-full pt-2 w-48 hidden group-hover:block transition-all z-50">
-                                <div className="bg-white border border-neutral-200/80 rounded-2xl shadow-xl py-2">
-                                    <div className="px-4 py-2 border-b border-neutral-100">
-                                        <p className="text-[10px] text-neutral-400 font-medium">Logged in via</p>
-                                        <p className="text-xs font-bold text-neutral-800 truncate mt-0.5">{user.email || user.phoneNumber}</p>
+                            </Link>
+                            <div className="absolute right-0 top-full pt-2 w-56 hidden group-hover:block transition-all z-50">
+                                <div className="bg-white border border-neutral-200/80 rounded-2xl shadow-xl shadow-black/10 p-2 space-y-0.5 text-neutral-900">
+                                    {userMenuItems.map((item) => {
+                                        const Icon = item.icon;
+                                        return (
+                                            <Link
+                                                key={item.label}
+                                                href={item.href}
+                                                className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-neutral-900 hover:bg-[#f4f4f5] transition-colors"
+                                            >
+                                                <Icon className="w-4.5 h-4.5 text-neutral-800 stroke-[1.6]" />
+                                                <span>{item.label}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                    <div className="pt-1 mt-1 border-t border-neutral-100">
+                                        <button
+                                            onClick={logout}
+                                            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left"
+                                        >
+                                            <LogOut className="w-4.5 h-4.5 stroke-[1.6]" />
+                                            <span>Log Out</span>
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={logout}
-                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                    >
-                                        Log Out
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -229,18 +248,48 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             The Brand
                         </Link>
                         {user ? (
-                            <div className="flex flex-col pt-4 border-t border-neutral-200/40">
-                                <span className={`text-xs font-medium mb-2 ${light ? "text-neutral-500" : "text-neutral-400"}`}>
-                                    Logged in as <span className="font-bold text-black dark:text-white">{user.name}</span>
+                            <div className="flex flex-col pt-4 border-t border-neutral-200/40 text-left space-y-1 font-sans text-base">
+                                <span className={`text-xs font-medium px-2 mb-2 ${light ? "text-neutral-500" : "text-neutral-400"}`}>
+                                    Logged in as <span className="font-bold">{user.name || user.email || user.phoneNumber}</span>
                                 </span>
+                                {userMenuItems.map((item) => {
+                                    const Icon = item.icon;
+                                    if (item.label === "Wishlist") {
+                                        return (
+                                            <button
+                                                key={item.label}
+                                                onClick={() => {
+                                                    setIsMobileMenuOpen(false);
+                                                    handleWishlistClick();
+                                                }}
+                                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer text-left ${light ? "text-neutral-800 hover:bg-neutral-100" : "text-neutral-200 hover:bg-neutral-800"}`}
+                                            >
+                                                <Icon className="w-4.5 h-4.5 stroke-[1.6]" />
+                                                <span>{item.label}</span>
+                                            </button>
+                                        );
+                                    }
+                                    return (
+                                        <Link
+                                            key={item.label}
+                                            href={item.href}
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${light ? "text-neutral-800 hover:bg-neutral-100" : "text-neutral-200 hover:bg-neutral-800"}`}
+                                        >
+                                            <Icon className="w-4.5 h-4.5 stroke-[1.6]" />
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    );
+                                })}
                                 <button
                                     onClick={() => {
                                         setIsMobileMenuOpen(false);
                                         logout();
                                     }}
-                                    className="transition-colors py-2 text-red-600 font-bold cursor-pointer text-sm"
+                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left w-full mt-2"
                                 >
-                                    Log Out
+                                    <LogOut className="w-4.5 h-4.5 stroke-[1.6]" />
+                                    <span>Log Out</span>
                                 </button>
                             </div>
                         ) : (

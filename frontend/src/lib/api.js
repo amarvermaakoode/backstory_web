@@ -15,8 +15,18 @@ export const API_BASE_URL = `${API_URL}/api`;
  * - Everything else (e.g. backend "/uploads/..") is resolved against the API origin.
  */
 export const getImageUrl = (path) => {
-  if (!path || typeof path !== "string") return "/images/logo.png";
-  if (path.startsWith("http") || path.startsWith("data:")) return path;
+  if (!path || typeof path !== "string") return "/images/landing-page/coding-tshirt.png";
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
   if (path.startsWith("/images/")) return path;
-  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  if (path.startsWith("images/")) return `/${path}`;
+  if (path.includes("tshirt") || path.includes("coding") || path.includes("biker") || path.includes("wonderlust") || path.includes("first") || path.includes("pants")) {
+    return `/images/landing-page/${path.replace(/^\//, "")}`;
+  }
+  if (path.startsWith("/uploads") || path.startsWith("uploads")) {
+    return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  }
+  if (!path.startsWith("/")) {
+    return `/images/landing-page/${path}`;
+  }
+  return `${API_URL}${path}`;
 };
