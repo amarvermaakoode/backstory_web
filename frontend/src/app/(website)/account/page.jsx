@@ -48,31 +48,7 @@ export default function AccountProfilePage() {
 
     const [savedProfile, setSavedProfile] = useState({ ...profile });
 
-    const [addresses, setAddresses] = useState([
-        {
-            _id: "1",
-            id: 1,
-            name: "Home",
-            label: "Home",
-            recipientName: "Kritika Sharma",
-            isDefault: true,
-            addressLine1: "B-84, Rajouri Garden, West Delhi,",
-            addressLine2: "New Delhi – 110027",
-            cityStatePin: "",
-            phone: "+91 98765 43210",
-        },
-        {
-            _id: "2",
-            id: 2,
-            name: "John Doe",
-            label: "Work",
-            isDefault: false,
-            addressLine1: "4th Floor, WeWork Blue One Square,",
-            addressLine2: "Udyog Vihar Phase IV,",
-            cityStatePin: "Gurugram, Haryana – 122016",
-            phone: "+91 98765 43210",
-        },
-    ]);
+    const [addresses, setAddresses] = useState([]);
 
     // Fetch user profile & addresses from backend /auth/me
     useEffect(() => {
@@ -132,11 +108,14 @@ export default function AccountProfilePage() {
     // Add / Edit address modal state
     const [isAddAddressOpen, setIsAddAddressOpen] = useState(false);
     const [editingAddressId, setEditingAddressId] = useState(null);
+    const [pincodeLoading, setPincodeLoading] = useState(false);
+    const [pincodeError, setPincodeError] = useState("");
     const [newAddress, setNewAddress] = useState({
         name: "",
         label: "Home",
         addressLine1: "",
         addressLine2: "",
+        pincode: "",
         cityStatePin: "",
         phone: "",
     });
@@ -181,13 +160,58 @@ export default function AccountProfilePage() {
         setIsEditing(false);
     };
 
+    const handlePincodeChange = async (e) => {
+        const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+        setPincodeError("");
+        setNewAddress((prev) => ({
+            ...prev,
+            pincode: pin,
+            cityStatePin: pin.length < 6 ? "" : prev.cityStatePin,
+        }));
+
+        if (pin.length === 6) {
+            setPincodeLoading(true);
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+                        const po = data[0].PostOffice[0];
+                        const locationStr = `${po.District || po.Name}, ${po.State} - ${pin}`;
+                        setNewAddress((prev) => ({
+                            ...prev,
+                            pincode: pin,
+                            cityStatePin: locationStr,
+                        }));
+                        setPincodeError("");
+                        showToast(`Location fetched: ${po.District || po.Name}, ${po.State}`, "success");
+                    } else {
+                        setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
+                        setPincodeError("Please provide a valid pincode.");
+                    }
+                } else {
+                    setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
+                    setPincodeError("Please provide a valid pincode.");
+                }
+            } catch (err) {
+                console.log("Pincode lookup error:", err);
+                setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
+                setPincodeError("Please provide a valid pincode.");
+            } finally {
+                setPincodeLoading(false);
+            }
+        }
+    };
+
     const handleOpenAddAddress = () => {
         setEditingAddressId(null);
+        setPincodeError("");
         setNewAddress({
             name: "",
             label: "Home",
             addressLine1: "",
             addressLine2: "",
+            pincode: "",
             cityStatePin: "",
             phone: profile.phone || "",
         });
@@ -196,11 +220,13 @@ export default function AccountProfilePage() {
 
     const handleOpenEditAddress = (addr) => {
         setEditingAddressId(addr._id || addr.id);
+        setPincodeError("");
         setNewAddress({
             name: addr.name || addr.label || "",
             label: addr.label || addr.name || "Home",
             addressLine1: addr.addressLine1 || "",
             addressLine2: addr.addressLine2 || "",
+            pincode: "",
             cityStatePin: addr.cityStatePin || "",
             phone: addr.phone || "",
         });
@@ -532,58 +558,68 @@ export default function AccountProfilePage() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {addresses.map((addr) => (
-                        <div
-                            key={addr._id || addr.id}
-                            className="border border-neutral-200/90 rounded-3xl p-5 sm:p-6 bg-white flex flex-col justify-between space-y-4 hover:border-neutral-300 transition-colors"
-                        >
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        {addr.label === "Home" ? (
-                                            <Home className="w-4 h-4 text-neutral-700 stroke-[1.6]" />
-                                        ) : (
-                                            <MapPin className="w-4 h-4 text-neutral-700 stroke-[1.6]" />
+                {addresses.length === 0 ? (
+                    <div className="border border-dashed border-neutral-200 rounded-3xl p-8 text-center space-y-3 bg-neutral-50/50">
+                        <MapPin className="w-8 h-8 text-neutral-400 mx-auto stroke-[1.2]" />
+                        <h4 className="text-sm font-bold text-neutral-900">No Saved Addresses</h4>
+                        <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                            You haven't saved any delivery addresses yet. Click "Add New Address" above to save an address for faster checkout.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {addresses.map((addr) => (
+                            <div
+                                key={addr._id || addr.id}
+                                className="border border-neutral-200/90 rounded-3xl p-5 sm:p-6 bg-white flex flex-col justify-between space-y-4 hover:border-neutral-300 transition-colors"
+                            >
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            {addr.label === "Home" ? (
+                                                <Home className="w-4 h-4 text-neutral-700 stroke-[1.6]" />
+                                            ) : (
+                                                <MapPin className="w-4 h-4 text-neutral-700 stroke-[1.6]" />
+                                            )}
+                                            <span className="font-bold text-sm text-neutral-900">
+                                                {addr.name}
+                                            </span>
+                                        </div>
+                                        {addr.isDefault && (
+                                            <span className="bg-[#EBE7E1] text-neutral-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-md">
+                                                Default
+                                            </span>
                                         )}
-                                        <span className="font-bold text-sm text-neutral-900">
-                                            {addr.name}
-                                        </span>
                                     </div>
-                                    {addr.isDefault && (
-                                        <span className="bg-[#EBE7E1] text-neutral-700 text-[10px] font-semibold px-2.5 py-0.5 rounded-md">
-                                            Default
-                                        </span>
-                                    )}
+
+                                    <div className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal space-y-0.5">
+                                        <p>{addr.addressLine1}</p>
+                                        <p>{addr.addressLine2}</p>
+                                        {addr.cityStatePin && <p>{addr.cityStatePin}</p>}
+                                        <p className="pt-1 text-neutral-800">{addr.phone}</p>
+                                    </div>
                                 </div>
 
-                                <div className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal space-y-0.5">
-                                    <p>{addr.addressLine1}</p>
-                                    <p>{addr.addressLine2}</p>
-                                    {addr.cityStatePin && <p>{addr.cityStatePin}</p>}
-                                    <p className="pt-1 text-neutral-800">{addr.phone}</p>
+                                <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
+                                    <button
+                                        onClick={() => handleOpenEditAddress(addr)}
+                                        className="border border-neutral-300 rounded-full px-3.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                    >
+                                        <Pencil className="w-3 h-3 text-neutral-500" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => triggerRemoveAddressModal(addr._id || addr.id)}
+                                        className="border border-neutral-300 rounded-full px-3.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                    >
+                                        <Trash2 className="w-3 h-3 text-neutral-500" />
+                                        Remove
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
-                                <button
-                                    onClick={() => handleOpenEditAddress(addr)}
-                                    className="border border-neutral-300 rounded-full px-3.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                >
-                                    <Pencil className="w-3 h-3 text-neutral-500" />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => triggerRemoveAddressModal(addr._id || addr.id)}
-                                    className="border border-neutral-300 rounded-full px-3.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                >
-                                    <Trash2 className="w-3 h-3 text-neutral-500" />
-                                    Remove
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* Section 3: Account Actions */}
@@ -657,15 +693,39 @@ export default function AccountProfilePage() {
                                 />
                             </div>
 
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500 mb-1 flex items-center justify-between">
+                                    <span>6-Digit Pincode</span>
+                                    {pincodeLoading && <span className="text-[10px] text-amber-600 font-bold animate-pulse">Fetching Location...</span>}
+                                </label>
+                                <input
+                                    type="text"
+                                    maxLength={6}
+                                    value={newAddress.pincode}
+                                    onChange={handlePincodeChange}
+                                    className={`w-full border rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none font-mono tracking-wider transition-colors ${
+                                        pincodeError
+                                            ? "border-red-400 focus:border-red-500 bg-red-50/20"
+                                            : "border-neutral-200 focus:border-neutral-400"
+                                    }`}
+                                    placeholder="Enter Pincode (e.g. 110027)"
+                                />
+                                {pincodeError && (
+                                    <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1">
+                                        ⚠ {pincodeError}
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-semibold text-neutral-500 mb-1 block">City & Pincode</label>
+                                    <label className="text-xs font-semibold text-neutral-500 mb-1 block">City & State (Auto-filled)</label>
                                     <input
                                         type="text"
                                         value={newAddress.cityStatePin}
                                         onChange={(e) => setNewAddress({ ...newAddress, cityStatePin: e.target.value })}
-                                        className="w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
-                                        placeholder="Gurugram, 122011"
+                                        className="w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-neutral-50/50"
+                                        placeholder="City, State"
                                     />
                                 </div>
                                 <div>
