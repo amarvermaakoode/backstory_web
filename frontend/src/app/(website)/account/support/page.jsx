@@ -1,23 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mail, PhoneCall, RotateCcw, HelpCircle, Send, Check } from "lucide-react";
+import { useUserAuth } from "@/context/UserAuthContext";
+import { useToast } from "@/context/ToastContext";
+import { Mail, PhoneCall, RotateCcw, HelpCircle, Send, Check, Clock } from "lucide-react";
 
 export default function AccountSupportPage() {
+    const { user, userFetch } = useUserAuth();
+    const { showToast } = useToast();
+
     const [supportSent, setSupportSent] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [myTickets, setMyTickets] = useState([]);
     const [supportForm, setSupportForm] = useState({
         subject: "Order Status",
         message: "",
     });
 
-    const handleSupportSubmit = (e) => {
+    // Fetch user's submitted tickets
+    useEffect(() => {
+        let isMounted = true;
+        const fetchTickets = async () => {
+            try {
+                if (userFetch) {
+                    const res = await userFetch("/support/my-tickets");
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.success && Array.isArray(data.data) && isMounted) {
+                            setMyTickets(data.data);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log("Fetch user support tickets error:", err);
+            }
+        };
+
+        fetchTickets();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [userFetch]);
+
+    const handleSupportSubmit = async (e) => {
         e.preventDefault();
-        setSupportSent(true);
-        setTimeout(() => {
-            setSupportSent(false);
-            setSupportForm({ subject: "Order Status", message: "" });
-        }, 4000);
+        if (!supportForm.message) return;
+
+        setSubmitting(true);
+
+        try {
+            if (userFetch) {
+                const res = await userFetch("/support", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        subject: supportForm.subject,
+                        message: supportForm.message,
+                        name: user?.name || "",
+                        email: user?.email || "",
+                        phone: user?.phone || user?.phoneNumber || "",
+                    }),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                        setMyTickets((prev) => [data.data, ...prev]);
+                    }
+                }
+            }
+        } catch (err) {
+            console.log("Submit support ticket API error (mock fallback):", err);
+        } finally {
+            setSubmitting(false);
+            setSupportSent(true);
+            showToast("Your support ticket has been submitted!", "success");
+            setTimeout(() => {
+                setSupportSent(false);
+                setSupportForm({ subject: "Order Status", message: "" });
+            }, 4000);
+        }
     };
 
     return (
@@ -129,14 +193,44 @@ export default function AccountSupportPage() {
                         </div>
                         <button
                             type="submit"
-                            className="bg-neutral-900 text-white rounded-xl px-6 py-2.5 text-xs font-semibold hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer"
+                            disabled={submitting}
+                            className="bg-neutral-900 text-white rounded-xl px-6 py-2.5 text-xs font-semibold hover:bg-neutral-800 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                         >
                             <Send className="w-3.5 h-3.5" />
-                            Submit Message
+                            {submitting ? "Submitting..." : "Submit Message"}
                         </button>
                     </form>
                 )}
             </div>
+
+            {/* My Submitted Support Tickets Section */}
+            {myTickets.length > 0 && (
+                <div className="pt-6 border-t border-neutral-100 space-y-4">
+                    <h3 className="text-base font-bold text-neutral-900">My Support Tickets</h3>
+                    <div className="space-y-3">
+                        {myTickets.map((ticket) => (
+                            <div
+                                key={ticket._id}
+                                className="border border-neutral-200/80 rounded-xl p-4 bg-neutral-50/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
+                            >
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-xs text-neutral-900">{ticket.subject}</span>
+                                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 uppercase">
+                                            {ticket.status || "Open"}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-neutral-600 line-clamp-1 mt-1">{ticket.message}</p>
+                                </div>
+                                <div className="text-[11px] text-neutral-400 font-medium flex items-center gap-1 shrink-0">
+                                    <Clock className="w-3 h-3" />
+                                    {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : "Just now"}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

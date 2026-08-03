@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { useUserAuth } from "@/context/UserAuthContext";
+import { useToast } from "@/context/ToastContext";
 import {
     User,
     Package,
@@ -13,11 +15,19 @@ import {
     Scan,
     Headphones,
     ChevronLeft,
+    LogOut,
 } from "lucide-react";
 
 export default function AccountLayout({ children }) {
     const pathname = usePathname();
     const router = useRouter();
+    const { logout } = useUserAuth();
+    const { showToast } = useToast();
+
+    const handleLogout = () => {
+        showToast("Logged out successfully.", "info");
+        logout();
+    };
 
     // Determine subTab or section based on pathname
     const isRootAccount = pathname === "/account";
@@ -72,7 +82,7 @@ export default function AccountLayout({ children }) {
                         <aside
                             className={`${
                                 mobileView === "content" ? "hidden lg:block" : "block"
-                            } w-full lg:w-72 shrink-0 bg-white rounded-3xl p-4 sm:p-5 border border-neutral-200/60 shadow-xs`}
+                            } w-full lg:w-72 shrink-0 bg-white rounded-3xl p-4 sm:p-5 border border-neutral-200/60 shadow-xs lg:sticky lg:top-24 self-start`}
                         >
                             <nav className="space-y-1.5">
                                 {navItems.map((item) => {
@@ -96,6 +106,16 @@ export default function AccountLayout({ children }) {
                                         </div>
                                     );
                                 })}
+
+                                <div className="pt-2 mt-2 border-t border-neutral-100">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-semibold text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer"
+                                    >
+                                        <LogOut className="w-4.5 h-4.5 stroke-[1.6]" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
                             </nav>
                         </aside>
 
