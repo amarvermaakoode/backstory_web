@@ -155,7 +155,7 @@ export default function WishlistDrawer() {
                                             >
                                                 <Image
                                                     src={getImageUrl(item.image)}
-                                                    alt={item.name}
+                                                    alt={item.name || "Product image"}
                                                     fill
                                                     className="object-contain select-none"
                                                     sizes="(max-width: 640px) 40vw, 200px"

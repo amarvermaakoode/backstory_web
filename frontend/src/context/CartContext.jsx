@@ -6,36 +6,102 @@ import { API_BASE_URL } from "@/lib/api";
 
 const CartContext = createContext(undefined);
 
+const sanitizeCartItem = (item) => {
+    if (!item) return null;
+    const pId = item.productId || item.id || item._id;
+    const name = item.name || item.title || item.productName || "Product";
+    
+    let priceNum = 0;
+    if (typeof item.priceNum === "number" && !isNaN(item.priceNum)) {
+        priceNum = item.priceNum;
+    } else if (typeof item.price === "number" && !isNaN(item.price)) {
+        priceNum = item.price;
+    } else if (item.price) {
+        const parsed = Number(String(item.price).replace(/[^0-9.]/g, ""));
+        if (!isNaN(parsed)) priceNum = parsed;
+    }
+
+    const price = item.price && String(item.price).startsWith("Rs") ? item.price : `Rs ${priceNum}`;
+
+    let image = item.image;
+    if (!image || typeof image !== "string") {
+        if (Array.isArray(item.images) && item.images[0]) {
+            image = item.images[0];
+        } else if (Array.isArray(item.colors) && item.colors[0]) {
+            const matchedColor = item.colors.find(c => (c.name || c.color?.name) === item.color?.name);
+            image = matchedColor?.images?.[0] || item.colors[0]?.images?.[0] || "";
+        } else {
+            image = "";
+        }
+    }
+
+    const colorName = item.color?.name || item.colorName || "Default";
+    const colorHex = item.color?.hex || item.colorHex || "#000000";
+    const size = item.size || "M";
+    const uniqueId = (item.id && !item.id.includes("undefined")) 
+        ? item.id 
+        : `${pId}-${size}-${colorName}`;
+
+    return {
+        ...item,
+        id: uniqueId,
+        productId: pId,
+        name,
+        price,
+        priceNum,
+        image,
+        size,
+        color: { name: colorName, hex: colorHex },
+        quantity: Number(item.quantity) || 1
+    };
+};
+
 const mapCartItem = (dbItem) => {
+    if (!dbItem) return null;
     const product = dbItem.product;
     if (!product) return null;
 
     const colorsList = (product.colors || []).map(c => ({
-        name: c.color?.name || "Default",
-        hex: c.color?.hexCode || "#CCCCCC"
+        name: c.color?.name || c.name || "Default",
+        hex: c.color?.hexCode || c.hex || "#CCCCCC"
     }));
-    const sizesList = product.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
-    const mainImg = product.colors?.[0]?.images?.[0] || "";
+    const sizesList = product.sizeGuide?.chart?.map(sz => sz.size) || product.sizes || ["S", "M", "L"];
 
-    const uniqueId = `${product._id}-${dbItem.size}-${dbItem.color.name}`;
+    const matchingColorObj = (product.colors || []).find(c =>
+        (c.color?.name || c.name) === dbItem.color?.name
+    );
+    const mainImg = matchingColorObj?.images?.[0] || product.colors?.[0]?.images?.[0] || product.image || "";
 
-    return {
+    const pId = product._id || product.id;
+    const name = product.title || product.name || "Product";
+    const rawPrice = product.price ?? product.priceNum;
+    const priceNum = typeof rawPrice === "number" && !isNaN(rawPrice)
+        ? rawPrice 
+        : Number(String(rawPrice || "").replace(/[^0-9.]/g, "")) || 0;
+    const priceStr = `Rs ${priceNum}`;
+
+    const colorName = dbItem.color?.name || "Default";
+    const colorHex = dbItem.color?.hex || "#000000";
+    const size = dbItem.size || "M";
+    const uniqueId = `${pId}-${size}-${colorName}`;
+
+    return sanitizeCartItem({
         id: uniqueId,
-        productId: product._id,
-        name: product.title,
-        price: `Rs ${product.price}`,
-        priceNum: Number(product.price),
+        productId: pId,
+        name: name,
+        price: priceStr,
+        priceNum: priceNum,
         image: mainImg,
-        tag: product.subCategory?.name || product.category?.Name || "Product",
-        size: dbItem.size,
+        tag: product.subCategory?.name || product.category?.Name || product.tag || "Product",
+        size: size,
         color: {
-            name: dbItem.color.name,
-            hex: dbItem.color.hex
+            name: colorName,
+            hex: colorHex
         },
         quantity: dbItem.quantity,
         sizes: sizesList,
         colors: colorsList
-    };
+    });
 };
 
 export function CartProvider({ children }) {
@@ -98,7 +164,10 @@ export function CartProvider({ children }) {
                 try {
                     const savedCart = localStorage.getItem("bacstory_cart");
                     if (savedCart) {
-                        setCartItems(JSON.parse(savedCart));
+                        const parsed = JSON.parse(savedCart);
+                        if (Array.isArray(parsed)) {
+                            setCartItems(parsed.map(sanitizeCartItem).filter(Boolean));
+                        }
                     } else {
                         setCartItems([]);
                     }
@@ -123,12 +192,23 @@ export function CartProvider({ children }) {
     }, [cartItems, isInitialized, user]);
 
     // Calculate totals
-    const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-    const cartSubtotal = cartItems.reduce((total, item) => total + (item.priceNum * item.quantity), 0);
+    const cartCount = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+    const cartSubtotal = cartItems.reduce((total, item) => {
+        const priceNum = typeof item.priceNum === "number" && !isNaN(item.priceNum)
+            ? item.priceNum
+            : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0;
+        return total + (priceNum * (item.quantity || 1));
+    }, 0);
 
     const addToCart = async (product, quantity = 1, size = null, color = null) => {
+        const pId = product.id || product._id;
         const selectedSize = size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : "M");
-        const selectedColor = color || (product.colors && product.colors.length > 0 ? product.colors[0] : { name: "Default", hex: "#000000" });
+        const selectedColor = color || (product.colors && product.colors.length > 0
+            ? { 
+                name: product.colors[0].name || product.colors[0].color?.name || "Default", 
+                hex: product.colors[0].hex || product.colors[0].color?.hexCode || "#000000" 
+              }
+            : { name: "Default", hex: "#000000" });
 
         if (user) {
             try {
@@ -140,7 +220,7 @@ export function CartProvider({ children }) {
                         "Authorization": `Bearer ${activeToken}`
                     },
                     body: JSON.stringify({
-                        productId: product.id || product._id,
+                        productId: pId,
                         quantity,
                         size: selectedSize,
                         color: {
@@ -158,34 +238,58 @@ export function CartProvider({ children }) {
             }
         } else {
             setCartItems((prevItems) => {
-                const uniqueId = `${product.id}-${selectedSize}-${selectedColor.name}`;
-                const existingItem = prevItems.find((item) => item.id === uniqueId);
+                const name = product.name || product.title || "Product";
+                let priceNum = 0;
+                if (typeof product.priceNum === "number" && !isNaN(product.priceNum)) {
+                    priceNum = product.priceNum;
+                } else if (typeof product.price === "number" && !isNaN(product.price)) {
+                    priceNum = product.price;
+                } else if (product.price) {
+                    const parsed = Number(String(product.price).replace(/[^0-9.]/g, ""));
+                    if (!isNaN(parsed)) priceNum = parsed;
+                }
 
-                if (existingItem) {
-                    return prevItems.map((item) =>
-                        item.id === uniqueId
-                            ? { ...item, quantity: item.quantity + quantity }
-                            : item
+                let image = product.image;
+                if (!image || typeof image !== "string") {
+                    if (Array.isArray(product.images) && product.images[0]) {
+                        image = product.images[0];
+                    } else if (Array.isArray(product.colors) && product.colors[0]) {
+                        const matchedColor = product.colors.find(c => (c.name || c.color?.name) === selectedColor.name);
+                        image = matchedColor?.images?.[0] || product.colors[0]?.images?.[0] || "";
+                    } else {
+                        image = "";
+                    }
+                }
+
+                const uniqueId = `${pId}-${selectedSize}-${selectedColor.name}`;
+                const existingIndex = prevItems.findIndex(
+                    (item) => item.id === uniqueId || (item.productId === pId && item.size === selectedSize && item.color?.name === selectedColor.name)
+                );
+
+                if (existingIndex > -1) {
+                    return prevItems.map((item, idx) =>
+                        idx === existingIndex
+                            ? sanitizeCartItem({ ...item, quantity: (item.quantity || 1) + quantity })
+                            : sanitizeCartItem(item)
                     );
                 }
 
-                return [
-                    ...prevItems,
-                    {
-                        id: uniqueId,
-                        productId: product.id,
-                        name: product.name,
-                        price: product.price,
-                        priceNum: product.priceNum,
-                        image: product.image,
-                        tag: product.tag,
-                        size: selectedSize,
-                        color: selectedColor,
-                        quantity: quantity,
-                        sizes: product.sizes || [selectedSize],
-                        colors: product.colors || [selectedColor]
-                    }
-                ];
+                const newItem = sanitizeCartItem({
+                    id: uniqueId,
+                    productId: pId,
+                    name: name,
+                    price: `Rs ${priceNum}`,
+                    priceNum: priceNum,
+                    image: image,
+                    tag: product.tag || product.categoryName || product.subCategoryName || "Product",
+                    size: selectedSize,
+                    color: selectedColor,
+                    quantity: quantity,
+                    sizes: product.sizes || [selectedSize],
+                    colors: product.colors || [selectedColor]
+                });
+
+                return [...prevItems.map(sanitizeCartItem).filter(Boolean), newItem];
             });
         }
 
@@ -256,7 +360,7 @@ export function CartProvider({ children }) {
         } else {
             setCartItems((prevItems) =>
                 prevItems.map((item) =>
-                    item.id === cartItemId ? { ...item, quantity: newQuantity } : item
+                    item.id === cartItemId ? sanitizeCartItem({ ...item, quantity: newQuantity }) : sanitizeCartItem(item)
                 )
             );
         }
@@ -316,3 +420,4 @@ export function useCart() {
     }
     return context;
 }
+

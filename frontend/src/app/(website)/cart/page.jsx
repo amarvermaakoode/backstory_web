@@ -297,7 +297,7 @@ export default function CartPage() {
                                                 <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                                                     <Image 
                                                         src={getImageUrl(item.image)} 
-                                                        alt={item.name} 
+                                                        alt={item.name || "Product image"} 
                                                         fill 
                                                         className="object-contain p-2 select-none"
                                                         sizes="96px"
@@ -324,8 +324,8 @@ export default function CartPage() {
                                                                     onChange={(e) => handleSizeChange(item.id, e.target.value)}
                                                                     className="appearance-none pl-3 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
                                                                 >
-                                                                    {(item.sizes || [item.size]).map((sz) => (
-                                                                        <option key={sz} value={sz}>{sz}</option>
+                                                                    {(item.sizes || [item.size]).map((sz, idx) => (
+                                                                        <option key={`sz-${sz}-${idx}`} value={sz}>{sz}</option>
                                                                     ))}
                                                                 </select>
                                                                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
@@ -333,15 +333,18 @@ export default function CartPage() {
 
                                                             {/* Color dropdown */}
                                                             <div className="relative">
-                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-black/10" style={{ backgroundColor: item.color.hex }} />
+                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-black/10" style={{ backgroundColor: item.color?.hex || "#000000" }} />
                                                                 <select
-                                                                    value={item.color.name}
+                                                                    value={item.color?.name || "Default"}
                                                                     onChange={(e) => handleColorChange(item.id, e.target.value)}
                                                                     className="appearance-none pl-7 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
                                                                 >
-                                                                    {(item.colors || [item.color]).map((cl) => (
-                                                                        <option key={cl.name} value={cl.name}>{cl.name}</option>
-                                                                    ))}
+                                                                    {(item.colors || [item.color]).map((cl, idx) => {
+                                                                        const colorName = cl?.name || (typeof cl === "string" ? cl : "Default");
+                                                                        return (
+                                                                            <option key={`cl-${colorName}-${idx}`} value={colorName}>{colorName}</option>
+                                                                        );
+                                                                    })}
                                                                 </select>
                                                                 <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
                                                             </div>
@@ -372,9 +375,9 @@ export default function CartPage() {
                                                     {/* Price / Actions right side */}
                                                     <div className="flex flex-row md:flex-col items-baseline md:items-end justify-between gap-2.5 min-w-[120px]">
                                                         <div className="text-left md:text-right">
-                                                            <p className="font-clashDisplay text-lg font-bold text-black">
-                                                                Rs {(item.priceNum * item.quantity).toLocaleString()}
-                                                            </p>
+                                                             <p className="font-clashDisplay text-lg font-bold text-black">
+                                                                 Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
+                                                             </p>
                                                             <p className="text-xs text-neutral-400 mt-0.5">
                                                                 Qty: {item.quantity}
                                                             </p>

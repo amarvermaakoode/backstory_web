@@ -15,7 +15,7 @@ export const API_BASE_URL = `${API_URL}/api`;
  * - Everything else (e.g. backend "/uploads/..") is resolved against the API origin.
  */
 export const getImageUrl = (path) => {
-  if (!path) return "/images/placeholder.png";
+  if (!path || typeof path !== "string") return "/images/logo.png";
   if (path.startsWith("http") || path.startsWith("data:")) return path;
   if (path.startsWith("/images/")) return path;
   return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;

@@ -119,7 +119,7 @@ export default function CartDrawer() {
                                     <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                                         <Image
                                             src={getImageUrl(item.image)}
-                                            alt={item.name}
+                                            alt={item.name || "Product image"}
                                             fill
                                             className="object-contain p-2 select-none"
                                             sizes="96px"
@@ -132,7 +132,7 @@ export default function CartDrawer() {
                                         <div className="flex justify-between items-start">
                                             <div className="min-w-0">
                                                 <h3 className="font-sans text-sm sm:text-base font-semibold text-black truncate pr-2">
-                                                    {item.name}
+                                                    {item.name || item.title || "Product"}
                                                 </h3>
                                                 <p className="text-[10px] sm:text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mt-0.5">
                                                     {item.tag}
@@ -141,7 +141,7 @@ export default function CartDrawer() {
 
                                             {/* Price */}
                                             <p className="font-clashDisplay text-sm sm:text-base font-bold text-black whitespace-nowrap">
-                                                Rs {(item.priceNum * item.quantity).toLocaleString()}
+                                                Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
                                             </p>
                                         </div>
 

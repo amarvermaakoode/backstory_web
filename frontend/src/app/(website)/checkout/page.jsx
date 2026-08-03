@@ -522,20 +522,19 @@ export default function CheckoutPage() {
                                         <div className="relative w-18 h-20 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                                             <Image
                                                 src={getImageUrl(item.image)}
-                                                alt={item.name}
+                                                alt={item.name || item.title || "Product image"}
                                                 fill
                                                 className="object-contain p-1.5 select-none"
                                                 sizes="72px"
                                                 unoptimized
                                             />
                                         </div>
-
                                         {/* Product specifications */}
                                         <div className="flex-1 flex flex-col min-w-0">
                                             <div className="flex justify-between items-start gap-1">
                                                 <div>
                                                     <h3 className="font-sans text-sm font-semibold text-black truncate pr-1">
-                                                        {item.name}
+                                                        {item.name || item.title || "Product"}
                                                     </h3>
                                                     <p className="text-[10px] font-semibold text-neutral-400 uppercase mt-0.5">
                                                         {item.tag}
@@ -543,7 +542,7 @@ export default function CheckoutPage() {
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="font-clashDisplay text-sm font-semibold text-black whitespace-nowrap">
-                                                        Rs {item.priceNum.toLocaleString()}
+                                                        Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * (item.quantity || 1)).toLocaleString()}
                                                     </span>
                                                 </div>
                                             </div>
