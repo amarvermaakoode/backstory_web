@@ -14,6 +14,7 @@ import {
   Palette,
   Ruler,
   Percent,
+  QrCode,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -32,6 +33,11 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Products",
       path: "/admin/products",
       icon: <ShoppingBag className="w-5 h-5 shrink-0" />,
+    },
+    {
+      name: "QR Codes",
+      path: "/admin/qr-codes",
+      icon: <QrCode className="w-5 h-5 shrink-0" />,
     },
     {
       name: "Categories",

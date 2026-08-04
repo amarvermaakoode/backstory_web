@@ -1,0 +1,430 @@
+const QRCodeBatch = require("../../models/QRCodeBatch");
+const QRCodeModel = require("../../models/QRCode");
+const QRCode = require("qrcode");
+const PDFDocument = require("pdfkit");
+const crypto = require("crypto");
+
+// Helper to generate unique QR code string
+const generateUniqueCodeString = (prefix = "BAC") => {
+  const cleanPrefix = (prefix || "BAC").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const part1 = crypto.randomBytes(3).toString("hex").toUpperCase();
+  const part2 = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `${cleanPrefix}-${part1}-${part2}`;
+};
+
+/**
+ * @desc    Generate a new batch of QR codes
+ * @route   POST /api/admin/qr-codes/generate
+ * @access  Private (Admin)
+ */
+exports.generateBatch = async (req, res) => {
+  try {
+    const { batchName, quantity, prefix = "BAC" } = req.body;
+
+    if (!batchName || !batchName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch name is required",
+      });
+    }
+
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty < 1 || qty > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be between 1 and 1000",
+      });
+    }
+
+    // Create batch entry
+    const batch = await QRCodeBatch.create({
+      batchName: batchName.trim(),
+      prefix: prefix.trim().toUpperCase() || "BAC",
+      totalQuantity: qty,
+      createdBy: req.user ? req.user._id : null,
+    });
+
+    // Generate unique QR codes
+    const qrDocs = [];
+    const createdCodesSet = new Set();
+
+    for (let i = 0; i < qty; i++) {
+      let code = generateUniqueCodeString(batch.prefix);
+      let attempts = 0;
+      // Ensure uniqueness within batch and DB
+      while ((createdCodesSet.has(code) || (await QRCodeModel.exists({ code }))) && attempts < 10) {
+        code = generateUniqueCodeString(batch.prefix);
+        attempts++;
+      }
+
+      createdCodesSet.add(code);
+      qrDocs.push({
+        code,
+        batchId: batch._id,
+        status: "unlinked",
+      });
+    }
+
+    await QRCodeModel.insertMany(qrDocs);
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully generated batch '${batch.batchName}' with ${qty} QR codes.`,
+      batch,
+    });
+  } catch (error) {
+    console.error("Error generating QR batch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate QR batch",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get all QR Code Batches
+ * @route   GET /api/admin/qr-codes/batches
+ * @access  Private (Admin)
+ */
+exports.getAllBatches = async (req, res) => {
+  try {
+    const batches = await QRCodeBatch.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Get aggregated statistics for each batch
+    const batchIds = batches.map((b) => b._id);
+    const counts = await QRCodeModel.aggregate([
+      { $match: { batchId: { $in: batchIds } } },
+      {
+        $group: {
+          _id: "$batchId",
+          total: { $sum: 1 },
+          linkedCount: {
+            $sum: { $cond: [{ $ne: ["$status", "unlinked"] }, 1, 0] },
+          },
+          unlinkedCount: {
+            $sum: { $cond: [{ $eq: ["$status", "unlinked"] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const countMap = {};
+    counts.forEach((c) => {
+      countMap[c._id.toString()] = c;
+    });
+
+    const enrichedBatches = batches.map((batch) => {
+      const stats = countMap[batch._id.toString()] || {
+        total: batch.totalQuantity,
+        linkedCount: 0,
+        unlinkedCount: batch.totalQuantity,
+      };
+      return {
+        ...batch,
+        totalQuantity: stats.total || batch.totalQuantity,
+        linkedCount: stats.linkedCount || 0,
+        unlinkedCount: stats.unlinkedCount || batch.totalQuantity,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      batches: enrichedBatches,
+    });
+  } catch (error) {
+    console.error("Error fetching QR batches:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch QR batches",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get single QR Batch details & its QR codes
+ * @route   GET /api/admin/qr-codes/batches/:batchId
+ * @access  Private (Admin)
+ */
+exports.getBatchById = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const batch = await QRCodeBatch.findById(batchId).lean();
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: "Batch not found",
+      });
+    }
+
+    const qrCodes = await QRCodeModel.find({ batchId })
+      .populate("linkedUser", "name email")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const linkedCount = qrCodes.filter((q) => q.status !== "unlinked").length;
+
+    return res.status(200).json({
+      success: true,
+      batch: {
+        ...batch,
+        linkedCount,
+        unlinkedCount: qrCodes.length - linkedCount,
+      },
+      qrCodes,
+    });
+  } catch (error) {
+    console.error("Error fetching batch details:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch batch details",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Download Printable PDF for a QR Batch
+ * @route   GET /api/admin/qr-codes/batches/:batchId/pdf
+ * @access  Private (Admin)
+ */
+exports.downloadBatchPDF = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const batch = await QRCodeBatch.findById(batchId);
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: "Batch not found",
+      });
+    }
+
+    const qrCodes = await QRCodeModel.find({ batchId }).sort({ createdAt: 1 }).lean();
+
+    if (!qrCodes.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No QR codes found in this batch",
+      });
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
+    // Set Response Headers for PDF Download
+    const fileName = `${batch.batchName.replace(/[^a-zA-Z0-9_-]/g, "_")}_QRCodes.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+    // Create PDF Document (A4 size: 595.28 x 841.89 points)
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 30,
+      autoFirstPage: true,
+    });
+
+    doc.pipe(res);
+
+    // Layout configuration: 3 columns, 4 rows per page = 12 QRs per page
+    const cols = 3;
+    const rows = 4;
+    const itemsPerPage = cols * rows;
+
+    const marginX = 30;
+    const marginY = 30;
+    const pageWidth = 595.28 - marginX * 2; // 535.28
+    const pageHeight = 841.89 - marginY * 2; // 781.89
+
+    const cellWidth = pageWidth / cols; // ~178.4
+    const cellHeight = pageHeight / rows; // ~195.4
+
+    for (let i = 0; i < qrCodes.length; i++) {
+      const qrItem = qrCodes[i];
+      const pageIndex = Math.floor(i / itemsPerPage);
+      const indexInPage = i % itemsPerPage;
+
+      if (i > 0 && indexInPage === 0) {
+        doc.addPage();
+      }
+
+      const col = indexInPage % cols;
+      const row = Math.floor(indexInPage / cols);
+
+      const x = marginX + col * cellWidth;
+      const y = marginY + row * cellHeight;
+
+      // Draw dashed card border for easy cut guide
+      doc
+        .save()
+        .rect(x + 5, y + 5, cellWidth - 10, cellHeight - 10)
+        .dash(3, { space: 3 })
+        .strokeColor("#cccccc")
+        .lineWidth(0.8)
+        .stroke()
+        .restore();
+
+      // Card Header / Brand
+      doc
+        .fontSize(9)
+        .font("Helvetica-Bold")
+        .fillColor("#111111")
+        .text("BACSTORY", x, y + 16, {
+          width: cellWidth,
+          align: "center",
+        });
+
+      // Target scan URL
+      const scanUrl = `${frontendUrl}/qr/${qrItem.code}`;
+
+      // Generate QR Code Buffer
+      const qrBuffer = await QRCode.toBuffer(scanUrl, {
+        errorCorrectionLevel: "H",
+        type: "png",
+        margin: 1,
+        width: 120,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+
+      // Embed QR image centered in cell
+      const qrSize = 105;
+      const qrX = x + (cellWidth - qrSize) / 2;
+      const qrY = y + 32;
+
+      doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
+
+      // Code text label below QR
+      doc
+        .fontSize(9)
+        .font("Helvetica-Bold")
+        .fillColor("#000000")
+        .text(qrItem.code, x, qrY + qrSize + 6, {
+          width: cellWidth,
+          align: "center",
+        });
+
+      // Micro instruction text
+      doc
+        .fontSize(6.5)
+        .font("Helvetica")
+        .fillColor("#666666")
+        .text("Scan to activate & view story", x, qrY + qrSize + 20, {
+          width: cellWidth,
+          align: "center",
+        });
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate PDF document",
+        error: error.message,
+      });
+    }
+  }
+};
+
+/**
+ * @desc    Get all QR Codes across batches with filters/pagination
+ * @route   GET /api/admin/qr-codes
+ * @access  Private (Admin)
+ */
+exports.getAllQRCodes = async (req, res) => {
+  try {
+    const { status, search, page = 1, limit = 50 } = req.query;
+
+    const query = {};
+    if (status && ["unlinked", "claimed", "active"].includes(status)) {
+      query.status = status;
+    }
+    if (search && search.trim()) {
+      query.$or = [
+        { code: { $regex: search.trim(), $options: "i" } },
+        { orderId: { $regex: search.trim(), $options: "i" } },
+      ];
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 50;
+
+    const total = await QRCodeModel.countDocuments(query);
+    const qrCodes = await QRCodeModel.find(query)
+      .populate("batchId", "batchName prefix")
+      .populate("linkedUser", "name email")
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      qrCodes,
+    });
+  } catch (error) {
+    console.error("Error fetching all QR codes:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch QR codes",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Delete a QR Code Batch and its unlinked codes
+ * @route   DELETE /api/admin/qr-codes/batches/:batchId
+ * @access  Private (Admin)
+ */
+exports.deleteBatch = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    const batch = await QRCodeBatch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: "Batch not found",
+      });
+    }
+
+    // Delete unlinked QR codes associated with this batch
+    await QRCodeModel.deleteMany({ batchId, status: "unlinked" });
+
+    // Check if any claimed/active QR codes remain
+    const remainingCount = await QRCodeModel.countDocuments({ batchId });
+
+    if (remainingCount === 0) {
+      await QRCodeBatch.findByIdAndDelete(batchId);
+      return res.status(200).json({
+        success: true,
+        message: "Batch and all unlinked QR codes deleted successfully.",
+      });
+    } else {
+      batch.totalQuantity = remainingCount;
+      await batch.save();
+      return res.status(200).json({
+        success: true,
+        message: `Deleted unlinked QR codes. ${remainingCount} linked/claimed QR codes were preserved.`,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting batch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete batch",
+      error: error.message,
+    });
+  }
+};

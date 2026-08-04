@@ -57,6 +57,7 @@ function AdminLayoutShell({ children }) {
       path: "/admin/products",
       icon: <ShoppingBag className="w-5 h-5" />,
     },
+    { name: "QR Codes", path: "/admin/qr-codes" },
     { name: "Categories", path: "/admin/categories" },
     { name: "Sub-Categories", path: "/admin/sub-categories" },
     { name: "Collections", path: "/admin/collections" },
