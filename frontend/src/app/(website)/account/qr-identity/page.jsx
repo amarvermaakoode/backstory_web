@@ -148,11 +148,10 @@ export default function AccountQrIdentityPage() {
                       </div>
                     </div>
                     <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                        qr.status === "active"
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${qr.status === "active"
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-amber-50 text-amber-800 border border-amber-200"
-                      }`}
+                        }`}
                     >
                       {qr.status === "active" ? "Active Story" : "Claimed (Unactivated)"}
                     </span>
@@ -246,7 +245,7 @@ export default function AccountQrIdentityPage() {
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Share your backstory, favorite quote, or custom message displayed when people scan your QR code..."
+                  placeholder="Share your bacstory, favorite quote, or custom message displayed when people scan your QR code..."
                   value={editForm.customText}
                   onChange={(e) => setEditForm({ ...editForm, customText: e.target.value })}
                   className="w-full bg-neutral-50 border border-neutral-300 rounded-xl px-4 py-2.5 text-neutral-900 placeholder-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white"

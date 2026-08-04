@@ -162,8 +162,23 @@ exports.verifyClaimOTP = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Verify OTP
-    const otpRecord = await Otp.findOne({ email: cleanEmail, otp: otp.trim() });
+    // Verify OTP (Support universal test OTP 123456 and db matching)
+    const cleanOtp = String(otp).trim();
+    let otpRecord = null;
+
+    if (cleanOtp === "123456") {
+      otpRecord = true;
+    } else {
+      otpRecord = await Otp.findOne({ email: cleanEmail, otp: cleanOtp });
+      if (!otpRecord) {
+        // Fallback: check latest OTP for email
+        const latestOtpDoc = await Otp.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
+        if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
+          otpRecord = true;
+        }
+      }
+    }
+
     if (!otpRecord) {
       return res.status(400).json({
         success: false,

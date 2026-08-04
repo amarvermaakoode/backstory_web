@@ -21,21 +21,40 @@ export async function getQRCodeByCode(code) {
   }
 }
 
-// Claim an unlinked QR code using Order ID (Authenticated)
-export async function claimQRCode(userFetch, code, orderId) {
+// Step 1: Send OTP to Email for claiming QR Code with Order ID
+export async function sendClaimOTP(code, orderId, email) {
   try {
-    const res = await userFetch("/qr/claim", {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, orderId }),
+      body: JSON.stringify({ code, orderId, email }),
     });
     const data = await res.json();
     return data;
   } catch (error) {
-    console.error("Error claiming QR code:", error);
+    console.error("Error sending claim OTP:", error);
     return {
       success: false,
-      message: "Failed to claim QR code. Please try again.",
+      message: "Failed to send OTP verification code.",
+    };
+  }
+}
+
+// Step 2: Verify OTP & Claim QR Code (Links to User Account and logs user in)
+export async function verifyClaimOTP(code, orderId, email, otp) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/verify-claim-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, orderId, email, otp }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error verifying claim OTP:", error);
+    return {
+      success: false,
+      message: "Failed to verify OTP and claim QR code.",
     };
   }
 }

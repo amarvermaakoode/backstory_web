@@ -93,7 +93,7 @@ export default function Footer() {
                                 </span>
                             </a>
                             <div className="space-y-1">
-                                <p className="font-normal text-white">© 2026 Backstory</p>
+                                <p className="font-normal text-white">© 2026 Bacstory</p>
                                 <p className="whitespace-nowrap space-x-1.5 text-neutral-300 font-light">
                                     <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
                                     <span>•</span>

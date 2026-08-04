@@ -2,8 +2,8 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 export const metadata = {
-  title: "BACSTORY | Premium Narrative & Backstory Generator",
-  description: "Craft deep, rich character backstories and lore with AI-powered narrative design tools.",
+  title: "BACSTORY | Premium Narrative & Bacstory Generator",
+  description: "Craft deep, rich character bacstories and lore with AI-powered narrative design tools.",
   icons: {
     icon: [
       {
