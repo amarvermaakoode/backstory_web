@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 const {
   getQRCodeByCode,
-  claimQRCode,
+  sendClaimOTP,
+  verifyClaimOTP,
   updateQRProfile,
   getMyQRCodes,
 } = require("../../controllers/frontend/qrFrntController");
@@ -12,8 +13,11 @@ const { protect } = require("../../middlewares/auth");
 router.get("/my-qrs", protect, getMyQRCodes);
 router.get("/:code", getQRCodeByCode);
 
-// Protected routes to claim and update QR profile
-router.post("/claim", protect, claimQRCode);
+// Order ID + Email OTP claiming flow
+router.post("/send-otp", sendClaimOTP);
+router.post("/verify-claim-otp", verifyClaimOTP);
+
+// Protected route (called from user's Account/Profile section to edit story)
 router.put("/profile", protect, updateQRProfile);
 
 module.exports = router;

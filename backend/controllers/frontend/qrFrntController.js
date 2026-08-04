@@ -1,7 +1,11 @@
 const QRCodeModel = require("../../models/QRCode");
+const User = require("../../models/user");
+const Otp = require("../../models/otp");
+const { generateToken } = require("../../config/jwt");
 
 /**
  * @desc    Get QR Code details by unique code (Public scan endpoint)
+ *          Note: Pure display endpoint. No form editing here.
  * @route   GET /api/frontend/qr/:code
  * @access  Public
  */
@@ -29,17 +33,17 @@ exports.getQRCodeByCode = async (req, res) => {
       });
     }
 
-    // Unlinked status response
+    // Unlinked status response (Frontend shows simple Order ID + Email OTP prompt)
     if (qrDoc.status === "unlinked") {
       return res.status(200).json({
         success: true,
         status: "unlinked",
         code: qrDoc.code,
-        message: "This QR code is unlinked. Enter your Order ID to claim & activate it.",
+        message: "This QR code is unlinked. Enter your Order ID & Email to claim it.",
       });
     }
 
-    // Claimed / Active status response (Public story view)
+    // Claimed / Active status response (Pure public story view - No forms, no editing)
     return res.status(200).json({
       success: true,
       status: qrDoc.status,
@@ -63,13 +67,13 @@ exports.getQRCodeByCode = async (req, res) => {
 };
 
 /**
- * @desc    Claim an unlinked QR Code using Order ID
- * @route   POST /api/frontend/qr/claim
- * @access  Private (Authenticated User)
+ * @desc    Step 1: Send OTP to Email for claiming QR Code with Order ID
+ * @route   POST /api/frontend/qr/send-otp
+ * @access  Public
  */
-exports.claimQRCode = async (req, res) => {
+exports.sendClaimOTP = async (req, res) => {
   try {
-    const { code, orderId } = req.body;
+    const { code, orderId, email } = req.body;
 
     if (!code || !code.trim()) {
       return res.status(400).json({
@@ -81,10 +85,20 @@ exports.claimQRCode = async (req, res) => {
     if (!orderId || !orderId.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Order ID is required to claim this QR code",
+        message: "Order ID is required",
       });
     }
 
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Purchase Email is required",
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check QR existence & status
     const qrDoc = await QRCodeModel.findOne({
       code: { $regex: new RegExp(`^${code.trim()}$`, "i") },
     });
@@ -96,40 +110,126 @@ exports.claimQRCode = async (req, res) => {
       });
     }
 
-    // If already claimed
     if (qrDoc.status !== "unlinked") {
-      if (qrDoc.linkedUser && qrDoc.linkedUser.toString() === req.user._id.toString()) {
-        return res.status(200).json({
-          success: true,
-          message: "You have already claimed this QR code!",
-          qrCode: qrDoc,
-        });
-      }
       return res.status(400).json({
         success: false,
-        message: "This QR code has already been claimed by another user.",
+        message: "This QR code has already been claimed and linked.",
       });
     }
 
-    // Link QR code to current authenticated user
-    qrDoc.status = "claimed";
-    qrDoc.orderId = orderId.trim();
-    qrDoc.linkedUser = req.user._id;
-    qrDoc.linkedAt = new Date();
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await qrDoc.save();
-    await qrDoc.populate("linkedUser", "name email");
+    // Clear old OTPs for this email
+    await Otp.deleteMany({ email: cleanEmail });
+
+    // Store OTP in database
+    await Otp.create({
+      email: cleanEmail,
+      otp,
+    });
 
     return res.status(200).json({
       success: true,
-      message: "QR code successfully claimed and linked to your account!",
+      message: `OTP sent successfully to ${cleanEmail}.`,
+      mockOtp: otp,
+    });
+  } catch (error) {
+    console.error("Error sending claim OTP:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send OTP",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Step 2: Verify OTP & Claim QR Code (Links to User Account)
+ * @route   POST /api/frontend/qr/verify-claim-otp
+ * @access  Public (Password-free authentication via OTP)
+ */
+exports.verifyClaimOTP = async (req, res) => {
+  try {
+    const { code, orderId, email, otp, name } = req.body;
+
+    if (!code || !orderId || !email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Code, Order ID, Email, and OTP are all required",
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Verify OTP
+    const otpRecord = await Otp.findOne({ email: cleanEmail, otp: otp.trim() });
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP code",
+      });
+    }
+
+    // Find QR Code
+    const qrDoc = await QRCodeModel.findOne({
+      code: { $regex: new RegExp(`^${code.trim()}$`, "i") },
+    });
+
+    if (!qrDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "QR code not found",
+      });
+    }
+
+    if (qrDoc.status !== "unlinked") {
+      return res.status(400).json({
+        success: false,
+        message: "This QR code has already been claimed.",
+      });
+    }
+
+    // Find or Create User Account automatically
+    let user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      user = await User.create({
+        email: cleanEmail,
+        name: name ? name.trim() : cleanEmail.split("@")[0],
+        role: "user",
+      });
+    }
+
+    // Link QR Code to User
+    qrDoc.status = "claimed";
+    qrDoc.orderId = orderId.trim();
+    qrDoc.linkedUser = user._id;
+    qrDoc.linkedAt = new Date();
+
+    await qrDoc.save();
+
+    // Delete used OTP
+    await Otp.deleteMany({ email: cleanEmail });
+
+    // Generate JWT token for user session
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "QR Code successfully claimed & linked to your BACSTORY account!",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+      },
       qrCode: qrDoc,
     });
   } catch (error) {
-    console.error("Error claiming QR code:", error);
+    console.error("Error verifying claim OTP:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to claim QR code",
+      message: "Failed to verify OTP and claim QR code",
       error: error.message,
     });
   }
@@ -137,6 +237,7 @@ exports.claimQRCode = async (req, res) => {
 
 /**
  * @desc    Update QR Code Profile / Story Form
+ *          Note: Called from User Profile Section (/account)
  * @route   PUT /api/frontend/qr/profile
  * @access  Private (Owner of QR Code)
  */
@@ -179,7 +280,7 @@ exports.updateQRProfile = async (req, res) => {
       });
     }
 
-    // Update Profile Data
+    // Update Profile Data (edited in User Account section)
     qrDoc.profileData = {
       title: title !== undefined ? title : qrDoc.profileData?.title || "",
       bio: bio !== undefined ? bio : qrDoc.profileData?.bio || "",
@@ -200,7 +301,7 @@ exports.updateQRProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "QR code profile updated successfully!",
+      message: "QR code story updated successfully! It is now live on your QR URL.",
       profileData: qrDoc.profileData,
     });
   } catch (error) {
@@ -214,7 +315,7 @@ exports.updateQRProfile = async (req, res) => {
 };
 
 /**
- * @desc    Get all QR Codes claimed by logged-in user
+ * @desc    Get all QR Codes claimed by logged-in user (for Profile / Account section)
  * @route   GET /api/frontend/qr/my-qrs
  * @access  Private (Authenticated User)
  */
