@@ -24,9 +24,7 @@ const defaultPromoCodes = [
   },
 ];
 
-// @desc    Get all active promo codes for frontend
-// @route   GET /api/frontend/promo-codes
-// @access  Public
+// get all active promo codes
 const getActivePromoCodes = async (req, res) => {
   try {
     let promoCodes = await PromoCode.find({ status: true }).sort({ createdAt: -1 });
@@ -58,9 +56,7 @@ const getActivePromoCodes = async (req, res) => {
   }
 };
 
-// @desc    Validate a promo code for checkout
-// @route   POST /api/frontend/promo-codes/validate
-// @access  Public
+// validate a promo code
 const validatePromoCode = async (req, res) => {
   try {
     const { code, orderAmount } = req.body;

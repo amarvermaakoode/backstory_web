@@ -1,8 +1,6 @@
 const PromoCode = require("../../models/promoCode");
 
-// @desc    Get all promo codes
-// @route   GET /api/admin/promo-codes
-// @access  Private/Admin
+// get all promo codes
 const getPromoCodes = async (req, res) => {
   try {
     const promoCodes = await PromoCode.find().sort({ createdAt: -1 });
@@ -19,9 +17,7 @@ const getPromoCodes = async (req, res) => {
   }
 };
 
-// @desc    Create a promo code
-// @route   POST /api/admin/promo-codes
-// @access  Private/Admin
+// create a new promo code
 const createPromoCode = async (req, res) => {
   try {
     const { code, discountType, discountValue, minOrderAmount, status } = req.body;
@@ -64,9 +60,7 @@ const createPromoCode = async (req, res) => {
   }
 };
 
-// @desc    Update a promo code
-// @route   PUT /api/admin/promo-codes/:id
-// @access  Private/Admin
+// update an existing promo code
 const updatePromoCode = async (req, res) => {
   try {
     const { id } = req.params;
@@ -125,9 +119,7 @@ const updatePromoCode = async (req, res) => {
   }
 };
 
-// @desc    Delete a promo code
-// @route   DELETE /api/admin/promo-codes/:id
-// @access  Private/Admin
+// delete a promo code
 const deletePromoCode = async (req, res) => {
   try {
     const { id } = req.params;

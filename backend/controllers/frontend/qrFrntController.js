@@ -3,12 +3,7 @@ const User = require("../../models/user");
 const Otp = require("../../models/otp");
 const { generateToken } = require("../../config/jwt");
 
-/**
- * @desc    Get QR Code details by unique code (Public scan endpoint)
- *          Note: Pure display endpoint. No form editing here.
- * @route   GET /api/frontend/qr/:code
- * @access  Public
- */
+// get qr details by code
 exports.getQRCodeByCode = async (req, res) => {
   try {
     const { code } = req.params;
@@ -66,11 +61,7 @@ exports.getQRCodeByCode = async (req, res) => {
   }
 };
 
-/**
- * @desc    Step 1: Send OTP to Email for claiming QR Code with Order ID
- * @route   POST /api/frontend/qr/send-otp
- * @access  Public
- */
+// send OTP to claim QR code
 exports.sendClaimOTP = async (req, res) => {
   try {
     const { code, orderId, email } = req.body;
@@ -144,11 +135,7 @@ exports.sendClaimOTP = async (req, res) => {
   }
 };
 
-/**
- * @desc    Step 2: Verify OTP & Claim QR Code (Links to User Account)
- * @route   POST /api/frontend/qr/verify-claim-otp
- * @access  Public (Password-free authentication via OTP)
- */
+// verify otp and clain qr code
 exports.verifyClaimOTP = async (req, res) => {
   try {
     const { code, orderId, email, otp, name } = req.body;
@@ -235,12 +222,7 @@ exports.verifyClaimOTP = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update QR Code Profile / Story Form
- *          Note: Called from User Profile Section (/account)
- * @route   PUT /api/frontend/qr/profile
- * @access  Private (Owner of QR Code)
- */
+// update qr profile (for logged-in user)
 exports.updateQRProfile = async (req, res) => {
   try {
     const {
@@ -314,11 +296,7 @@ exports.updateQRProfile = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all QR Codes claimed by logged-in user (for Profile / Account section)
- * @route   GET /api/frontend/qr/my-qrs
- * @access  Private (Authenticated User)
- */
+// get all QR codes for logged-in user
 exports.getMyQRCodes = async (req, res) => {
   try {
     const qrCodes = await QRCodeModel.find({ linkedUser: req.user._id })

@@ -12,11 +12,7 @@ const generateUniqueCodeString = (prefix = "BAC") => {
   return `${cleanPrefix}-${part1}-${part2}`;
 };
 
-/**
- * @desc    Generate a new batch of QR codes
- * @route   POST /api/admin/qr-codes/generate
- * @access  Private (Admin)
- */
+// generate a batch of qr codes
 exports.generateBatch = async (req, res) => {
   try {
     const { batchName, quantity, prefix = "BAC" } = req.body;
@@ -82,11 +78,7 @@ exports.generateBatch = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all QR Code Batches
- * @route   GET /api/admin/qr-codes/batches
- * @access  Private (Admin)
- */
+// get all qr codes
 exports.getAllBatches = async (req, res) => {
   try {
     const batches = await QRCodeBatch.find()
@@ -144,11 +136,7 @@ exports.getAllBatches = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get single QR Batch details & its QR codes
- * @route   GET /api/admin/qr-codes/batches/:batchId
- * @access  Private (Admin)
- */
+// get single qr code
 exports.getBatchById = async (req, res) => {
   try {
     const { batchId } = req.params;
@@ -187,11 +175,7 @@ exports.getBatchById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Download Printable PDF for a QR Batch
- * @route   GET /api/admin/qr-codes/batches/:batchId/pdf
- * @access  Private (Admin)
- */
+// delete a qr code
 exports.downloadBatchPDF = async (req, res) => {
   try {
     const { batchId } = req.params;
@@ -292,29 +276,19 @@ exports.downloadBatchPDF = async (req, res) => {
         },
       });
 
-      // Embed QR image centered in cell
-      const qrSize = 105;
+      // Embed QR image centered in cell (Clean QR Code only)
+      const qrSize = 130;
       const qrX = x + (cellWidth - qrSize) / 2;
-      const qrY = y + 32;
+      const qrY = y + 25;
 
       doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
 
-      // Code text label below QR
+      // Micro instruction text below QR
       doc
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .fillColor("#000000")
-        .text(qrItem.code, x, qrY + qrSize + 6, {
-          width: cellWidth,
-          align: "center",
-        });
-
-      // Micro instruction text
-      doc
-        .fontSize(6.5)
+        .fontSize(7)
         .font("Helvetica")
         .fillColor("#666666")
-        .text("Scan to activate & view story", x, qrY + qrSize + 20, {
+        .text("Scan to view BACSTORY", x, qrY + qrSize + 8, {
           width: cellWidth,
           align: "center",
         });
@@ -333,11 +307,7 @@ exports.downloadBatchPDF = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all QR Codes across batches with filters/pagination
- * @route   GET /api/admin/qr-codes
- * @access  Private (Admin)
- */
+// get all qr codes
 exports.getAllQRCodes = async (req, res) => {
   try {
     const { status, search, page = 1, limit = 50 } = req.query;
@@ -382,11 +352,7 @@ exports.getAllQRCodes = async (req, res) => {
   }
 };
 
-/**
- * @desc    Delete a QR Code Batch and its unlinked codes
- * @route   DELETE /api/admin/qr-codes/batches/:batchId
- * @access  Private (Admin)
- */
+// delete batch of qr codes
 exports.deleteBatch = async (req, res) => {
   try {
     const { batchId } = req.params;

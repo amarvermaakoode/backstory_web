@@ -1,8 +1,6 @@
 const SupportTicket = require("../../models/supportTicket");
 
-// @desc    Get all support ticket submissions for admin
-// @route   GET /api/admin/support-tickets
-// @access  Private (Admin)
+// get all support tickets
 const getAllSupportTickets = async (req, res) => {
   try {
     const tickets = await SupportTicket.find()
@@ -23,9 +21,7 @@ const getAllSupportTickets = async (req, res) => {
   }
 };
 
-// @desc    Update support ticket status
-// @route   PUT /api/admin/support-tickets/:id
-// @access  Private (Admin)
+// update support tickets
 const updateSupportTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -59,9 +55,7 @@ const updateSupportTicketStatus = async (req, res) => {
   }
 };
 
-// @desc    Delete support ticket
-// @route   DELETE /api/admin/support-tickets/:id
-// @access  Private (Admin)
+// delete support ticket
 const deleteSupportTicket = async (req, res) => {
   try {
     const { id } = req.params;

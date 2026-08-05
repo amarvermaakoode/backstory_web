@@ -1,8 +1,6 @@
 const SupportTicket = require("../../models/supportTicket");
 
-// @desc    Submit a support ticket message
-// @route   POST /api/frontend/support
-// @access  Public / Protected
+// create a new support ticket
 const createSupportTicket = async (req, res) => {
   try {
     const { subject, message, name, email, phone } = req.body;
@@ -49,9 +47,7 @@ const createSupportTicket = async (req, res) => {
   }
 };
 
-// @desc    Get current user's submitted support tickets
-// @route   GET /api/frontend/support/my-tickets
-// @access  Protected
+// get all support tickets for logged-in user
 const getUserSupportTickets = async (req, res) => {
   try {
     const tickets = await SupportTicket.find({ user: req.user._id || req.user.id }).sort({ createdAt: -1 });
