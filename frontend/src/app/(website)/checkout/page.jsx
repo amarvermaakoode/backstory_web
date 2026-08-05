@@ -69,7 +69,7 @@ export default function CheckoutPage() {
             const nameParts = user.name ? user.name.split(" ") : ["", ""];
             const fName = nameParts[0] || "";
             const lName = nameParts.slice(1).join(" ") || "";
-            
+
             setFormData(prev => ({
                 ...prev,
                 contactEmail: user.email || prev.contactEmail,
@@ -157,10 +157,10 @@ export default function CheckoutPage() {
     };
 
     // Calculation values
-    const discountAmount = activePromo 
-        ? (activePromo.discountType === "percentage" 
-            ? Math.round(activeSubtotal * (activePromo.discountValue / 100)) 
-            : Math.min(activeSubtotal, activePromo.discountValue)) 
+    const discountAmount = activePromo
+        ? (activePromo.discountType === "percentage"
+            ? Math.round(activeSubtotal * (activePromo.discountValue / 100))
+            : Math.min(activeSubtotal, activePromo.discountValue))
         : 0;
     const taxableAmount = activeSubtotal - discountAmount;
     const taxAmount = Math.round(taxableAmount * 0.05); // 5% GST as shown in mockup
@@ -680,7 +680,7 @@ export default function CheckoutPage() {
                         </div>
 
                         <p className="text-xs text-neutral-400 leading-relaxed px-4">
-                            A confirmation email and backstory generated script details have been sent to <span className="font-semibold text-neutral-600">{formData.contactEmail}</span>.
+                            A confirmation email and bacstory generated script details have been sent to <span className="font-semibold text-neutral-600">{formData.contactEmail}</span>.
                         </p>
 
                         <Link

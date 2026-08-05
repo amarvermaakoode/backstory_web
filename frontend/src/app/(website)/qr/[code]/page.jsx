@@ -7,7 +7,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
-import { getQRCodeByCode, claimQRCode } from "@/services/qrService";
+import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
 import {
   Scan,
   Sparkles,
@@ -45,7 +45,7 @@ export default function PublicQRCodePage() {
   const params = useParams();
   const codeParam = params?.code || "";
   const router = useRouter();
-  const { user, userFetch, sendOtp, verifyOtp } = useUserAuth();
+  const { user, userFetch } = useUserAuth();
   const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -106,7 +106,7 @@ export default function PublicQRCodePage() {
     }
 
     setSendingOtp(true);
-    const res = await sendOtp({ email: email.trim() });
+    const res = await sendClaimOTP(codeParam, orderId.trim(), email.trim());
     setSendingOtp(false);
 
     if (res.success) {
@@ -116,7 +116,7 @@ export default function PublicQRCodePage() {
       }
       showToast(res.message || "Verification code sent to your email!", "success");
     } else {
-      showToast(res.error || "Failed to send OTP code. Please try again.", "error");
+      showToast(res.message || "Failed to send OTP code. Please try again.", "error");
     }
   };
 
@@ -130,26 +130,19 @@ export default function PublicQRCodePage() {
 
     setVerifying(true);
 
-    let activeToken = localStorage.getItem("userToken");
-    if (!activeToken || !user) {
-      const vRes = await verifyOtp({ email: email.trim(), otp: otp.trim() });
-      if (!vRes.success) {
-        setVerifying(false);
-        showToast(vRes.error || "Invalid OTP verification code.", "error");
-        return;
-      }
-      activeToken = localStorage.getItem("userToken");
-    }
-
-    const cRes = await claimQRCode(userFetch, codeParam, orderId.trim());
+    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim());
     setVerifying(false);
 
-    if (cRes.success) {
+    if (res.success) {
+      if (res.token && res.user) {
+        localStorage.setItem("userToken", res.token);
+        localStorage.setItem("userData", JSON.stringify(res.user));
+      }
       setClaimSuccess(true);
-      showToast("QR Code verified and linked to your account!", "success");
+      showToast(res.message || "QR Code verified and linked to your account!", "success");
       fetchQRDetails();
     } else {
-      showToast(cRes.message || "Failed to link QR code.", "error");
+      showToast(res.message || "Failed to link QR code.", "error");
     }
   };
 
@@ -413,7 +406,6 @@ export default function PublicQRCodePage() {
                 ) : (
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-200 via-neutral-100 to-white" />
                 )}
-
 
               </div>
 
