@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Lock, Check, ShoppingBag, User, CheckCircle2 } from "lucide-react";
+import { Lock, Check, ShoppingBag, User, CheckCircle2, Loader2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
@@ -51,16 +51,16 @@ export default function CheckoutPage() {
 
     // Contact and Delivery Forms State
     const [formData, setFormData] = useState({
-        contactEmail: "arjun@example.com",
+        contactEmail: "",
         newsletter: true,
-        firstName: "Arjun",
-        lastName: "Mehta",
-        deliveryEmail: "arjun@example.com",
-        phoneNumber: "+91 98765 43210",
-        streetAddress: "42 Riders Lane, Apt 3",
-        city: "Mumbai",
-        state: "Maharashtra",
-        pinCode: "400001",
+        firstName: "",
+        lastName: "",
+        deliveryEmail: "",
+        phoneNumber: "",
+        streetAddress: "",
+        city: "",
+        state: "",
+        pinCode: "",
         country: "India"
     });
 
@@ -99,8 +99,59 @@ export default function CheckoutPage() {
     // Order complete state
     const [isOrderComplete, setIsOrderComplete] = useState(false);
     const [generatedOrderNum, setGeneratedOrderNum] = useState("");
+    const [pinCodeError, setPinCodeError] = useState("");
+    const [isFetchingPincode, setIsFetchingPincode] = useState(false);
+
+    // Auto-fetch city & state via India Post API when valid 6-digit PIN code is typed
+    useEffect(() => {
+        const pin = formData.pinCode.trim();
+        if (pin.length === 6 && /^\d{6}$/.test(pin)) {
+            const fetchPincodeDetails = async () => {
+                setIsFetchingPincode(true);
+                setPinCodeError("");
+                try {
+                    const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+                    const data = await res.json();
+                    if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+                        const po = data[0].PostOffice[0];
+                        const fetchedCity = po.District || po.Block || po.Name || "";
+                        const fetchedState = po.State || "";
+                        setFormData(prev => ({
+                            ...prev,
+                            city: fetchedCity,
+                            state: fetchedState
+                        }));
+                        setPinCodeError("");
+                    } else {
+                        setPinCodeError("Invalid PIN code. Please enter a valid Indian PIN code.");
+                        setFormData(prev => ({
+                            ...prev,
+                            city: "",
+                            state: ""
+                        }));
+                    }
+                } catch (err) {
+                    console.error("Error fetching PIN code details:", err);
+                    setPinCodeError("");
+                } finally {
+                    setIsFetchingPincode(false);
+                }
+            };
+            fetchPincodeDetails();
+        } else if (pin.length > 0 && pin.length < 6) {
+            setPinCodeError("PIN code must be exactly 6 digits.");
+        } else {
+            setPinCodeError("");
+        }
+    }, [formData.pinCode]);
 
     const handleInputChange = (field, value) => {
+        if (field === "pinCode") {
+            const numericValue = value.replace(/\D/g, "").slice(0, 6);
+            setFormData(prev => ({ ...prev, pinCode: numericValue }));
+            return;
+        }
+
         setFormData(prev => ({
             ...prev,
             [field]: value
@@ -170,6 +221,13 @@ export default function CheckoutPage() {
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
 
+        // Validate PIN code
+        if (!/^\d{6}$/.test(formData.pinCode)) {
+            setPinCodeError("Please enter a valid 6-digit PIN code.");
+            return;
+        }
+        setPinCodeError("");
+
         // Generate random order ID
         const orderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
 
@@ -190,6 +248,34 @@ export default function CheckoutPage() {
             });
         } catch (error) {
             console.error("Error reducing stock during checkout:", error);
+        }
+
+        // Save placed order dynamically to userOrders state
+        const newOrder = {
+            id: orderId,
+            createdAt: new Date().toISOString(),
+            items: activeItems.map(item => ({
+                id: item.id || item.productId,
+                productId: item.productId || item.id,
+                name: item.name || item.title || "Product",
+                category: item.tag || "COLLECTION",
+                size: item.size || "M",
+                color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                price: item.price || `Rs ${item.priceNum || 0}`,
+                quantity: item.quantity || 1,
+                orderStatus: "Processing",
+                paymentStatus: "Confirmed",
+                deliveryDate: "Estimated Delivery: 3-5 Business Days",
+                image: item.image
+            }))
+        };
+
+        try {
+            const existingOrders = JSON.parse(localStorage.getItem("userOrders") || "[]");
+            localStorage.setItem("userOrders", JSON.stringify([newOrder, ...existingOrders]));
+        } catch (err) {
+            console.error("Error saving user order:", err);
         }
 
         setGeneratedOrderNum(orderId);
@@ -297,7 +383,8 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.firstName}
                                                 onChange={(e) => handleInputChange("firstName", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter first name"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
                                         <div>
@@ -309,7 +396,8 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.lastName}
                                                 onChange={(e) => handleInputChange("lastName", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter last name"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
                                     </div>
@@ -324,7 +412,8 @@ export default function CheckoutPage() {
                                             required
                                             value={formData.deliveryEmail}
                                             onChange={(e) => handleInputChange("deliveryEmail", e.target.value)}
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                            placeholder="Enter email address"
+                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                         />
                                     </div>
 
@@ -338,7 +427,8 @@ export default function CheckoutPage() {
                                             required
                                             value={formData.phoneNumber}
                                             onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                            placeholder="Enter phone number"
+                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                         />
                                     </div>
 
@@ -352,7 +442,8 @@ export default function CheckoutPage() {
                                             required
                                             value={formData.streetAddress}
                                             onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                            placeholder="House No, Building, Street, Area"
+                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                         />
                                     </div>
 
@@ -367,7 +458,8 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.city}
                                                 onChange={(e) => handleInputChange("city", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter city"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
                                         <div>
@@ -379,14 +471,15 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.state}
                                                 onChange={(e) => handleInputChange("state", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter state"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
                                     </div>
 
                                     {/* Pin Code & Country Row */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
+                                         <div>
                                             <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
                                                 PIN CODE
                                             </label>
@@ -395,8 +488,23 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.pinCode}
                                                 onChange={(e) => handleInputChange("pinCode", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter 6-digit PIN code"
+                                                maxLength={6}
+                                                className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${
+                                                    pinCodeError
+                                                        ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                        : "border-neutral-200 focus:border-black"
+                                                }`}
                                             />
+                                             {isFetchingPincode && (
+                                                <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1.5 select-none">
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                                                    Fetching city & state...
+                                                </p>
+                                            )}
+                                            {pinCodeError && !isFetchingPincode && (
+                                                <p className="text-xs text-red-500 font-semibold mt-1.5">{pinCodeError}</p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
@@ -407,7 +515,8 @@ export default function CheckoutPage() {
                                                 required
                                                 value={formData.country}
                                                 onChange={(e) => handleInputChange("country", e.target.value)}
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors"
+                                                placeholder="Enter country"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
                                     </div>

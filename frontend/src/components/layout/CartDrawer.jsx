@@ -110,90 +110,103 @@ export default function CartDrawer() {
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            {cartItems.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex gap-4 items-start pb-6 border-b border-neutral-200/50 last:border-0 last:pb-0"
-                                >
-                                    {/* Product Image Container */}
-                                    <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        <Image
-                                            src={getImageUrl(item.image)}
-                                            alt={item.name || "Product image"}
-                                            fill
-                                            className="object-contain p-2 select-none"
-                                            sizes="96px"
-                                            unoptimized
-                                        />
-                                    </div>
+                            {cartItems.map((item) => {
+                                const productUrl = item.link || `/products/${item.slug || item.productId || item.id}`;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="flex gap-4 items-start pb-6 border-b border-neutral-200/50 last:border-0 last:pb-0"
+                                    >
+                                        {/* Product Image Container */}
+                                        <Link
+                                            href={productUrl}
+                                            onClick={closeCart}
+                                            className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 group cursor-pointer block"
+                                        >
+                                            <Image
+                                                src={getImageUrl(item.image)}
+                                                alt={item.name || "Product image"}
+                                                fill
+                                                className="object-contain p-2 select-none group-hover:scale-105 transition-transform duration-300"
+                                                sizes="96px"
+                                                unoptimized
+                                            />
+                                        </Link>
 
-                                    {/* Product Details */}
-                                    <div className="flex-1 flex flex-col min-w-0">
-                                        <div className="flex justify-between items-start">
-                                            <div className="min-w-0">
-                                                <h3 className="font-sans text-sm sm:text-base font-semibold text-black truncate pr-2">
-                                                    {item.name || item.title || "Product"}
-                                                </h3>
-                                                <p className="text-[10px] sm:text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mt-0.5">
-                                                    {item.tag}
+                                        {/* Product Details */}
+                                        <div className="flex-1 flex flex-col min-w-0">
+                                            <div className="flex justify-between items-start">
+                                                <div className="min-w-0">
+                                                    <Link
+                                                        href={productUrl}
+                                                        onClick={closeCart}
+                                                        className="group block cursor-pointer"
+                                                    >
+                                                        <h3 className="font-sans text-sm sm:text-base font-semibold text-black truncate pr-2 group-hover:underline transition-colors">
+                                                            {item.name || item.title || "Product"}
+                                                        </h3>
+                                                    </Link>
+                                                    <p className="text-[10px] sm:text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mt-0.5">
+                                                        {item.tag}
+                                                    </p>
+                                                </div>
+
+                                                {/* Price */}
+                                                <p className="font-clashDisplay text-sm sm:text-base font-bold text-black whitespace-nowrap">
+                                                    Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
                                                 </p>
                                             </div>
 
-                                            {/* Price */}
-                                            <p className="font-clashDisplay text-sm sm:text-base font-bold text-black whitespace-nowrap">
-                                                Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
-                                            </p>
-                                        </div>
-
-                                        {/* Selected options pills */}
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-neutral-200/80 text-neutral-600 bg-white/50 flex items-center select-none">
-                                                {item.size}
-                                            </span>
-                                            <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-neutral-200/80 text-neutral-600 bg-white/50 flex items-center gap-1.5 select-none">
-                                                <span 
-                                                    className="w-2 h-2 rounded-full border border-black/10 shadow-xs" 
-                                                    style={{ backgroundColor: item.color.hex }} 
-                                                />
-                                                {item.color.name}
-                                            </span>
-                                        </div>
-
-                                        {/* Quantity and Actions */}
-                                        <div className="flex items-center justify-between mt-4">
-                                            {/* Quantity Picker */}
-                                            <div className="flex items-center gap-3 bg-neutral-100 rounded-full px-2.5 py-1">
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                    className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
-                                                    aria-label="Decrease quantity"
-                                                >
-                                                    <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                                </button>
-                                                <span className="text-xs sm:text-sm font-semibold select-none text-neutral-800 w-4 text-center">
-                                                    {item.quantity}
+                                            {/* Selected options pills */}
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-neutral-200/80 text-neutral-600 bg-white/50 flex items-center select-none">
+                                                    {item.size}
                                                 </span>
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                    className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
-                                                    aria-label="Increase quantity"
-                                                >
-                                                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                                </button>
+                                                <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-neutral-200/80 text-neutral-600 bg-white/50 flex items-center gap-1.5 select-none">
+                                                    <span 
+                                                        className="w-2 h-2 rounded-full border border-black/10 shadow-xs" 
+                                                        style={{ backgroundColor: item.color.hex }} 
+                                                    />
+                                                    {item.color.name}
+                                                </span>
                                             </div>
 
-                                            {/* Remove Button */}
-                                            <button
-                                                onClick={() => removeFromCart(item.id)}
-                                                className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
-                                                aria-label="Remove item"
-                                            >
-                                                <Trash className="w-4 h-4 stroke-[1.25]" />
-                                            </button>
+                                            {/* Quantity and Actions */}
+                                            <div className="flex items-center justify-between mt-4">
+                                                {/* Quantity Picker */}
+                                                <div className="flex items-center gap-3 bg-neutral-100 rounded-full px-2.5 py-1">
+                                                    <button
+                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
+                                                        aria-label="Decrease quantity"
+                                                    >
+                                                        <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                    </button>
+                                                    <span className="text-xs sm:text-sm font-semibold select-none text-neutral-800 w-4 text-center">
+                                                        {item.quantity}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
+                                                        aria-label="Increase quantity"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Remove Button */}
+                                                <button
+                                                    onClick={() => removeFromCart(item.id)}
+                                                    className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
+                                                    aria-label="Remove item"
+                                                >
+                                                    <Trash className="w-4 h-4 stroke-[1.25]" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
