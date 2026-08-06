@@ -8,11 +8,45 @@ import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 const STATUS_FILTER_OPTIONS = [
     { label: "All", value: "All" },
-    { label: "On the way", value: "On the way" },
+    { label: "Order Confirmed", value: "Order Confirmed" },
+    { label: "Ready to Pack & Ship", value: "Ready to Pack & Ship" },
+    { label: "Dispatched & In Transit", value: "Dispatched & In Transit" },
+    { label: "Out for Delivery", value: "Out for Delivery" },
     { label: "Delivered", value: "Delivered" },
     { label: "Cancelled", value: "Cancelled" },
-    { label: "Returned", value: "Returned" },
 ];
+
+const ORDER_STEPS = [
+    {
+        title: "Order Confirmed",
+        desc: "Order details processed & payment confirmed via Razorpay"
+    },
+    {
+        title: "Ready to Pack & Ship",
+        desc: "Admin is packing your order for courier drop-off"
+    },
+    {
+        title: "Dispatched & In Transit",
+        desc: "Package handed over to courier & in transit"
+    },
+    {
+        title: "Out for Delivery",
+        desc: "Courier partner is delivering to your address"
+    },
+    {
+        title: "Delivered",
+        desc: "Package successfully delivered to your doorstep"
+    }
+];
+
+const getStepIndex = (statusStr) => {
+    const s = (statusStr || "").toLowerCase();
+    if (s.includes("delivered")) return 4;
+    if (s.includes("out")) return 3;
+    if (s.includes("transit") || s.includes("dispatched")) return 2;
+    if (s.includes("pack") || s.includes("ready")) return 1;
+    return 0; // Default: Order Confirmed
+};
 
 export default function AccountOrdersPage() {
     const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
@@ -50,6 +84,9 @@ export default function AccountOrdersPage() {
                         dbOrders = data.data.map(o => ({
                             id: o.orderId || o._id,
                             createdAt: o.createdAt,
+                            orderStatus: o.orderStatus || "Order Confirmed",
+                            paymentStatus: o.paymentStatus || "Confirmed",
+                            shippingAddress: o.shippingAddress || {},
                             items: (o.items || []).map(i => ({
                                 id: i._id || i.productId,
                                 productId: i.product || i.productId,
@@ -60,7 +97,7 @@ export default function AccountOrdersPage() {
                                 colorHex: i.colorHex,
                                 price: i.price,
                                 quantity: i.quantity,
-                                orderStatus: i.orderStatus || o.orderStatus || "Processing",
+                                orderStatus: o.orderStatus || i.orderStatus || "Order Confirmed",
                                 paymentStatus: i.paymentStatus || o.paymentStatus || "Confirmed",
                                 deliveryDate: i.deliveryDate || "Estimated Delivery: 3-5 Business Days",
                                 image: i.image
@@ -83,10 +120,10 @@ export default function AccountOrdersPage() {
                 console.error("Error reading local orders:", e);
             }
 
-            // Merge orders by ID avoiding duplicates
+            // DB orders take priority over local storage orders to reflect admin updates
             const combinedMap = new Map();
-            dbOrders.forEach(o => combinedMap.set(o.id, o));
-            localOrders.forEach(o => { if (!combinedMap.has(o.id)) combinedMap.set(o.id, o); });
+            localOrders.forEach(o => combinedMap.set(o.id, o));
+            dbOrders.forEach(o => combinedMap.set(o.id, o)); // DB status overwrites local status
 
             setOrders(Array.from(combinedMap.values()));
             setLoading(false);
@@ -99,21 +136,14 @@ export default function AccountOrdersPage() {
     const filteredOrders = orders.filter(order => {
         if (selectedStatusFilter === "All") return true;
 
+        const mainStatus = (order.orderStatus || "").toLowerCase();
+        const filterVal = selectedStatusFilter.toLowerCase();
+
+        if (mainStatus === filterVal || mainStatus.includes(filterVal)) return true;
+
         return order.items.some(item => {
             const status = (item.orderStatus || "").toLowerCase();
-            if (selectedStatusFilter === "On the way") {
-                return status.includes("transit") || status.includes("processing") || status.includes("way") || status.includes("dispatched");
-            }
-            if (selectedStatusFilter === "Delivered") {
-                return status.includes("delivered");
-            }
-            if (selectedStatusFilter === "Cancelled") {
-                return status.includes("cancel");
-            }
-            if (selectedStatusFilter === "Returned") {
-                return status.includes("return") || status.includes("exchange");
-            }
-            return true;
+            return status === filterVal || status.includes(filterVal);
         });
     });
 
@@ -139,7 +169,7 @@ export default function AccountOrdersPage() {
                     <SlidersHorizontal className="w-3.5 h-3.5 text-neutral-600" />
                     <span>Filter</span>
                     {selectedStatusFilter !== "All" && (
-                        <span className="bg-red-500 text-white text-[10px] font-semibold px-1.5 py-0.2 rounded-full">
+                        <span className="bg-black text-white text-[10px] font-semibold px-1.5 py-0.2 rounded-full">
                             {selectedStatusFilter}
                         </span>
                     )}
@@ -190,99 +220,109 @@ export default function AccountOrdersPage() {
                 </div>
             ) : (
                 <div className="space-y-10">
-                    {filteredOrders.map((order) => (
-                        <div key={order.id} className="border-b border-neutral-100 pb-8 last:border-0 space-y-5">
-                            <p className="text-xs font-normal text-neutral-400">
-                                Order ID: <span className="text-neutral-500 font-medium">{order.id}</span>
-                            </p>
+                    {filteredOrders.map((order) => {
+                        const currentOrderStatus = order.orderStatus || "Order Confirmed";
+                        return (
+                            <div key={order.id} className="border-b border-neutral-100 pb-8 last:border-0 space-y-5">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-xs font-normal text-neutral-400">
+                                        Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
+                                    </p>
+                                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                        {currentOrderStatus}
+                                    </span>
+                                </div>
 
-                            {/* Items inside this order */}
-                            <div className="space-y-6">
-                                {order.items.map((item) => {
-                                    const productUrl = item.link || `/products/${item.slug || item.productId || item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}`;
-                                    return (
-                                        <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                            <div className="flex items-start gap-4">
-                                                <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
-                                                    <img
-                                                        src={getImageUrl(item.image)}
-                                                        alt={item.name || "Product"}
-                                                        onError={(e) => {
-                                                            e.currentTarget.onerror = null;
-                                                            e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
-                                                        }}
-                                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                                                    />
-                                                </Link>
-                                                <div className="space-y-1">
-                                                    <Link href={productUrl} className="group block cursor-pointer">
-                                                        <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover:underline transition-colors">
-                                                            {item.name}
-                                                        </h4>
+                                {/* Items inside this order */}
+                                <div className="space-y-6">
+                                    {order.items.map((item) => {
+                                        const productUrl = item.link || `/products/${item.slug || item.productId || item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}`;
+                                        const itemStatus = order.orderStatus || item.orderStatus || "Order Confirmed";
+
+                                        return (
+                                            <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                <div className="flex items-start gap-4">
+                                                    <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
+                                                        <img
+                                                            src={getImageUrl(item.image)}
+                                                            alt={item.name || "Product"}
+                                                            onError={(e) => {
+                                                                e.currentTarget.onerror = null;
+                                                                e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
+                                                            }}
+                                                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                                                        />
                                                     </Link>
-                                                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">{item.category}</p>
-                                                    <div className="flex items-center gap-2 pt-1">
-                                                        <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white">
-                                                            {item.size}
-                                                        </span>
-                                                        <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white flex items-center gap-1.5">
-                                                            <span className="w-2 h-2 rounded-full border border-neutral-300" style={{ backgroundColor: item.colorHex || '#ddd' }} />
-                                                            {item.color}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-xs text-neutral-500 space-x-3 pt-2 font-normal">
-                                                        <span>
-                                                            Order Status: <strong className="text-neutral-900 font-semibold">{item.orderStatus}</strong>
-                                                        </span>
-                                                        <span>
-                                                            Payment Status: <strong className="text-neutral-900 font-semibold">{item.paymentStatus}</strong>
-                                                        </span>
+                                                    <div className="space-y-1">
+                                                        <Link href={productUrl} className="group block cursor-pointer">
+                                                            <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover:underline transition-colors">
+                                                                {item.name}
+                                                            </h4>
+                                                        </Link>
+                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">{item.category}</p>
+                                                        <div className="flex items-center gap-2 pt-1">
+                                                            <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white">
+                                                                {item.size}
+                                                            </span>
+                                                            <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white flex items-center gap-1.5">
+                                                                <span className="w-2 h-2 rounded-full border border-neutral-300" style={{ backgroundColor: item.colorHex || '#ddd' }} />
+                                                                {item.color}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-neutral-500 space-x-3 pt-2 font-normal">
+                                                            <span>
+                                                                Order Status: <strong className="text-neutral-900 font-semibold">{itemStatus}</strong>
+                                                            </span>
+                                                            <span>
+                                                                Payment Status: <strong className="text-emerald-600 font-semibold">{item.paymentStatus || "Confirmed"}</strong>
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="text-right self-end sm:self-center shrink-0 space-y-1">
-                                                <p className="font-semibold text-neutral-900 text-base sm:text-lg">{item.price}</p>
-                                                <p className="text-xs text-neutral-400 font-medium">Qty: {item.quantity}</p>
-                                                <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
+                                                <div className="text-right self-end sm:self-center shrink-0 space-y-1">
+                                                    <p className="font-semibold text-neutral-900 text-base sm:text-lg">{item.price}</p>
+                                                    <p className="text-xs text-neutral-400 font-medium">Qty: {item.quantity}</p>
+                                                    <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                            {/* Footer Action Buttons */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
-                                <div className="flex items-center gap-2.5">
-                                    <button
-                                        onClick={() => setSelectedTrackOrder(order)}
-                                        className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                    >
-                                        <Package className="w-3.5 h-3.5 text-neutral-600" />
-                                        Track Order
-                                    </button>
+                                {/* Footer Action Buttons */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <button
+                                            onClick={() => setSelectedTrackOrder(order)}
+                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        >
+                                            <Package className="w-3.5 h-3.5 text-neutral-600" />
+                                            Track Order
+                                        </button>
+                                        <Link
+                                            href="/return-and-exchange"
+                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        >
+                                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                            Return or Exchange
+                                        </Link>
+                                    </div>
                                     <Link
-                                        href="/return-and-exchange"
-                                        className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        href="/account/support"
+                                        className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
                                     >
-                                        <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
-                                        Return or Exchange
+                                        <HelpCircle className="w-3.5 h-3.5" />
+                                        Need Help?
                                     </Link>
                                 </div>
-                                <Link
-                                    href="/account/support"
-                                    className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
-                                >
-                                    <HelpCircle className="w-3.5 h-3.5" />
-                                    Need Help?
-                                </Link>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
-            {/* Status Filter Modal matching screenshot */}
+            {/* Status Filter Modal */}
             {isFilterModalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-fade-in border border-neutral-100">
@@ -307,7 +347,7 @@ export default function AccountOrdersPage() {
                             </div>
                         </div>
 
-                        {/* Modal Body with Left Sidebar (Status tab) & Right Options */}
+                        {/* Modal Body */}
                         <div className="grid grid-cols-12 min-h-[300px]">
                             {/* Left Navigation Sidebar */}
                             <div className="col-span-4 bg-neutral-50/70 border-r border-neutral-100 p-2 space-y-1">
@@ -337,10 +377,10 @@ export default function AccountOrdersPage() {
                                                 onClick={() => setSelectedStatusFilter(option.value)}
                                                 className="flex items-center gap-3.5 cursor-pointer select-none group py-0.5"
                                             >
-                                                <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "border-red-500 bg-white" : "border-neutral-300 group-hover:border-neutral-400"
+                                                <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "border-black bg-white" : "border-neutral-300 group-hover:border-neutral-400"
                                                     }`}>
                                                     {isSelected && (
-                                                        <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-black" />
                                                     )}
                                                 </div>
                                                 <span className={`text-xs sm:text-sm transition-colors ${isSelected ? "font-semibold text-neutral-900" : "font-normal text-neutral-700 group-hover:text-neutral-900"
@@ -367,14 +407,16 @@ export default function AccountOrdersPage() {
                 </div>
             )}
 
-            {/* Track Order Modal */}
+            {/* Track Order Dynamic 5-Step Timeline Modal */}
             {selectedTrackOrder && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-6 animate-fade-in">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-6 animate-fade-in border border-neutral-100">
                         <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                             <div>
                                 <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">Track Order</h3>
-                                <p className="text-xs text-neutral-400 mt-0.5">Order ID: {selectedTrackOrder.id}</p>
+                                <p className="text-xs text-neutral-400 mt-0.5">
+                                    Order ID: <span className="font-mono font-semibold text-neutral-800">{selectedTrackOrder.id}</span>
+                                </p>
                             </div>
                             <button
                                 onClick={() => setSelectedTrackOrder(null)}
@@ -384,23 +426,41 @@ export default function AccountOrdersPage() {
                             </button>
                         </div>
 
-                        <div className="space-y-6 relative pl-6 border-l-2 border-neutral-200">
-                            <div className="relative space-y-1">
-                                <span className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white ring-4 ring-emerald-100" />
-                                <p className="text-sm font-semibold text-neutral-900">Order Confirmed</p>
-                                <p className="text-xs text-neutral-500">Order details processed and sent to warehouse</p>
-                            </div>
-                            <div className="relative space-y-1">
-                                <span className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white ring-4 ring-emerald-100" />
-                                <p className="text-sm font-semibold text-neutral-900">Dispatched & In Transit</p>
-                                <p className="text-xs text-neutral-500">Package is on its way via Express Logistics</p>
-                            </div>
-                            <div className="relative space-y-1">
-                                <span className="absolute -left-[31px] top-0 w-4 h-4 rounded-full bg-neutral-300 border-2 border-white" />
-                                <p className="text-sm font-semibold text-neutral-400">Out for Delivery</p>
-                                <p className="text-xs text-neutral-400">Courier partner will deliver to your address</p>
-                            </div>
-                        </div>
+                        {/* 5-Step Progress Timeline reflects status changed manually by Admin */}
+                        {(() => {
+                            const currentStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Order Confirmed";
+                            const activeStepIdx = getStepIndex(currentStatus);
+
+                            return (
+                                <div className="space-y-6 relative pl-6 border-l-2 border-neutral-200">
+                                    {ORDER_STEPS.map((step, idx) => {
+                                        const isCompleted = idx <= activeStepIdx;
+                                        const isCurrent = idx === activeStepIdx;
+
+                                        return (
+                                            <div key={idx} className="relative space-y-0.5">
+                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${
+                                                    isCompleted
+                                                        ? "bg-emerald-500 ring-4 ring-emerald-100"
+                                                        : "bg-neutral-300"
+                                                }`} />
+                                                <p className={`text-sm font-semibold flex items-center justify-between ${
+                                                    isCompleted ? "text-neutral-900" : "text-neutral-400"
+                                                }`}>
+                                                    <span>{step.title}</span>
+                                                    {isCurrent && (
+                                                        <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.2 rounded-full">
+                                                            Current
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
 
                         <button
                             onClick={() => setSelectedTrackOrder(null)}

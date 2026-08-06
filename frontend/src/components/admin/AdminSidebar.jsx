@@ -15,6 +15,7 @@ import {
   Ruler,
   Percent,
   QrCode,
+  Package,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -28,6 +29,11 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Dashboard",
       path: "/admin/dashboard",
       icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
+    },
+    {
+      name: "Orders",
+      path: "/admin/orders",
+      icon: <Package className="w-5 h-5 shrink-0" />,
     },
     {
       name: "Products",

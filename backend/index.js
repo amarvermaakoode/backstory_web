@@ -28,6 +28,7 @@ const frontendPromoCodeRoutes = require("./routes/frontend/promoCodeFrntRoutes")
 const adminSupportRoutes = require("./routes/admin/supportAdminRoutes");
 const frontendSupportRoutes = require("./routes/frontend/supportFrntRoutes");
 const adminQRCodeRoutes = require("./routes/admin/qrCodeRoutes");
+const adminOrderRoutes = require("./routes/admin/orderAdminRoutes");
 const frontendQRRoutes = require("./routes/frontend/qrFrntRoutes");
 const frontendOrderRoutes = require("./routes/frontend/orderFrntRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -77,6 +78,7 @@ app.use("/api/admin/reviews", adminReviewRoutes);
 app.use("/api/admin/promo-codes", adminPromoCodeRoutes);
 app.use("/api/admin/support-tickets", adminSupportRoutes);
 app.use("/api/admin/qr-codes", adminQRCodeRoutes);
+app.use("/api/admin/orders", adminOrderRoutes);
 
 //frontend routes
 app.use("/api/frontend/categories", frontendCategoryRoutes);
