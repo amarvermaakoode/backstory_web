@@ -204,11 +204,14 @@ export default function AccountOrdersPage() {
                                         <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                             <div className="flex items-start gap-4">
                                                 <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
-                                                    <Image
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        fill
-                                                        className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                                                    <img
+                                                        src={getImageUrl(item.image)}
+                                                        alt={item.name || "Product"}
+                                                        onError={(e) => {
+                                                            e.currentTarget.onerror = null;
+                                                            e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
+                                                        }}
+                                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                                                     />
                                                 </Link>
                                                 <div className="space-y-1">

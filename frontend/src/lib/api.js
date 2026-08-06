@@ -15,18 +15,19 @@ export const API_BASE_URL = `${API_URL}/api`;
  * - Everything else (e.g. backend "/uploads/..") is resolved against the API origin.
  */
 export const getImageUrl = (path) => {
-  if (!path || typeof path !== "string") return "/images/landing-page/coding-tshirt.png";
-  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
-  if (path.startsWith("/images/")) return path;
-  if (path.startsWith("images/")) return `/${path}`;
-  if (path.includes("tshirt") || path.includes("coding") || path.includes("biker") || path.includes("wonderlust") || path.includes("first") || path.includes("pants")) {
-    return `/images/landing-page/${path.replace(/^\//, "")}`;
+  if (!path || typeof path !== "string" || !path.trim() || path === "null" || path === "undefined") {
+    return "/images/landing-page/coding-tshirt.png";
   }
-  if (path.startsWith("/uploads") || path.startsWith("uploads")) {
-    return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  const cleanPath = path.trim();
+  if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://") || cleanPath.startsWith("data:")) return cleanPath;
+  if (cleanPath.startsWith("/images/")) return cleanPath;
+  if (cleanPath.startsWith("images/")) return `/${cleanPath}`;
+  if (cleanPath.includes("tshirt") || cleanPath.includes("coding") || cleanPath.includes("biker") || cleanPath.includes("wonderlust") || cleanPath.includes("first") || cleanPath.includes("pants") || cleanPath.includes("featured")) {
+    return `/images/landing-page/${cleanPath.replace(/^\//, "")}`;
   }
-  if (!path.startsWith("/")) {
-    return `/images/landing-page/${path}`;
+  if (cleanPath.startsWith("/uploads") || cleanPath.startsWith("uploads")) {
+    return `${API_URL}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
   }
-  return `${API_URL}${path}`;
+  if (cleanPath.startsWith("/")) return cleanPath;
+  return `/images/landing-page/${cleanPath}`;
 };

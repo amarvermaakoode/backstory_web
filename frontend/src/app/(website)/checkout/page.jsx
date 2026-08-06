@@ -65,8 +65,18 @@ export default function CheckoutPage() {
         country: "India"
     });
 
-    // Prefill form from logged-in user details or localStorage saved address
+    // Prefill form from localStorage saved address and/or logged-in user details
     useEffect(() => {
+        let localData = {};
+        try {
+            const stored = localStorage.getItem("savedShippingAddress");
+            if (stored) {
+                localData = JSON.parse(stored);
+            }
+        } catch (e) {
+            console.error("Error reading saved address from localStorage:", e);
+        }
+
         if (user) {
             const nameParts = user.name ? user.name.split(" ") : ["", ""];
             const fName = nameParts[0] || "";
@@ -94,26 +104,19 @@ export default function CheckoutPage() {
 
             setFormData(prev => ({
                 ...prev,
-                contactEmail: user.email || prev.contactEmail,
-                deliveryEmail: user.email || prev.deliveryEmail,
-                phoneNumber: user.phoneNumber || savedUserAddress.phoneNumber || prev.phoneNumber,
-                firstName: fName || prev.firstName,
-                lastName: lName || prev.lastName,
-                streetAddress: savedUserAddress.streetAddress || prev.streetAddress,
-                city: savedUserAddress.city || prev.city,
-                state: savedUserAddress.state || prev.state,
-                pinCode: savedUserAddress.pinCode || prev.pinCode,
+                ...localData,
+                contactEmail: localData.contactEmail || user.email || prev.contactEmail,
+                deliveryEmail: localData.deliveryEmail || user.email || prev.deliveryEmail,
+                phoneNumber: localData.phoneNumber || user.phoneNumber || savedUserAddress.phoneNumber || prev.phoneNumber,
+                firstName: localData.firstName || fName || prev.firstName,
+                lastName: localData.lastName || lName || prev.lastName,
+                streetAddress: localData.streetAddress || savedUserAddress.streetAddress || prev.streetAddress,
+                city: localData.city || savedUserAddress.city || prev.city,
+                state: localData.state || savedUserAddress.state || prev.state,
+                pinCode: localData.pinCode || savedUserAddress.pinCode || prev.pinCode,
             }));
-        } else {
-            try {
-                const localAddr = localStorage.getItem("savedShippingAddress");
-                if (localAddr) {
-                    const parsed = JSON.parse(localAddr);
-                    setFormData(prev => ({ ...prev, ...parsed }));
-                }
-            } catch (e) {
-                console.error("Error reading saved address from localStorage:", e);
-            }
+        } else if (Object.keys(localData).length > 0) {
+            setFormData(prev => ({ ...prev, ...localData }));
         }
     }, [user]);
 
@@ -155,19 +158,31 @@ export default function CheckoutPage() {
                         const po = data[0].PostOffice[0];
                         const fetchedCity = po.District || po.Block || po.Name || "";
                         const fetchedState = po.State || "";
-                        setFormData(prev => ({
-                            ...prev,
-                            city: fetchedCity,
-                            state: fetchedState
-                        }));
+                        setFormData(prev => {
+                            const updated = {
+                                ...prev,
+                                city: fetchedCity,
+                                state: fetchedState
+                            };
+                            try {
+                                localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
+                            } catch (e) { }
+                            return updated;
+                        });
                         setPinCodeError("");
                     } else {
                         setPinCodeError("Invalid PIN code. Please enter a valid Indian PIN code.");
-                        setFormData(prev => ({
-                            ...prev,
-                            city: "",
-                            state: ""
-                        }));
+                        setFormData(prev => {
+                            const updated = {
+                                ...prev,
+                                city: "",
+                                state: ""
+                            };
+                            try {
+                                localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
+                            } catch (e) { }
+                            return updated;
+                        });
                     }
                 } catch (err) {
                     console.error("Error fetching PIN code details:", err);
@@ -185,16 +200,20 @@ export default function CheckoutPage() {
     }, [formData.pinCode]);
 
     const handleInputChange = (field, value) => {
-        if (field === "pinCode") {
-            const numericValue = value.replace(/\D/g, "").slice(0, 6);
-            setFormData(prev => ({ ...prev, pinCode: numericValue }));
-            return;
-        }
+        const valToSet = field === "pinCode" ? value.replace(/\D/g, "").slice(0, 6) : value;
 
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setFormData(prev => {
+            const updated = {
+                ...prev,
+                [field]: valToSet
+            };
+            try {
+                localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
+            } catch (e) {
+                console.error("Error persisting checkout form to localStorage:", e);
+            }
+            return updated;
+        });
     };
 
     // Save shipping address function
@@ -206,18 +225,26 @@ export default function CheckoutPage() {
         // 1. Save to user profile via backend API if logged in
         if (userFetch) {
             try {
-                await userFetch("/auth/addresses", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name: "Shipping Address",
-                        recipientName,
-                        addressLine1,
-                        cityStatePin,
-                        phone: formData.phoneNumber,
-                        isDefault: true
-                    })
-                });
+                // Check if identical address already exists in user's saved addresses
+                const alreadySaved = user?.addresses && Array.isArray(user.addresses) && user.addresses.some(a =>
+                    (a.addressLine1 || "").trim().toLowerCase() === (addressLine1 || "").trim().toLowerCase() &&
+                    (a.cityStatePin || "").trim().toLowerCase() === (cityStatePin || "").trim().toLowerCase()
+                );
+
+                if (!alreadySaved) {
+                    await userFetch("/auth/addresses", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: "Shipping Address",
+                            recipientName,
+                            addressLine1,
+                            cityStatePin,
+                            phone: formData.phoneNumber,
+                            isDefault: true
+                        })
+                    });
+                }
             } catch (err) {
                 console.error("Note: Address auto-save to user profile:", err.message);
             }
@@ -350,7 +377,7 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                     amount: amountInPaise,
                     currency: "INR",
-                    receipt: `bsc_receipt_${Date.now()}`
+                    receipt: `bac_receipt_${Date.now()}`
                 })
             });
 
@@ -361,7 +388,7 @@ export default function CheckoutPage() {
                     body: JSON.stringify({
                         amount: amountInPaise,
                         currency: "INR",
-                        receipt: `bsc_receipt_${Date.now()}`
+                        receipt: `bac_receipt_${Date.now()}`
                     })
                 });
             }
@@ -372,7 +399,7 @@ export default function CheckoutPage() {
                 throw new Error(orderData.message || "Failed to create Razorpay order on backend.");
             }
 
-            const localOrderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
+            const localOrderId = "BAC-" + Math.floor(100000 + Math.random() * 900000);
             const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TMPgBtafMzjbIX";
 
             // STEP 2: FRONTEND - Open Razorpay Modal
@@ -380,7 +407,7 @@ export default function CheckoutPage() {
                 key: razorpayKey,
                 amount: orderData.amount,
                 currency: orderData.currency || "INR",
-                name: "BSC STORY",
+                name: "BACSTORY",
                 description: `Checkout Order ${localOrderId}`,
                 image: "/images/logo-dark.svg",
                 order_id: orderData.order_id,
@@ -476,7 +503,7 @@ export default function CheckoutPage() {
                                             price: item.price || `Rs ${item.priceNum || 0}`,
                                             priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
                                             quantity: item.quantity || 1,
-                                            image: item.image
+                                            image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
                                         })),
                                         subtotal: activeSubtotal,
                                         discountAmount,
@@ -508,7 +535,7 @@ export default function CheckoutPage() {
                                     orderStatus: "Processing",
                                     paymentStatus: "Confirmed",
                                     deliveryDate: "Estimated Delivery: 3-5 Business Days",
-                                    image: item.image
+                                    image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
                                 }))
                             };
 
@@ -762,11 +789,10 @@ export default function CheckoutPage() {
                                                 onChange={(e) => handleInputChange("pinCode", e.target.value)}
                                                 placeholder="Enter 6-digit PIN code"
                                                 maxLength={6}
-                                                className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${
-                                                    pinCodeError
-                                                        ? "border-red-500 focus:border-red-500 bg-red-50/20"
-                                                        : "border-neutral-200 focus:border-black"
-                                                }`}
+                                                className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${pinCodeError
+                                                    ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                    : "border-neutral-200 focus:border-black"
+                                                    }`}
                                             />
                                             {isFetchingPincode && (
                                                 <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1.5 select-none">

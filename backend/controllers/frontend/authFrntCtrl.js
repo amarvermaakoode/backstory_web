@@ -243,7 +243,38 @@ const addAddress = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    const targetLine1 = addressLine1.trim().toLowerCase();
+    const targetCityStatePin = cityStatePin ? cityStatePin.trim().toLowerCase() : "";
+
+    // Check if an address with matching details already exists
+    const existingIndex = user.addresses.findIndex((addr) => {
+      const matchLine1 = (addr.addressLine1 || "").trim().toLowerCase() === targetLine1;
+      const matchCityStatePin = (addr.cityStatePin || "").trim().toLowerCase() === targetCityStatePin;
+      return matchLine1 && matchCityStatePin;
+    });
+
     const setAsDefault = isDefault || user.addresses.length === 0;
+
+    if (existingIndex !== -1) {
+      // Address already exists! Update existing address fields & default status instead of duplicating
+      if (setAsDefault) {
+        user.addresses.forEach((addr, idx) => {
+          addr.isDefault = idx === existingIndex;
+        });
+      }
+      if (recipientName) user.addresses[existingIndex].recipientName = recipientName.trim();
+      if (phone) user.addresses[existingIndex].phone = phone.trim();
+      if (addressLine2) user.addresses[existingIndex].addressLine2 = addressLine2.trim();
+      if (name || label) user.addresses[existingIndex].name = name || label;
+
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Address updated successfully",
+        addresses: user.addresses,
+      });
+    }
 
     if (setAsDefault) {
       user.addresses.forEach((addr) => {

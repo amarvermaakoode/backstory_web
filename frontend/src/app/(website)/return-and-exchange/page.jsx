@@ -19,6 +19,7 @@ import {
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { getImageUrl } from "@/lib/api";
 
 // Policy summary data for landing state
 const policyItems = [
@@ -472,7 +473,7 @@ export default function ReturnAndExchangePage() {
                                                     <div className="flex items-center gap-4 sm:gap-5">
                                                         <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
                                                             <Image
-                                                                src={item.image}
+                                                                src={getImageUrl(item.image)}
                                                                 alt={item.title}
                                                                 fill
                                                                 className="object-cover object-center"
