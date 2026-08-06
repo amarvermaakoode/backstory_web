@@ -29,6 +29,8 @@ const adminSupportRoutes = require("./routes/admin/supportAdminRoutes");
 const frontendSupportRoutes = require("./routes/frontend/supportFrntRoutes");
 const adminQRCodeRoutes = require("./routes/admin/qrCodeRoutes");
 const frontendQRRoutes = require("./routes/frontend/qrFrntRoutes");
+const frontendOrderRoutes = require("./routes/frontend/orderFrntRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 dotenv.config();
 
@@ -58,6 +60,11 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Payment routes (supports POST /api/create-order, POST /api/verify-payment, etc.)
+app.use("/api", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/frontend/payment", paymentRoutes);
+
 // Routes
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/admin/categories", categoryRoutes);
@@ -83,6 +90,7 @@ app.use("/api/frontend/cart", frontendCartRoutes);
 app.use("/api/frontend/promo-codes", frontendPromoCodeRoutes);
 app.use("/api/frontend/support", frontendSupportRoutes);
 app.use("/api/frontend/qr", frontendQRRoutes);
+app.use("/api/frontend/orders", frontendOrderRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

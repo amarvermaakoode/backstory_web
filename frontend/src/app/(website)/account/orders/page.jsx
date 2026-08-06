@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag } from "lucide-react";
-import { getImageUrl } from "@/lib/api";
+import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 const STATUS_FILTER_OPTIONS = [
     { label: "All", value: "All" },
@@ -22,20 +22,77 @@ export default function AccountOrdersPage() {
     const [selectedStatusFilter, setSelectedStatusFilter] = useState("All");
 
     useEffect(() => {
-        try {
-            const storedOrders = localStorage.getItem("userOrders");
-            if (storedOrders) {
-                const parsed = JSON.parse(storedOrders);
-                if (Array.isArray(parsed)) {
-                    setOrders(parsed);
+        const fetchOrders = async () => {
+            let dbOrders = [];
+            try {
+                const token = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
+                const savedAddr = typeof window !== "undefined" ? localStorage.getItem("savedShippingAddress") : null;
+                let email = "";
+                if (savedAddr) {
+                    try {
+                        const parsedAddr = JSON.parse(savedAddr);
+                        email = parsedAddr.contactEmail || parsedAddr.deliveryEmail || "";
+                    } catch (e) { }
                 }
+
+                const url = token
+                    ? `${API_BASE_URL}/frontend/orders/my-orders`
+                    : (email ? `${API_BASE_URL}/frontend/orders/my-orders?email=${encodeURIComponent(email)}` : null);
+
+                if (url) {
+                    const res = await fetch(url, {
+                        headers: {
+                            ...(token && { Authorization: `Bearer ${token}` })
+                        }
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success && Array.isArray(data.data)) {
+                        dbOrders = data.data.map(o => ({
+                            id: o.orderId || o._id,
+                            createdAt: o.createdAt,
+                            items: (o.items || []).map(i => ({
+                                id: i._id || i.productId,
+                                productId: i.product || i.productId,
+                                name: i.name,
+                                category: i.category,
+                                size: i.size,
+                                color: i.color,
+                                colorHex: i.colorHex,
+                                price: i.price,
+                                quantity: i.quantity,
+                                orderStatus: i.orderStatus || o.orderStatus || "Processing",
+                                paymentStatus: i.paymentStatus || o.paymentStatus || "Confirmed",
+                                deliveryDate: i.deliveryDate || "Estimated Delivery: 3-5 Business Days",
+                                image: i.image
+                            }))
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching orders from DB:", err);
             }
-        } catch (error) {
-            console.error("Error reading user orders:", error);
-            setOrders([]);
-        } finally {
+
+            let localOrders = [];
+            try {
+                const storedOrders = localStorage.getItem("userOrders");
+                if (storedOrders) {
+                    const parsed = JSON.parse(storedOrders);
+                    if (Array.isArray(parsed)) localOrders = parsed;
+                }
+            } catch (e) {
+                console.error("Error reading local orders:", e);
+            }
+
+            // Merge orders by ID avoiding duplicates
+            const combinedMap = new Map();
+            dbOrders.forEach(o => combinedMap.set(o.id, o));
+            localOrders.forEach(o => { if (!combinedMap.has(o.id)) combinedMap.set(o.id, o); });
+
+            setOrders(Array.from(combinedMap.values()));
             setLoading(false);
-        }
+        };
+
+        fetchOrders();
     }, []);
 
     // Filter orders based on status filter

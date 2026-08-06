@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Lock, Check, ShoppingBag, User, CheckCircle2, Loader2 } from "lucide-react";
+import Script from "next/script";
+import { Lock, Check, ShoppingBag, User, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
@@ -39,7 +40,7 @@ const mockCheckoutItems = [
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
-    const { user } = useUserAuth();
+    const { user, userFetch } = useUserAuth();
 
     // Check if the cart has items; if not, use mock items for visual exactness
     const isCartEmpty = cartItems.length === 0;
@@ -64,20 +65,55 @@ export default function CheckoutPage() {
         country: "India"
     });
 
+    // Prefill form from logged-in user details or localStorage saved address
     useEffect(() => {
         if (user) {
             const nameParts = user.name ? user.name.split(" ") : ["", ""];
             const fName = nameParts[0] || "";
             const lName = nameParts.slice(1).join(" ") || "";
 
+            let savedUserAddress = {};
+            if (user.addresses && user.addresses.length > 0) {
+                const defaultAddr = user.addresses.find(a => a.isDefault) || user.addresses[0];
+                if (defaultAddr) {
+                    const cityStatePinMatch = defaultAddr.cityStatePin ? defaultAddr.cityStatePin.split("-") : [];
+                    const pin = cityStatePinMatch.length > 1 ? cityStatePinMatch[1].trim() : "";
+                    const cityStateParts = cityStatePinMatch[0] ? cityStatePinMatch[0].split(",") : [];
+                    const city = cityStateParts[0] ? cityStateParts[0].trim() : "";
+                    const state = cityStateParts[1] ? cityStateParts[1].trim() : "";
+
+                    savedUserAddress = {
+                        streetAddress: defaultAddr.addressLine1 || "",
+                        city: city,
+                        state: state,
+                        pinCode: pin,
+                        phoneNumber: defaultAddr.phone || ""
+                    };
+                }
+            }
+
             setFormData(prev => ({
                 ...prev,
                 contactEmail: user.email || prev.contactEmail,
                 deliveryEmail: user.email || prev.deliveryEmail,
-                phoneNumber: user.phoneNumber || prev.phoneNumber,
+                phoneNumber: user.phoneNumber || savedUserAddress.phoneNumber || prev.phoneNumber,
                 firstName: fName || prev.firstName,
                 lastName: lName || prev.lastName,
+                streetAddress: savedUserAddress.streetAddress || prev.streetAddress,
+                city: savedUserAddress.city || prev.city,
+                state: savedUserAddress.state || prev.state,
+                pinCode: savedUserAddress.pinCode || prev.pinCode,
             }));
+        } else {
+            try {
+                const localAddr = localStorage.getItem("savedShippingAddress");
+                if (localAddr) {
+                    const parsed = JSON.parse(localAddr);
+                    setFormData(prev => ({ ...prev, ...parsed }));
+                }
+            } catch (e) {
+                console.error("Error reading saved address from localStorage:", e);
+            }
         }
     }, [user]);
 
@@ -96,11 +132,14 @@ export default function CheckoutPage() {
         }
     }, [activeSubtotal, activePromo]);
 
-    // Order complete state
+    // Order & Payment state
     const [isOrderComplete, setIsOrderComplete] = useState(false);
     const [generatedOrderNum, setGeneratedOrderNum] = useState("");
     const [pinCodeError, setPinCodeError] = useState("");
     const [isFetchingPincode, setIsFetchingPincode] = useState(false);
+
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [paymentError, setPaymentError] = useState("");
 
     // Auto-fetch city & state via India Post API when valid 6-digit PIN code is typed
     useEffect(() => {
@@ -156,6 +195,51 @@ export default function CheckoutPage() {
             ...prev,
             [field]: value
         }));
+    };
+
+    // Save shipping address function
+    const saveShippingAddress = async () => {
+        const addressLine1 = formData.streetAddress;
+        const cityStatePin = `${formData.city}, ${formData.state} - ${formData.pinCode}`;
+        const recipientName = `${formData.firstName} ${formData.lastName}`.trim();
+
+        // 1. Save to user profile via backend API if logged in
+        if (userFetch) {
+            try {
+                await userFetch("/auth/addresses", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: "Shipping Address",
+                        recipientName,
+                        addressLine1,
+                        cityStatePin,
+                        phone: formData.phoneNumber,
+                        isDefault: true
+                    })
+                });
+            } catch (err) {
+                console.error("Note: Address auto-save to user profile:", err.message);
+            }
+        }
+
+        // 2. Always persist to localStorage for seamless checkout experience
+        try {
+            localStorage.setItem("savedShippingAddress", JSON.stringify({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                contactEmail: formData.contactEmail,
+                deliveryEmail: formData.deliveryEmail,
+                phoneNumber: formData.phoneNumber,
+                streetAddress: formData.streetAddress,
+                city: formData.city,
+                state: formData.state,
+                pinCode: formData.pinCode,
+                country: formData.country
+            }));
+        } catch (e) {
+            console.error("Error saving address to local storage:", e);
+        }
     };
 
     // Calculate shipping cost
@@ -217,9 +301,23 @@ export default function CheckoutPage() {
     const taxAmount = Math.round(taxableAmount * 0.05); // 5% GST as shown in mockup
     const totalAmount = taxableAmount + shippingCost + taxAmount;
 
-    // Checkout submission
+    // Helper to dynamically load Razorpay SDK if needed
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            if (typeof window === "undefined") return resolve(false);
+            if (window.Razorpay) return resolve(true);
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
+    // Checkout submission with Razorpay Standard Web Checkout
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
+        setPaymentError("");
 
         // Validate PIN code
         if (!/^\d{6}$/.test(formData.pinCode)) {
@@ -228,67 +326,241 @@ export default function CheckoutPage() {
         }
         setPinCodeError("");
 
-        // Generate random order ID
-        const orderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
+        setIsProcessingPayment(true);
 
         try {
-            const checkoutItems = activeItems.map(item => ({
-                productId: item.productId || item.id,
-                size: item.size,
-                color: item.color,
-                quantity: item.quantity
-            }));
+            // STEP 0: Save the user's shipping address
+            await saveShippingAddress();
 
-            await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+            // Load Razorpay Checkout Script
+            const scriptLoaded = await loadRazorpayScript();
+            if (!scriptLoaded || typeof window.Razorpay === "undefined") {
+                setPaymentError("Razorpay Checkout SDK failed to load. Please check your internet connection.");
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            // Amount in paise (1 INR = 100 paise). Minimum 100 paise required by Razorpay API
+            const amountInPaise = Math.max(100, Math.round(totalAmount * 100));
+
+            // STEP 1: BACKEND - Create Razorpay Order
+            let orderRes = await fetch(`${API_BASE_URL}/create-order`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ items: checkoutItems })
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    amount: amountInPaise,
+                    currency: "INR",
+                    receipt: `bsc_receipt_${Date.now()}`
+                })
             });
+
+            if (!orderRes.ok) {
+                orderRes = await fetch(`${API_BASE_URL}/payment/create-order`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        amount: amountInPaise,
+                        currency: "INR",
+                        receipt: `bsc_receipt_${Date.now()}`
+                    })
+                });
+            }
+
+            const orderData = await orderRes.json();
+
+            if (!orderRes.ok || !orderData.success || !orderData.order_id) {
+                throw new Error(orderData.message || "Failed to create Razorpay order on backend.");
+            }
+
+            const localOrderId = "BSC-" + Math.floor(100000 + Math.random() * 900000);
+            const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TMPgBtafMzjbIX";
+
+            // STEP 2: FRONTEND - Open Razorpay Modal
+            const options = {
+                key: razorpayKey,
+                amount: orderData.amount,
+                currency: orderData.currency || "INR",
+                name: "BSC STORY",
+                description: `Checkout Order ${localOrderId}`,
+                image: "/images/logo-dark.svg",
+                order_id: orderData.order_id,
+                prefill: {
+                    name: `${formData.firstName} ${formData.lastName}`.trim(),
+                    email: formData.contactEmail || formData.deliveryEmail,
+                    contact: formData.phoneNumber
+                },
+                notes: {
+                    address: `${formData.streetAddress}, ${formData.city}, ${formData.state} - ${formData.pinCode}, ${formData.country}`
+                },
+                theme: {
+                    color: "#000000"
+                },
+                handler: async function (response) {
+                    try {
+                        // STEP 3: BACKEND - Verify Signature
+                        let verifyRes = await fetch(`${API_BASE_URL}/verify-payment`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+
+                        if (!verifyRes.ok) {
+                            verifyRes = await fetch(`${API_BASE_URL}/payment/verify-payment`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature
+                                })
+                            });
+                        }
+
+                        const verifyData = await verifyRes.json();
+
+                        if (verifyRes.ok && verifyData.success) {
+                            // Payment verified successfully! Finalize order & stock reduction
+                            try {
+                                const checkoutItems = activeItems.map(item => ({
+                                    productId: item.productId || item.id,
+                                    size: item.size,
+                                    color: item.color,
+                                    quantity: item.quantity
+                                }));
+
+                                await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ items: checkoutItems })
+                                });
+                            } catch (stockErr) {
+                                console.error("Error reducing stock during checkout:", stockErr);
+                            }
+
+                            // Save order details to MongoDB database
+                            try {
+                                const token = localStorage.getItem("userToken");
+                                await fetch(`${API_BASE_URL}/frontend/orders`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        ...(token && { Authorization: `Bearer ${token}` })
+                                    },
+                                    body: JSON.stringify({
+                                        orderId: localOrderId,
+                                        razorpayOrderId: response.razorpay_order_id,
+                                        razorpayPaymentId: response.razorpay_payment_id,
+                                        razorpaySignature: response.razorpay_signature,
+                                        shippingAddress: {
+                                            firstName: formData.firstName,
+                                            lastName: formData.lastName,
+                                            email: formData.contactEmail || formData.deliveryEmail,
+                                            phoneNumber: formData.phoneNumber,
+                                            streetAddress: formData.streetAddress,
+                                            city: formData.city,
+                                            state: formData.state,
+                                            pinCode: formData.pinCode,
+                                            country: formData.country
+                                        },
+                                        items: activeItems.map(item => ({
+                                            productId: item.productId || item.id,
+                                            name: item.name || item.title || "Product",
+                                            category: item.tag || "COLLECTION",
+                                            size: item.size || "M",
+                                            color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                                            colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                                            price: item.price || `Rs ${item.priceNum || 0}`,
+                                            priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
+                                            quantity: item.quantity || 1,
+                                            image: item.image
+                                        })),
+                                        subtotal: activeSubtotal,
+                                        discountAmount,
+                                        shippingCost,
+                                        taxAmount,
+                                        totalAmount
+                                    })
+                                });
+                            } catch (dbErr) {
+                                console.error("Error saving order to MongoDB:", dbErr);
+                            }
+
+                            // Also save to localStorage for offline fallback
+                            const newOrder = {
+                                id: localOrderId,
+                                razorpayPaymentId: response.razorpay_payment_id,
+                                razorpayOrderId: response.razorpay_order_id,
+                                createdAt: new Date().toISOString(),
+                                items: activeItems.map(item => ({
+                                    id: item.id || item.productId,
+                                    productId: item.productId || item.id,
+                                    name: item.name || item.title || "Product",
+                                    category: item.tag || "COLLECTION",
+                                    size: item.size || "M",
+                                    color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                                    colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                                    price: item.price || `Rs ${item.priceNum || 0}`,
+                                    quantity: item.quantity || 1,
+                                    orderStatus: "Processing",
+                                    paymentStatus: "Confirmed",
+                                    deliveryDate: "Estimated Delivery: 3-5 Business Days",
+                                    image: item.image
+                                }))
+                            };
+
+                            try {
+                                const existingOrders = JSON.parse(localStorage.getItem("userOrders") || "[]");
+                                localStorage.setItem("userOrders", JSON.stringify([newOrder, ...existingOrders]));
+                            } catch (err) {
+                                console.error("Error saving user order to local storage:", err);
+                            }
+
+                            setGeneratedOrderNum(localOrderId);
+                            setIsOrderComplete(true);
+                            if (!isCartEmpty) {
+                                clearCart();
+                            }
+                        } else {
+                            setPaymentError(verifyData.message || "Payment signature verification failed.");
+                        }
+                    } catch (verifyErr) {
+                        console.error("Error verifying payment:", verifyErr);
+                        setPaymentError("Payment verification error. Please contact support.");
+                    } finally {
+                        setIsProcessingPayment(false);
+                    }
+                },
+                modal: {
+                    ondismiss: function () {
+                        setIsProcessingPayment(false);
+                        console.log("Razorpay checkout modal dismissed by user.");
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on("payment.failed", function (response) {
+                setIsProcessingPayment(false);
+                setPaymentError(response.error?.description || response.error?.reason || "Payment failed. Please try again.");
+            });
+            rzp.open();
+
         } catch (error) {
-            console.error("Error reducing stock during checkout:", error);
-        }
-
-        // Save placed order dynamically to userOrders state
-        const newOrder = {
-            id: orderId,
-            createdAt: new Date().toISOString(),
-            items: activeItems.map(item => ({
-                id: item.id || item.productId,
-                productId: item.productId || item.id,
-                name: item.name || item.title || "Product",
-                category: item.tag || "COLLECTION",
-                size: item.size || "M",
-                color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
-                colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
-                price: item.price || `Rs ${item.priceNum || 0}`,
-                quantity: item.quantity || 1,
-                orderStatus: "Processing",
-                paymentStatus: "Confirmed",
-                deliveryDate: "Estimated Delivery: 3-5 Business Days",
-                image: item.image
-            }))
-        };
-
-        try {
-            const existingOrders = JSON.parse(localStorage.getItem("userOrders") || "[]");
-            localStorage.setItem("userOrders", JSON.stringify([newOrder, ...existingOrders]));
-        } catch (err) {
-            console.error("Error saving user order:", err);
-        }
-
-        setGeneratedOrderNum(orderId);
-        setIsOrderComplete(true);
-
-        // Clear active cart if they actually had items
-        if (!isCartEmpty) {
-            clearCart();
+            console.error("Checkout error:", error);
+            setPaymentError(error.message || "An error occurred while initializing payment.");
+            setIsProcessingPayment(false);
         }
     };
 
     return (
         <div className="bg-[#FAF9F6] min-h-screen text-black selection:bg-neutral-200">
+            {/* Razorpay Standard Web Checkout Script */}
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
             {/* Header */}
             <header className="bg-white border-b border-neutral-200/80 sticky top-0 z-40">
                 <div className="max-w-[1600px] mx-auto px-12 h-17 flex items-center justify-between">
@@ -368,7 +640,7 @@ export default function CheckoutPage() {
                                     Delivery Details
                                 </h2>
                                 <p className="text-xs sm:text-sm text-neutral-400 font-normal mb-8">
-                                    Where should we send your order?
+                                    Where should we send your order? Your address will be saved upon continuing to payment.
                                 </p>
 
                                 <div className="space-y-6">
@@ -479,7 +751,7 @@ export default function CheckoutPage() {
 
                                     {/* Pin Code & Country Row */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                         <div>
+                                        <div>
                                             <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
                                                 PIN CODE
                                             </label>
@@ -496,7 +768,7 @@ export default function CheckoutPage() {
                                                         : "border-neutral-200 focus:border-black"
                                                 }`}
                                             />
-                                             {isFetchingPincode && (
+                                            {isFetchingPincode && (
                                                 <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1.5 select-none">
                                                     <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
                                                     Fetching city & state...
@@ -604,14 +876,30 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
+                            {/* Payment Error Banner */}
+                            {paymentError && (
+                                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-xs sm:text-sm font-semibold flex items-center gap-2.5">
+                                    <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+                                    <span>{paymentError}</span>
+                                </div>
+                            )}
+
                             {/* Continue to Payment Button */}
                             <Button
                                 type="submit"
                                 variant="dark"
-                                hasArrow={true}
-                                className="w-full mt-10"
+                                hasArrow={!isProcessingPayment}
+                                disabled={isProcessingPayment}
+                                className="w-full mt-10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                             >
-                                Continue to Payment
+                                {isProcessingPayment ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                        <span>Opening Razorpay Checkout...</span>
+                                    </>
+                                ) : (
+                                    <span>Continue to Payment</span>
+                                )}
                             </Button>
                         </div>
                     </div>
@@ -665,9 +953,9 @@ export default function CheckoutPage() {
                                                     <span className="text-[9px] font-medium px-2 py-0.5 rounded-full border border-neutral-150 text-neutral-500 flex items-center gap-1 select-none">
                                                         <span
                                                             className="w-1.5 h-1.5 rounded-full border border-black/10 shadow-xs"
-                                                            style={{ backgroundColor: item.color.hex }}
+                                                            style={{ backgroundColor: typeof item.color === "object" ? item.color?.hex : "#000" }}
                                                         />
-                                                        {item.color.name}
+                                                        {typeof item.color === "object" ? item.color?.name : item.color}
                                                     </span>
                                                 </div>
                                                 <span className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider select-none">
@@ -773,8 +1061,8 @@ export default function CheckoutPage() {
                                 <span className="font-bold text-black">{generatedOrderNum}</span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
-                                <span className="text-neutral-400">Shipment Weight:</span>
-                                <span className="font-semibold text-black">280 GSM Cotton</span>
+                                <span className="text-neutral-400">Payment Status:</span>
+                                <span className="font-bold text-green-600">Paid (Razorpay Verified)</span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Method:</span>
@@ -789,7 +1077,7 @@ export default function CheckoutPage() {
                         </div>
 
                         <p className="text-xs text-neutral-400 leading-relaxed px-4">
-                            A confirmation email and bacstory generated script details have been sent to <span className="font-semibold text-neutral-600">{formData.contactEmail}</span>.
+                            A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{formData.contactEmail || formData.deliveryEmail}</span>.
                         </p>
 
                         <Link
