@@ -409,7 +409,6 @@ export default function CheckoutPage() {
                 currency: orderData.currency || "INR",
                 name: "BACSTORY",
                 description: `Checkout Order ${localOrderId}`,
-                image: "/images/logo-dark.svg",
                 order_id: orderData.order_id,
                 prefill: {
                     name: `${formData.firstName} ${formData.lastName}`.trim(),
