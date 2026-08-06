@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "@/lib/api";
-import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
 
 /**
  * Service functions for Product data operations.
@@ -8,10 +7,10 @@ import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
 // Helper to map DB product doc to frontend product model
 export const mapProductItem = (item) => {
     const colorsList = (item.colors || []).map(c => ({
-        name: c.color?.name || "Default",
+        name: c.color?.name || "",
         hex: c.color?.hexCode || "#CCCCCC"
     }));
-    const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+    const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || [];
     const mainImg = item.colors?.[0]?.images?.[0] || "";
     const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
 
@@ -25,9 +24,9 @@ export const mapProductItem = (item) => {
         hoverImage: hoverImg,
         sizes: sizesList,
         colors: colorsList,
-        tag: item.subCategory?.name || item.category?.Name || "Product",
-        rating: "4.7",
-        reviewsCount: 63,
+        tag: item.subCategory?.name || item.category?.Name || "",
+        rating: item.rating || "",
+        reviewsCount: item.reviewsCount || (item.reviews ? item.reviews.length : 0),
         categoryId: item.category?._id || "",
         categorySlug: item.category?.slug || "",
         categoryName: item.category?.Name || "",
@@ -49,10 +48,10 @@ export async function getProducts() {
         if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
             return data.data.map(mapProductItem);
         }
-        return defaultProducts;
+        return [];
     } catch (err) {
-        console.error("Error fetching products, using fallback data:", err);
-        return defaultProducts;
+        console.error("Error fetching products:", err);
+        return [];
     }
 }
 
@@ -64,10 +63,10 @@ export async function getFeaturedProducts() {
         if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
             return data.data.map(mapProductItem);
         }
-        return defaultProducts;
+        return [];
     } catch (err) {
-        console.error("Error fetching featured products, using fallback data:", err);
-        return defaultProducts;
+        console.error("Error fetching featured products:", err);
+        return [];
     }
 }
 
@@ -84,28 +83,28 @@ export async function getProductByIdOrSlug(idOrSlug) {
                 price: `Rs ${dbProd.price}`,
                 priceNum: Number(dbProd.price),
                 image: dbProd.colors?.[0]?.images?.[0] || "",
-                tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
-                rating: dbProd.rating || "4.7",
-                reviewsCount: dbProd.reviewsCount || 63,
+                tag: dbProd.subCategory?.name || dbProd.category?.Name || "",
+                rating: dbProd.rating || "",
+                reviewsCount: dbProd.reviewsCount || (dbProd.reviews ? dbProd.reviews.length : 0),
                 description: dbProd.description || "",
                 details: {
-                    material: dbProd.material || "100% Cotton",
-                    fit: dbProd.fit || "Standard Fit",
-                    weight: dbProd.weight || "240 GSM",
-                    care: dbProd.care || "Machine wash cold"
+                    material: dbProd.material || "",
+                    fit: dbProd.fit || "",
+                    weight: dbProd.weight || "",
+                    care: dbProd.care || ""
                 },
                 colors: (dbProd.colors || []).map(c => ({
-                    name: c.color?.name || "Default",
+                    name: c.color?.name || "",
                     hex: c.color?.hexCode || "#CCCCCC",
                     images: c.images || []
                 })),
-                sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
+                sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || [],
                 faqs: dbProd.faqs || []
             };
         }
-        return getFallbackProduct(idOrSlug);
+        return null;
     } catch (err) {
-        console.error("Error fetching product detail, using fallback product:", err);
-        return getFallbackProduct(idOrSlug);
+        console.error("Error fetching product detail:", err);
+        return null;
     }
 }

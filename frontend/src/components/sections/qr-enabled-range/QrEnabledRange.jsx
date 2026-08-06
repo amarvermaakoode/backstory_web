@@ -5,29 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
-const defaultCategories = [
-    {
-        _id: "t-shirts",
-        Name: "T-Shirts",
-        image: "/images/landing-page/first.png",
-    },
-    {
-        _id: "hoodies",
-        Name: "Hoodies",
-        image: "/images/landing-page/second.png",
-    },
-    {
-        _id: "accessories",
-        Name: "Accessories",
-        image: "/images/landing-page/third.png",
-    },
-    {
-        _id: "more",
-        Name: "More...",
-        image: "/images/landing-page/pants.png",
-    },
-];
-
 export default function QrEnabledRange() {
     const [categories, setCategories] = useState([]);
 
@@ -37,8 +14,6 @@ export default function QrEnabledRange() {
                 const res = await fetch(`${API_BASE_URL}/frontend/categories`);
                 const data = await res.json();
                 if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
-                    // If there are less than 4 categories but we need a 4th on mobile,
-                    // we can pad with "More..." fallback
                     let fetchedList = [...data.data];
                     if (fetchedList.length === 3) {
                         fetchedList.push({
@@ -49,11 +24,11 @@ export default function QrEnabledRange() {
                     }
                     setCategories(fetchedList);
                 } else {
-                    setCategories(defaultCategories);
+                    setCategories([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch landing categories:", err);
-                setCategories(defaultCategories);
+                setCategories([]);
             }
         };
 

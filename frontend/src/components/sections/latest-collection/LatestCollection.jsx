@@ -6,42 +6,6 @@ import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL } from "@/lib/api";
 
-const defaultProducts = [
-    {
-        id: "built-in-public",
-        name: "Built in Public",
-        price: "Rs 1200",
-        priceNum: 1200,
-        image: "/images/landing-page/featured11.png",
-        hoverImage: "/images/person-image-1-removebg-preview.png",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "T-Shirt"
-    },
-    {
-        id: "life-through-my-lenses",
-        name: "Life Through My Lenses",
-        price: "Rs 1100",
-        priceNum: 1100,
-        image: "/images/landing-page/featured2.png",
-        hoverImage: "/images/person-image-2-removebg-preview.png",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "T-Shirt"
-    },
-    {
-        id: "lost-on-purpose",
-        name: "Lost on Purpose",
-        price: "Rs 1100",
-        priceNum: 1100,
-        image: "/images/landing-page/featured3.png",
-        hoverImage: "/images/person-image-3-removebg-preview.png",
-        sizes: ["S", "M", "L"],
-        colors: [{ name: "Default", hex: "#CCCCCC" }],
-        tag: "T-Shirt"
-    },
-];
-
 export default function Collections() {
     const [products, setProducts] = useState([]);
 
@@ -84,11 +48,11 @@ export default function Collections() {
                     });
                     setProducts(mapped);
                 } else {
-                    setProducts(defaultProducts);
+                    setProducts([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch landing products:", err);
-                setProducts(defaultProducts);
+                setProducts([]);
             }
         };
 

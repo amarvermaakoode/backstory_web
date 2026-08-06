@@ -5,29 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
-const defaultTribes = [
-    {
-        _id: "coders",
-        name: "Coders",
-        image: "/images/landing-page/tribe1.png",
-    },
-    {
-        _id: "bikers",
-        name: "Bikers",
-        image: "/images/landing-page/tribe2.png",
-    },
-    {
-        _id: "nomad",
-        name: "Nomad",
-        image: "/images/landing-page/tribe3.png",
-    },
-    {
-        _id: "techies",
-        name: "Techies",
-        image: "/images/landing-page/tribe4.png",
-    },
-];
-
 export default function ShopByTribe() {
     const [subCategories, setSubCategories] = useState([]);
 
@@ -39,18 +16,18 @@ export default function ShopByTribe() {
                 if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
                     setSubCategories(data.data);
                 } else {
-                    setSubCategories(defaultTribes);
+                    setSubCategories([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch landing subcategories/tribes:", err);
-                setSubCategories(defaultTribes);
+                setSubCategories([]);
             }
         };
 
         fetchSubCategories();
     }, []);
 
-    const activeTribes = subCategories.length > 0 ? subCategories : defaultTribes;
+    const activeTribes = subCategories;
 
     return (
         <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] text-black overflow-hidden">

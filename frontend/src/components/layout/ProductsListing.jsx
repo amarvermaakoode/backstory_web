@@ -10,7 +10,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { API_BASE_URL } from "@/lib/api";
-import { defaultProducts, defaultCategories, defaultTribes, defaultCollections } from "@/lib/mockData";
 
 export default function ProductsListing({
     categorySlug, 
@@ -27,10 +26,10 @@ export default function ProductsListing({
     const isSubCategoryPage = !!subCategorySlug;
 
     // Page, filter, and sort states
-    const [products, setProducts] = useState(defaultProducts);
-    const [categories, setCategories] = useState(defaultCategories);
-    const [collectionsList, setCollectionsList] = useState(defaultCollections);
-    const [subCategoriesList, setSubCategoriesList] = useState(defaultTribes);
+    const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [collectionsList, setCollectionsList] = useState([]);
+    const [subCategoriesList, setSubCategoriesList] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState("ALL");
     const [selectedCollection, setSelectedCollection] = useState("ALL");
     const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
@@ -100,7 +99,7 @@ export default function ProductsListing({
                 if (catData && catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
                     setCategories(catData.data);
                 } else {
-                    setCategories(defaultCategories);
+                    setCategories([]);
                 }
 
                 // Fetch collections
@@ -109,7 +108,7 @@ export default function ProductsListing({
                 if (colData && colData.success && Array.isArray(colData.data) && colData.data.length > 0) {
                     setCollectionsList(colData.data);
                 } else {
-                    setCollectionsList(defaultCollections);
+                    setCollectionsList([]);
                 }
 
                 // Fetch subcategories
@@ -118,7 +117,7 @@ export default function ProductsListing({
                 if (subData && subData.success && Array.isArray(subData.data) && subData.data.length > 0) {
                     setSubCategoriesList(subData.data);
                 } else {
-                    setSubCategoriesList(defaultTribes);
+                    setSubCategoriesList([]);
                 }
 
                 // Fetch products
@@ -160,13 +159,14 @@ export default function ProductsListing({
                     });
                     setProducts(mapped);
                 } else {
-                    setProducts(defaultProducts);
+                    setProducts([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch products or catalogs:", err);
-                setProducts(defaultProducts);
-                setCategories(defaultCategories);
-                setCollectionsList(defaultCollections);
+                setProducts([]);
+                setCategories([]);
+                setCollectionsList([]);
+                setSubCategoriesList([]);
             } finally {
                 setLoading(false);
             }

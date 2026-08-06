@@ -12,7 +12,6 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import ProductCard from "@/components/ui/ProductCard";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
-import { defaultProducts, getFallbackProduct } from "@/lib/mockData";
 import { getStockForSizeAndColor } from "@/lib/stock";
 
 const renderStars = (rating, sizeClass = "w-4 h-4") => {
@@ -43,31 +42,6 @@ const renderStars = (rating, sizeClass = "w-4 h-4") => {
     );
 };
 
-const fallbackReviews = [
-    {
-        author: "Arjun M.",
-        rating: 5,
-        date: "June 2026",
-        images: [
-            "/images/landing-page/review1.png",
-            "/images/landing-page/review2.png"
-        ],
-        text: "This tee is everything. The graphic is insane quality and the weight of the fabric feels premium. Already ordered two more. Can't wait."
-    },
-    {
-        author: "Priya S.",
-        rating: 4,
-        date: "June 2026",
-        text: "Great oversized fit and the wash gives it that lived-in texture. Runs slightly large, which I actually love. Wash care instructions are spot on."
-    },
-    {
-        author: "Kabir R.",
-        rating: 4,
-        date: "June 2026",
-        text: "The Biker Series concept is brilliant. This isn't just a t-shirt — it's a piece of art that starts conversations. Will definitely be back for more."
-    }
-];
-
 // Map a backend product document to the detail-page view model.
 const mapProductDetail = (dbProd) => ({
     id: dbProd._id,
@@ -75,23 +49,23 @@ const mapProductDetail = (dbProd) => ({
     price: `Rs ${dbProd.price}`,
     priceNum: Number(dbProd.price),
     image: dbProd.colors?.[0]?.images?.[0] || "",
-    tag: dbProd.subCategory?.name || dbProd.category?.Name || "Product",
-    rating: dbProd.rating || "4.7",
-    reviewsCount: dbProd.reviewsCount || 63,
+    tag: dbProd.subCategory?.name || dbProd.category?.Name || "",
+    rating: dbProd.rating || "",
+    reviewsCount: dbProd.reviewsCount || (dbProd.reviews ? dbProd.reviews.length : 0),
     description: dbProd.description || "",
     details: {
-        material: dbProd.material || "100% Cotton",
-        fit: dbProd.fit || "Standard Fit",
-        weight: dbProd.weight || "240 GSM",
-        care: dbProd.care || "Machine wash cold"
+        material: dbProd.material || "",
+        fit: dbProd.fit || "",
+        weight: dbProd.weight || "",
+        care: dbProd.care || ""
     },
     colors: (dbProd.colors || []).map(c => ({
-        name: c.color?.name || "Default",
+        name: c.color?.name || "",
         hex: c.color?.hexCode || "#CCCCCC",
         images: c.images || []
     })),
-    sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"],
-    reviews: dbProd.reviews && dbProd.reviews.length > 0 ? dbProd.reviews : fallbackReviews,
+    sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || [],
+    reviews: dbProd.reviews || [],
     faqs: dbProd.faqs || [],
     variantStock: dbProd.variantStock || {}
 });
@@ -99,10 +73,10 @@ const mapProductDetail = (dbProd) => ({
 // Map a backend product document to the "related product" card view model.
 const mapRelatedProduct = (item) => {
     const colorsList = (item.colors || []).map(c => ({
-        name: c.color?.name || "Default",
+        name: c.color?.name || "",
         hex: c.color?.hexCode || "#CCCCCC"
     }));
-    const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
+    const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || [];
     const mainImg = item.colors?.[0]?.images?.[0] || "";
     const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
 
@@ -115,7 +89,7 @@ const mapRelatedProduct = (item) => {
         hoverImage: hoverImg,
         sizes: sizesList,
         colors: colorsList,
-        tag: item.subCategory?.name || item.category?.Name || "Product",
+        tag: item.subCategory?.name || item.category?.Name || "",
         link: `/products/${item.slug || item._id}`,
         variantStock: item.variantStock || {}
     };
@@ -150,12 +124,39 @@ export default function ProductDetailPage({ params }) {
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewText, setReviewText] = useState("");
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [hasPurchased, setHasPurchased] = useState(false);
 
     useEffect(() => {
         if (user && !reviewAuthor) {
             setReviewAuthor(user.name || "");
         }
     }, [user]);
+
+    useEffect(() => {
+        const checkPurchaseStatus = async () => {
+            if (!user || !product?.id) {
+                setHasPurchased(false);
+                return;
+            }
+            try {
+                const token = localStorage.getItem("userToken");
+                const res = await fetch(`${API_BASE_URL}/frontend/products/${product.id}/check-purchase`, {
+                    headers: {
+                        ...(token && { "Authorization": `Bearer ${token}` }),
+                    }
+                });
+                const json = await res.json();
+                if (json.success && json.hasPurchased) {
+                    setHasPurchased(true);
+                } else {
+                    setHasPurchased(false);
+                }
+            } catch (err) {
+                setHasPurchased(false);
+            }
+        };
+        checkPurchaseStatus();
+    }, [user, product?.id]);
 
     const isFavorite = isInWishlist(product?.id || "");
 
@@ -238,29 +239,13 @@ export default function ProductDetailPage({ params }) {
                     // Fetch related
                     fetchRelated(dbProd._id, dbProd.subCategory?._id, dbProd.category?._id);
                 } else {
-                    useFallback();
+                    setError("Product not found");
                 }
             } catch (err) {
                 console.error("Error fetching product:", err);
-                useFallback();
+                setError("Product not found");
             } finally {
                 setLoading(false);
-            }
-        };
-
-        const useFallback = () => {
-            const fb = getFallbackProduct(id);
-            if (fb) {
-                setProduct(fb);
-                if (fb.colors && fb.colors.length > 0) {
-                    setSelectedColor(fb.colors[0]);
-                }
-                if (fb.sizes && fb.sizes.length > 0) {
-                    setSelectedSize(fb.sizes[0]);
-                }
-                setRelatedProducts(defaultProducts.filter(p => p.id !== fb.id));
-            } else {
-                setError("Product not found");
             }
         };
 
@@ -531,11 +516,17 @@ export default function ProductDetailPage({ params }) {
                                 </div>
 
                                 {/* Star Rating Review summary */}
-                                <div className="flex items-center gap-1.5 pt-1">
-                                    {renderStars(product.rating)}
-                                    <span className="text-xs md:text-[1vw] font-semibold text-black">{product.rating}</span>
-                                    <span className="text-xs md:text-[1vw] font-normal text-black">({product.reviewsCount})</span>
-                                </div>
+                                {product.reviewsCount > 0 ? (
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                        {renderStars(product.rating)}
+                                        <span className="text-xs md:text-[1vw] font-semibold text-black">{product.rating}</span>
+                                        <span className="text-xs md:text-[1vw] font-normal text-black">({product.reviewsCount})</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 font-medium">
+                                        <span>No reviews yet</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Price */}
@@ -602,13 +593,12 @@ export default function ProductDetailPage({ params }) {
                                                                 setSelectedSize(size);
                                                                 setQuantity(1);
                                                             }}
-                                                            className={`min-w-[48px] h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 relative ${
-                                                                isSizeOutOfStock
+                                                            className={`min-w-[48px] h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 relative ${isSizeOutOfStock
                                                                     ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-not-allowed"
                                                                     : isSelected
-                                                                    ? "bg-black border-black text-white shadow-xs cursor-pointer"
-                                                                    : "border-neutral-200 text-black hover:border-black bg-white cursor-pointer"
-                                                            }`}
+                                                                        ? "bg-black border-black text-white shadow-xs cursor-pointer"
+                                                                        : "border-neutral-200 text-black hover:border-black bg-white cursor-pointer"
+                                                                }`}
                                                         >
                                                             <span>{size}</span>
                                                             {isLowStock && !isSelected && (
@@ -634,11 +624,10 @@ export default function ProductDetailPage({ params }) {
                                                                 setSelectedColor(color);
                                                                 setQuantity(1);
                                                             }}
-                                                            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
-                                                                selectedColor.name === color.name
+                                                            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${selectedColor.name === color.name
                                                                     ? "border-black ring-2 ring-offset-1 ring-black"
                                                                     : "border-transparent"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             <span
                                                                 className="w-6 h-6 rounded-full border border-black/10"
@@ -686,11 +675,10 @@ export default function ProductDetailPage({ params }) {
                                                     if (isDetailOutOfStock) return;
                                                     addToCart(product, quantity, selectedSize, selectedColor);
                                                 }}
-                                                className={`flex-1 h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${
-                                                    isDetailOutOfStock
+                                                className={`flex-1 h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${isDetailOutOfStock
                                                         ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
                                                         : "bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] cursor-pointer"
-                                                }`}
+                                                    }`}
                                             >
                                                 {isDetailOutOfStock ? "Out of Stock" : "Add to Cart"}
                                             </button>
@@ -707,11 +695,10 @@ export default function ProductDetailPage({ params }) {
                                                 if (isDetailOutOfStock) return;
                                                 addToCart(product, quantity, selectedSize, selectedColor);
                                             }}
-                                            className={`w-full h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${
-                                                isDetailOutOfStock
+                                            className={`w-full h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${isDetailOutOfStock
                                                     ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
                                                     : "bg-black text-white hover:bg-neutral-800 cursor-pointer"
-                                            }`}
+                                                }`}
                                         >
                                             {isDetailOutOfStock ? "Out of Stock" : "Buy Now"}
                                         </button>
@@ -754,114 +741,149 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Reviews Section */}
                     <section className="mt-20 md:mt-28 pt-10 border-t border-neutral-200">
-                        <h2 className="heading-sub text-black">
-                            Reviews
-                        </h2>
+                        <div className="flex items-center justify-between">
+                            <h2 className="heading-sub text-black">
+                                Reviews
+                            </h2>
+                            {product.reviews && product.reviews.length > 0 && hasPurchased && (
+                                <button
+                                    onClick={() => setIsReviewModalOpen(true)}
+                                    className="px-5 py-2 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold cursor-pointer"
+                                >
+                                    Write a Review
+                                </button>
+                            )}
+                        </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 mt-8">
-                            {/* Left: Overall summary */}
-                            <div className="lg:col-span-4 flex flex-col space-y-4">
-                                <div className="space-y-1">
-                                    <p className="font-clashDisplay text-5xl md:text-6xl font-bold text-black leading-none">
-                                        {product.rating}
-                                    </p>
-                                    <div className="flex text-[#FFB800] pt-1">
-                                        {renderStars(product.rating)}
+                        {product.reviews && product.reviews.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 mt-8">
+                                    {/* Left: Overall summary */}
+                                    <div className="lg:col-span-4 flex flex-col space-y-4">
+                                        <div className="space-y-1">
+                                            <p className="font-clashDisplay text-5xl md:text-6xl font-bold text-black leading-none">
+                                                {product.rating}
+                                            </p>
+                                            <div className="flex text-[#FFB800] pt-1">
+                                                {renderStars(product.rating)}
+                                            </div>
+                                            <p className="text-xs md:text-sm text-neutral-400 mt-1">
+                                                Based on {product.reviewsCount} reviews
+                                            </p>
+                                        </div>
+
+                                        {/* Progress Bars */}
+                                        <div className="space-y-2 pt-2 max-w-[280px]">
+                                            {(() => {
+                                                const revs = product.reviews || [];
+                                                const totalRevs = revs.length;
+                                                const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                                                revs.forEach(r => {
+                                                    const val = Math.round(Number(r.rating));
+                                                    if (counts[val] !== undefined) counts[val]++;
+                                                });
+                                                return [5, 4, 3, 2, 1].map(stars => {
+                                                    const count = counts[stars];
+                                                    const percentage = totalRevs > 0 ? (count / totalRevs) * 100 : 0;
+                                                    return (
+                                                        <div key={stars} className="flex items-center gap-3 text-xs">
+                                                            <span className="w-3 text-neutral-500 font-semibold">{stars}</span>
+                                                            <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-[#DFD7CC] rounded-full" style={{ width: `${percentage}%` }} />
+                                                            </div>
+                                                            <span className="w-6 text-right text-neutral-400">{count}</span>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
                                     </div>
-                                    <p className="text-xs md:text-sm text-neutral-400 mt-1">
-                                        Based on {product.reviewsCount} reviews
-                                    </p>
-                                </div>
 
-                                {/* Progress Bars */}
-                                <div className="space-y-2 pt-2 max-w-[280px]">
-                                    {(() => {
-                                        const revs = product.reviews || [];
-                                        const totalRevs = revs.length;
-                                        const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-                                        revs.forEach(r => {
-                                            const val = Math.round(Number(r.rating));
-                                            if (counts[val] !== undefined) counts[val]++;
-                                        });
-                                        return [5, 4, 3, 2, 1].map(stars => {
-                                            const count = counts[stars];
-                                            const percentage = totalRevs > 0 ? (count / totalRevs) * 100 : 0;
-                                            return (
-                                                <div key={stars} className="flex items-center gap-3 text-xs">
-                                                    <span className="w-3 text-neutral-500 font-semibold">{stars}</span>
-                                                    <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-[#DFD7CC] rounded-full" style={{ width: `${percentage}%` }} />
+                                    {/* Right: Individual review posts */}
+                                    <div className="lg:col-span-8 flex flex-col divide-y divide-neutral-100">
+                                        {product.reviews.map((rev, index) => (
+                                            <div key={index} className="py-6 first:pt-0 last:pb-0 space-y-2.5">
+                                                <div className="flex items-center justify-between text-xs md:text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-black">{rev.author}</span>
                                                     </div>
-                                                    <span className="w-6 text-right text-neutral-400">{count}</span>
+                                                    <span className="text-neutral-400">{rev.date}</span>
                                                 </div>
-                                            );
-                                        });
-                                    })()}
-                                </div>
-                            </div>
-
-                            {/* Right: Individual review posts */}
-                            <div className="lg:col-span-8 flex flex-col divide-y divide-neutral-100">
-                                {product.reviews.map((rev, index) => (
-                                    <div key={index} className="py-6 first:pt-0 last:pb-0 space-y-2.5">
-                                        <div className="flex items-center justify-between text-xs md:text-sm">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-black">{rev.author}</span>
-
-                                            </div>
-                                            <span className="text-neutral-400">{rev.date}</span>
-                                        </div>
-                                        <div className="flex flex-row gap-2">
-                                            <div className="flex text-[#FFB800] space-x-0.5 ">
-                                                {Array.from({ length: 5 }).map((_, i) => (
-                                                    <Star
-                                                        key={i}
-                                                        className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
-                                                            }`}
-                                                    />
-                                                ))}
-
-                                            </div>
-                                            <span className="text-[10px] md:text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
-                                                Verified Purchase
-                                            </span>
-                                        </div>
-                                        {rev.images && rev.images.length > 0 && (
-                                            <div className="flex gap-2.5 pt-1.5 pb-1">
-                                                {rev.images.map((imgUrl, imgIdx) => (
-                                                    <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-neutral-50 border border-neutral-200 cursor-pointer transition-transform duration-200 hover:scale-105">
-                                                        <Image
-                                                            src={imgUrl}
-                                                            alt={`Review attachment ${imgIdx + 1}`}
-                                                            fill
-                                                            sizes="80px"
-                                                            className="object-cover select-none"
-                                                        />
+                                                <div className="flex flex-row gap-2">
+                                                    <div className="flex text-[#FFB800] space-x-0.5 ">
+                                                        {Array.from({ length: 5 }).map((_, i) => (
+                                                            <Star
+                                                                key={i}
+                                                                className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
+                                                                    }`}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                ))}
+                                                    <span className="text-[10px] md:text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
+                                                        Verified Purchase
+                                                    </span>
+                                                </div>
+                                                {rev.images && rev.images.length > 0 && (
+                                                    <div className="flex gap-2.5 pt-1.5 pb-1">
+                                                        {rev.images.map((imgUrl, imgIdx) => (
+                                                            <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-neutral-50 border border-neutral-200 cursor-pointer transition-transform duration-200 hover:scale-105">
+                                                                <Image
+                                                                    src={imgUrl}
+                                                                    alt={`Review attachment ${imgIdx + 1}`}
+                                                                    fill
+                                                                    sizes="80px"
+                                                                    className="object-cover select-none"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <p className="text-sm md:text-base font-normal text-neutral-600 leading-snug font-sans pt-1">
+                                                    {rev.text}
+                                                </p>
                                             </div>
-                                        )}
-                                        <p className="text-sm md:text-base font-normal text-neutral-600 leading-snug font-sans pt-1">
-                                            {rev.text}
-                                        </p>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                        </div>
+                                </div>
 
-                        {/* Bottom Row */}
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 bg-neutral-50 rounded-2xl p-6 border border-neutral-100">
-                            <div>
-                                <h4 className="font-clashDisplay text-lg font-semibold text-black">Bought this piece?</h4>
-                                <p className="text-sm text-neutral-500 mt-0.5">Share your story with the community.</p>
+                                {/* Bottom Row */}
+                                {hasPurchased && (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 bg-neutral-50 rounded-2xl p-6 border border-neutral-100">
+                                        <div>
+                                            <h4 className="font-clashDisplay text-lg font-semibold text-black">Bought this piece?</h4>
+                                            <p className="text-sm text-neutral-500 mt-0.5">Share your story with the community.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsReviewModalOpen(true)}
+                                            className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white"
+                                        >
+                                            Write a Review
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            /* Empty State UI matching Wishlist/Cart */
+                            <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center bg-[#FAF9F6] rounded-3xl border border-neutral-200/60 mt-8 px-6">
+                                <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400 mb-4">
+                                    <Star className="w-7 h-7 stroke-[1.25]" />
+                                </div>
+                                <h3 className="font-sans text-lg sm:text-xl font-bold text-black">No reviews yet</h3>
+                                <p className="text-xs sm:text-sm text-neutral-400 max-w-[320px] mt-2 leading-relaxed">
+                                    {hasPurchased
+                                        ? "Be the first to share your experience and review this piece."
+                                        : ""}
+                                </p>
+                                {hasPurchased && (
+                                    <button
+                                        onClick={() => setIsReviewModalOpen(true)}
+                                        className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs sm:text-sm font-semibold cursor-pointer"
+                                    >
+                                        Write a Review
+                                    </button>
+                                )}
                             </div>
-                            <button
-                                onClick={() => setIsReviewModalOpen(true)}
-                                className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white"
-                            >
-                                Write a Review
-                            </button>
-                        </div>
+                        )}
                     </section>
 
                     {/* Recommendation Grid ("You might also like") */}

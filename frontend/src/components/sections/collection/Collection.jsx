@@ -6,19 +6,6 @@ import Link from "next/link";
 import ExploreButton from "@/components/ui/ExploreButton";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
-const defaultCollections = [
-    {
-        _id: "ai-and-tech",
-        Name: "AI and Tech Collection",
-        image: "/images/landing-page/ai-and-tech1.png",
-    },
-    {
-        _id: "wonderlust",
-        Name: "Wanderlust Collection",
-        image: "/images/landing-page/wonderlust1.png",
-    },
-];
-
 export default function QrEnabledRange() {
     const [collections, setCollections] = useState([]);
 
@@ -30,18 +17,18 @@ export default function QrEnabledRange() {
                 if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
                     setCollections(data.data);
                 } else {
-                    setCollections(defaultCollections);
+                    setCollections([]);
                 }
             } catch (err) {
                 console.error("Failed to fetch landing collections:", err);
-                setCollections(defaultCollections);
+                setCollections([]);
             }
         };
 
         fetchCollections();
     }, []);
 
-    const activeCollections = collections.length > 0 ? collections : defaultCollections;
+    const activeCollections = collections;
 
     return (
         <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 overflow-hidden">

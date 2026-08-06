@@ -1,5 +1,4 @@
 import { API_BASE_URL } from "@/lib/api";
-import { defaultCategories, defaultTribes, defaultCollections } from "@/lib/mockData";
 
 /**
  * Service functions for Categories, Sub-categories (Tribes), and Collections.
@@ -20,10 +19,10 @@ export async function getCategories() {
             }
             return fetchedList;
         }
-        return defaultCategories;
+        return [];
     } catch (err) {
-        console.error("Error fetching categories, using fallback:", err);
-        return defaultCategories;
+        console.error("Error fetching categories:", err);
+        return [];
     }
 }
 
@@ -34,10 +33,10 @@ export async function getSubCategories() {
         if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
             return data.data;
         }
-        return defaultTribes;
+        return [];
     } catch (err) {
-        console.error("Error fetching sub-categories, using fallback:", err);
-        return defaultTribes;
+        console.error("Error fetching sub-categories:", err);
+        return [];
     }
 }
 
@@ -48,9 +47,9 @@ export async function getCollections() {
         if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
             return data.data;
         }
-        return defaultCollections;
+        return [];
     } catch (err) {
-        console.error("Error fetching collections, using fallback:", err);
-        return defaultCollections;
+        console.error("Error fetching collections:", err);
+        return [];
     }
 }
