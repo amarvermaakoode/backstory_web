@@ -51,7 +51,20 @@ const orderSchema = new mongoose.Schema(
         priceNum: { type: Number, required: true },
         quantity: { type: Number, required: true, default: 1 },
         image: { type: String, default: "" },
-        orderStatus: { type: String, default: "Processing" },
+        orderStatus: {
+          type: String,
+          enum: [
+            "Order Confirmed",
+            "Ready to Pack & Ship",
+            "Dispatched & In Transit",
+            "Out for Delivery",
+            "Delivered",
+            "Cancelled",
+            "Returned",
+            "Processing"
+          ],
+          default: "Order Confirmed",
+        },
         paymentStatus: { type: String, default: "Confirmed" },
         deliveryDate: { type: String, default: "Estimated Delivery: 3-5 Business Days" },
       },
@@ -68,8 +81,17 @@ const orderSchema = new mongoose.Schema(
     },
     orderStatus: {
       type: String,
-      enum: ["Processing", "Dispatched", "In Transit", "Out for Delivery", "Delivered", "Cancelled", "Returned"],
-      default: "Processing",
+      enum: [
+        "Order Confirmed",
+        "Ready to Pack & Ship",
+        "Dispatched & In Transit",
+        "Out for Delivery",
+        "Delivered",
+        "Cancelled",
+        "Returned",
+        "Processing"
+      ],
+      default: "Order Confirmed",
     },
   },
   {
