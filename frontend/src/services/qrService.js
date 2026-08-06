@@ -21,13 +21,13 @@ export async function getQRCodeByCode(code) {
   }
 }
 
-// Step 1: Send OTP to Email for claiming QR Code with Order ID
-export async function sendClaimOTP(code, orderId, email) {
+// Step 1: Send OTP to Email or Mobile Number for claiming QR Code with Order ID
+export async function sendClaimOTP(code, orderId, identifier) {
   try {
     const res = await fetch(`${API_BASE_URL}/frontend/qr/send-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, orderId, email }),
+      body: JSON.stringify({ code, orderId, identifier, email: identifier }),
     });
     const data = await res.json();
     return data;
@@ -41,12 +41,12 @@ export async function sendClaimOTP(code, orderId, email) {
 }
 
 // Step 2: Verify OTP & Claim QR Code (Links to User Account and logs user in)
-export async function verifyClaimOTP(code, orderId, email, otp) {
+export async function verifyClaimOTP(code, orderId, identifier, otp) {
   try {
     const res = await fetch(`${API_BASE_URL}/frontend/qr/verify-claim-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, orderId, email, otp }),
+      body: JSON.stringify({ code, orderId, identifier, email: identifier, otp }),
     });
     const data = await res.json();
     return data;

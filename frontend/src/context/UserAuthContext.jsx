@@ -20,6 +20,8 @@ export function UserAuthProvider({ children }) {
   const clearAuth = () => {
     localStorage.removeItem("userToken");
     localStorage.removeItem("userData");
+    localStorage.removeItem("userOrders");
+    localStorage.removeItem("savedShippingAddress");
   };
 
   const clearSession = () => {
@@ -28,13 +30,30 @@ export function UserAuthProvider({ children }) {
     clearAuth();
   };
 
+  const refreshUser = async (authToken) => {
+    const activeToken = authToken || token || (typeof window !== "undefined" ? localStorage.getItem("userToken") : null);
+    if (!activeToken) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/frontend/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
+        setUser(data.user);
+        saveAuth(activeToken, data.user);
+      }
+    } catch (err) {
+      console.error("Error refreshing user profile:", err);
+    }
+  };
+
   useEffect(() => {
     const storedToken = localStorage.getItem("userToken");
     const storedUser = localStorage.getItem("userData");
 
-    if (storedToken) {
-      setToken(storedToken);
-    }
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -43,7 +62,13 @@ export function UserAuthProvider({ children }) {
         clearAuth();
       }
     }
-    setLoading(false);
+
+    if (storedToken) {
+      setToken(storedToken);
+      refreshUser(storedToken).finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const sendOtp = async ({ email, phoneNumber }) => {
@@ -134,6 +159,7 @@ export function UserAuthProvider({ children }) {
         verifyOtp,
         logout,
         userFetch,
+        refreshUser,
       }}
     >
       {children}
