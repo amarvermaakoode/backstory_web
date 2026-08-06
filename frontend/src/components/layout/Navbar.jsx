@@ -216,7 +216,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
             {isMobileMenuOpen && (
                 <div className={`md:hidden fixed inset-x-0 top-17 border-b z-40 animate-fade-in ${light
                     ? "bg-white/95 backdrop-blur-lg border-neutral-200"
-                    : "bg-[#030303]/95 backdrop-blur-lg border-neutral-900"
+                    : "bg-[#030303] backdrop-blur-lg border-neutral-900"
                     }`}>
                     <nav className="flex flex-col p-6 space-y-4 text-center font-clashDisplay text-lg font-medium">
                         <Link
@@ -296,7 +296,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             <Link
                                 href="/login"
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className={`transition-colors py-2 border-t border-neutral-200/40 text-sm font-bold ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
+                                className={`transition-colors pt-5 pb-0 border-t border-neutral-200/40 text-sm font-bold ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
                             >
                                 Login / Sign Up
                             </Link>

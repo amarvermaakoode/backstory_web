@@ -181,36 +181,52 @@ export default function LoginPage() {
     >
       <Navbar solid={true} light={true} />
 
-      <main className="relative flex-grow pt-17 flex flex-col">
+      <main className="relative flex-grow pt-20 sm:pt-24 lg:pt-17 flex flex-col justify-center min-h-[calc(100vh-4.25rem)]">
 
-        {/* Background Slideshow (Fills entire screen below navbar) */}
+        {/* Background (Fills entire screen below navbar) */}
         <div
-          className="absolute inset-0 w-full h-[100vh]  select-none z-0 transition-colors duration-1000 ease-in-out"
+          className="absolute inset-0 w-full h-full select-none z-0 transition-colors duration-1000 ease-in-out overflow-hidden"
           style={{ backgroundColor: currentBgColor }}
         >
-          {slideshowImages.map((src, index) => (
-            <div
-              key={src}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === slideshowIndex ? "opacity-100" : "opacity-0"
-                }`}
-            >
-              <Image
-                src={src}
-                alt={`Narrative storytelling login display ${index + 1}`}
-                fill
-                priority={index === 0}
-                unoptimized
-                className="object-contain lg:object-right object-center select-none"
-              />
-            </div>
-          ))}
+          {/* Mobile Background Image (Small Screens Only) */}
+          <div className="block lg:hidden absolute inset-0">
+            <Image
+              src="/images/login/login-phone.png"
+              alt="Login background"
+              fill
+              priority
+              unoptimized
+              className="object-cover object-right select-none"
+            />
+          </div>
+
+          {/* Desktop Slideshow (Desktop Screens Only) */}
+          <div className="hidden lg:block absolute inset-0">
+            {slideshowImages.map((src, index) => (
+              <div
+                key={src}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === slideshowIndex ? "opacity-100" : "opacity-0"
+                  }`}
+              >
+                <Image
+                  src={src}
+                  alt={`Narrative storytelling login display ${index + 1}`}
+                  fill
+                  priority={index === 0}
+                  unoptimized
+                  className="object-contain object-right select-none"
+                />
+              </div>
+            ))}
+          </div>
+
           {/* Soft tint overlay */}
           <div className="absolute inset-0 bg-black/5 pointer-events-none" />
         </div>
 
         {/* Content Layer (Overlaid above the background slideshow) */}
-        <div className="relative z-10 flex-grow w-full flex items-center justify-center lg:justify-start px-6 sm:px-12 lg:pl-[8%] py-12 md:py-16">
-          <div className="w-full max-w-[460px] bg-white border border-neutral-200/30 p-8 sm:p-10 rounded-[32px] shadow-2xl relative min-h-[460px] flex flex-col justify-between">
+        <div className="relative z-10 flex-grow w-full flex items-center justify-center lg:justify-start px-4 sm:px-8 lg:pl-[8%] py-6 sm:py-10 lg:py-16">
+          <div className="w-full max-w-[460px] bg-white border border-neutral-200/30 p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-[32px] shadow-2xl relative min-h-[420px] sm:min-h-[460px] flex flex-col justify-between my-auto">
 
             {authSuccess ? (
               /* Success State Overlay */

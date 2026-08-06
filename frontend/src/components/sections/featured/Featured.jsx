@@ -59,10 +59,10 @@ export default function FeaturedProducts() {
     }, []);
 
     return (
-        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 px-6 sm:px-10 md:px-16 lg:px-[4%] text-black">
+        <section className="w-full bg-[#FFFFFF] py-10 md:py-16 md:px-16 lg:px-[4%] text-black overflow-hidden">
             <div className="mx-auto max-w-[1600px] space-y-8">
                 {/* Header Section */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between px-6 sm:px-10 md:px-0">
                     <h2 className="heading-section">
                         Featured Products
                     </h2>
@@ -72,7 +72,7 @@ export default function FeaturedProducts() {
                 </div>
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
-                <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0">
+                <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0 pl-6 sm:pl-10 md:pl-0 pr-6 sm:pr-10 md:pr-0">
                     <style jsx global>{`
                         .no-scrollbar::-webkit-scrollbar {
                             display: none;
@@ -86,7 +86,7 @@ export default function FeaturedProducts() {
                         <Link
                             key={product.id}
                             href={product.link || `/products/${product.slug || product.id}`}
-                            className="group w-[50vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
+                            className="group w-[75vw] sm:w-[60vw] md:w-auto shrink-0 flex flex-col cursor-pointer"
                         >
                             {/* Image Container Card */}
                             <div className="relative w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden">

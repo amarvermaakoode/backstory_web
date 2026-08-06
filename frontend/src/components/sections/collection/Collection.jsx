@@ -44,13 +44,22 @@ export default function QrEnabledRange() {
     const activeCollections = collections.length > 0 ? collections : defaultCollections;
 
     return (
-        <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12">
-            <div className="mx-auto max-w-[100%] grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 overflow-hidden">
+            <style>{`
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
+            <div className="-mx-6 sm:-mx-10 md:mx-0 px-6 sm:px-10 md:px-0 flex md:grid md:grid-cols-2 gap-4 md:gap-6 overflow-x-auto md:overflow-visible no-scrollbar pb-2 md:pb-0">
                 {activeCollections.map((collection) => (
                     <Link
                         key={collection._id}
                         href={`/product-list/collection/${collection.slug || collection._id}`}
-                        className="group relative block w-full h-[60vh] md:h-[110vh] overflow-hidden cursor-pointer"
+                        className="group relative block w-[85vw] sm:w-[70vw] md:w-full shrink-0 h-[60vh] md:h-[110vh] overflow-hidden cursor-pointer"
                     >
                         {/* Background Image */}
                         <div className="absolute inset-0 transition-transform duration-1000 ease-out group-hover:scale-105">

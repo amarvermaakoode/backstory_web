@@ -107,11 +107,11 @@ export default function Collections() {
     };
 
     return (
-        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 pl-6 sm:pl-10 md:pl-16 lg:pl-[4%]">
+        <section className="relative w-full bg-[#FFFFFF] xmd:py-16 py-8 md:pl-16 lg:pl-[4%] md:pr-0">
             <div className=" max-w-full flex flex-col md:flex-row gap-12 md:gap-14 items-start">
 
                 {/* Left Content (Static) */}
-                <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch">
+                <div className="w-full md:w-[38%] lg:w-[35%] flex flex-col justify-between self-stretch px-6 sm:px-10 md:px-0">
                     <div>
                         <h2 className="heading-section text-[#030303]">
                             Shop our <br />Latest Collection
@@ -128,7 +128,7 @@ export default function Collections() {
                 </div>
 
                 {/* Right Carousel Column */}
-                <div className="w-full md:w-[62%] lg:w-[65%]  relative">
+                <div className="w-full md:w-[62%] lg:w-[65%] relative">
                     <style>{`
                         .no-scrollbar::-webkit-scrollbar {
                             display: none;
@@ -141,10 +141,10 @@ export default function Collections() {
 
                     <div
                         ref={carouselRef}
-                        className="flex md:gap-6 gap-4 overflow-x-auto scroll-smooth no-scrollbar pb-4"
+                        className="flex md:gap-6 gap-4 overflow-x-auto scroll-smooth no-scrollbar pb-4 pl-6 sm:pl-10 md:pl-0 pr-6 sm:pr-10 md:pr-0"
                     >
                         {products.map((product) => (
-                            <div key={product.id} className="md:w-[24vw] w-[50vw] shrink-0">
+                            <div key={product.id} className="w-[75vw] sm:w-[60vw] md:w-[24vw] shrink-0">
                                 <ProductCard product={product} isHome={true} />
                             </div>
                         ))}
