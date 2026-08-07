@@ -123,6 +123,16 @@ const orderSchema = new mongoose.Schema(
       proofPhotos: [{ type: String }],
       unboxingVideo: { type: String, default: "" },
       reportedWithin48Hours: { type: Boolean, default: false },
+      requestedItems: [
+        {
+          itemId: { type: String },
+          name: { type: String },
+          size: { type: String },
+          color: { type: String },
+          returnQuantity: { type: Number, default: 1 },
+          image: { type: String }
+        }
+      ],
       requestedAt: { type: Date },
       status: {
         type: String,

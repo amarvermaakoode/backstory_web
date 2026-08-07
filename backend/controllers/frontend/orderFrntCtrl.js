@@ -340,9 +340,74 @@ const findOrderForReturn = async (req, res) => {
       queryConditions.push({ "shippingAddress.email": email.trim().toLowerCase() });
     }
 
-    const order = await Order.findOne({ $and: queryConditions }).sort({ createdAt: -1 });
+    const order = await Order.findOne({ $and: queryConditions })
+      .populate({
+        path: "items.product",
+        populate: { path: "colors.color", select: "name hexCode" }
+      })
+      .sort({ createdAt: -1 });
+
     if (!order) {
       return res.status(404).json({ success: false, message: "No matching order found. Please check your order number and email." });
+    }
+
+    const formattedOrder = order.toObject();
+    if (formattedOrder.items && Array.isArray(formattedOrder.items)) {
+      formattedOrder.items = formattedOrder.items.map((item) => {
+        let availableColors = [];
+        let availableSizes = [];
+
+        if (item.product) {
+          if (Array.isArray(item.product.colors) && item.product.colors.length > 0) {
+            availableColors = item.product.colors
+              .map((c) => (c.color?.name ? c.color.name : (typeof c.color === "string" ? c.color : null)))
+              .filter(Boolean);
+          }
+          if (item.product.variantStock && typeof item.product.variantStock === "object") {
+            const keys = Object.keys(item.product.variantStock);
+            const sizeSet = new Set();
+            const colorSet = new Set();
+            const validSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+
+            keys.forEach((k) => {
+              const stockVal = Number(item.product.variantStock[k]);
+              if (stockVal > 0) {
+                const parts = k.split("_");
+                const firstPart = parts[0]?.toUpperCase()?.trim();
+                const secondPart = parts.slice(1).join("_")?.trim();
+
+                if (validSizes.includes(firstPart)) {
+                  sizeSet.add(firstPart);
+                  if (secondPart) colorSet.add(secondPart);
+                } else if (secondPart && validSizes.includes(secondPart.toUpperCase())) {
+                  sizeSet.add(secondPart.toUpperCase());
+                  if (firstPart) colorSet.add(firstPart);
+                }
+              }
+            });
+
+            if (sizeSet.size > 0) {
+              availableSizes = Array.from(sizeSet);
+            }
+            if (colorSet.size > 0 && availableColors.length === 0) {
+              availableColors = Array.from(colorSet);
+            }
+          }
+        }
+
+        if (availableColors.length === 0) {
+          availableColors = item.color ? [item.color] : ["Standard"];
+        }
+        if (availableSizes.length === 0) {
+          availableSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+        }
+
+        return {
+          ...item,
+          availableColors,
+          availableSizes
+        };
+      });
     }
 
     // Eligibility check according to Bacstory policy
@@ -355,7 +420,7 @@ const findOrderForReturn = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: order,
+      data: formattedOrder,
       eligibility: {
         isDelivered,
         daysSinceDelivery,
@@ -389,7 +454,8 @@ const submitReturnExchange = async (req, res) => {
       bankHolderName,
       accountNumber,
       ifscCode,
-      upiId
+      upiId,
+      items // Array of { itemId, name, size, color, returnQuantity, image }
     } = req.body;
 
     if (!orderId || !requestType || !reason) {
@@ -462,6 +528,7 @@ const submitReturnExchange = async (req, res) => {
       proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
       unboxingVideo: unboxingVideo || "",
       reportedWithin48Hours: !!reportedWithin48Hours,
+      requestedItems: Array.isArray(items) ? items : [],
       returnShippingFee,
       requestedAt: new Date(),
       status: requestType === "exchange" ? "Exchange Requested" : "Return Requested"
