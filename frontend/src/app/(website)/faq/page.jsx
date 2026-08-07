@@ -23,26 +23,32 @@ const faqData = [
     {
         id: 3,
         category: "BRAND",
-        question: "Do you ship internationally?",
-        answer: "Yes, we ship to most countries worldwide. Shipping fees and delivery times vary by destination and will be calculated at checkout."
+        question: "What are your shipping rates?",
+        answer: "We charge a shipping fee of ₹99 for orders below ₹999. We provide Free Shipping on all orders of ₹999 or above."
     },
     {
         id: 4,
         category: "RETURN & EXCHANGE",
         question: "What is your return and exchange policy?",
-        answer: "We offer a 14-day return and exchange window for unworn items in original condition with tags attached. Reach out to support to start a return."
+        answer: "Returns and exchanges are accepted within 7 days of delivery. Products must be unused, unwashed, with original tags and packaging intact. Exchanges are allowed for size, color (subject to stock), damaged, or incorrect items (limit 1 exchange per order)."
     },
     {
         id: 5,
-        category: "BRAND",
-        question: "How long does delivery take?",
-        answer: "Standard domestic delivery takes 3-5 business days. International shipping typically takes 7-12 business days depending on destination."
+        category: "RETURN & EXCHANGE",
+        question: "Can I cancel my order?",
+        answer: "You may cancel your order free of charge BEFORE it has been packed for dispatch (from your Account Orders page). Prepaid orders receive a 100% refund with zero cancellation fee. Once packed or shipped, orders cannot be cancelled."
     },
     {
         id: 6,
-        category: "BRAND",
-        question: "Can I track my order once it has been shipped?",
-        answer: "Yes! As soon as your package ships, you will receive a tracking link via email and SMS to follow your delivery status in real time."
+        category: "RETURN & EXCHANGE",
+        question: "What should I do if I receive a damaged or wrong product?",
+        answer: "You must report damaged or incorrect items within 48 hours of delivery and provide clear photos PLUS a mandatory complete unboxing video. After verification, Bacstory will arrange a free reverse pickup or reimburse courier charges and issue a replacement or full refund."
+    },
+    {
+        id: 7,
+        category: "RETURN & EXCHANGE",
+        question: "How are refunds processed for COD orders?",
+        answer: "Refunds are initiated within 2 business days after returned products pass quality inspection and are credited within 5–7 business days. COD refunds are processed via Bank Transfer or UPI."
     }
 ];
 

@@ -18,7 +18,8 @@ import {
   Mail,
   Calendar,
   CreditCard,
-  ChevronDown
+  ChevronDown,
+  RotateCcw
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
@@ -49,6 +50,70 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleApproveReturn = async (orderDbId) => {
+    if (!confirm("Are you sure you want to approve this request? If prepaid, Razorpay refund will be initiated automatically.")) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/approve-return`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert(data.message || "Return request approved & Razorpay refund initiated successfully!");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        alert(data.message || "Failed to approve return request.");
+      }
+    } catch (error) {
+      console.error("Error approving return request:", error);
+      alert("Failed to approve return request.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectReturn = async (orderDbId) => {
+    const reason = prompt("Enter rejection reason (optional):", "Request does not meet return policy criteria.");
+    if (reason === null) return;
+
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/reject-return`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rejectionReason: reason })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert("Return request rejected successfully.");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        alert(data.message || "Failed to reject return request.");
+      }
+    } catch (error) {
+      console.error("Error rejecting return request:", error);
+      alert("Failed to reject return request.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -150,7 +215,7 @@ export default function AdminOrdersPage() {
 
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-          {["All", ...ORDER_STATUS_STEPS].map((status) => {
+          {["All", "Return Requested", ...ORDER_STATUS_STEPS, "Cancelled", "Returned"].map((status) => {
             const isActive = statusFilter === status;
             return (
               <button
@@ -217,6 +282,22 @@ export default function AdminOrdersPage() {
                             year: "numeric"
                           })}
                         </span>
+
+                        {/* Live Return / Exchange Badge */}
+                        {order.returnExchange?.isRequested && (
+                          <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${
+                            order.returnExchange.status === "Approved"
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              : order.returnExchange.status === "Rejected"
+                              ? "bg-red-50 text-red-800 border-red-200"
+                              : "bg-amber-50 text-amber-900 border-amber-200"
+                          }`}>
+                            <RotateCcw className="w-3 h-3 shrink-0" />
+                            {order.returnExchange.status === "Pending Verification"
+                              ? `${order.returnExchange.requestType === "return" ? "Return" : "Exchange"} Requested`
+                              : `${order.returnExchange.requestType === "return" ? "Return" : "Exchange"} ${order.returnExchange.status}`}
+                          </span>
+                        )}
                       </td>
 
                       {/* Customer & Shipping Address */}
@@ -277,13 +358,29 @@ export default function AdminOrdersPage() {
                         <span className="font-clashDisplay text-base font-bold text-neutral-900 block">
                           Rs {order.totalAmount ? order.totalAmount.toLocaleString() : 0}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Paid (Razorpay)
-                        </span>
-                        <p className="text-[10px] text-neutral-400 font-mono mt-1 truncate max-w-[120px]" title={order.razorpayPaymentId}>
-                          ID: {order.razorpayPaymentId}
-                        </p>
+                        
+                        {order.paymentStatus === "Refund Pending" || order.paymentStatus === "Refunded" ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border mt-1 ${
+                            order.paymentStatus === "Refunded" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-amber-50 text-amber-800 border-amber-200"
+                          }`}>
+                            Payment: {order.paymentStatus}
+                          </span>
+                        ) : order.refundDetails?.refundStatus && order.refundDetails.refundStatus !== "None" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 mt-1">
+                            Refund: {order.refundDetails.refundStatus}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Paid ({order.paymentMethod === "COD" ? "COD" : "Razorpay"})
+                          </span>
+                        )}
+
+                        {order.razorpayPaymentId && (
+                          <p className="text-[10px] text-neutral-400 font-mono mt-1 truncate max-w-[120px]" title={order.razorpayPaymentId}>
+                            ID: {order.razorpayPaymentId}
+                          </p>
+                        )}
                       </td>
 
                       {/* Fulfillment Status Select Box */}
@@ -438,6 +535,189 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            {/* Cancellation Info (if cancelled) */}
+            {selectedOrder.cancellation?.isCancelled && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1.5 text-xs text-red-900">
+                <span className="font-bold text-sm uppercase tracking-wider text-red-950 block">Order Cancelled</span>
+                <p><strong>Reason:</strong> {selectedOrder.cancellation.cancellationReason}</p>
+                <p><strong>Fee Charged:</strong> Rs {selectedOrder.cancellation.cancellationFee || 0} (Zero Cancellation Fee)</p>
+                <p><strong>Refund Amount:</strong> Rs {selectedOrder.cancellation.refundAmount || selectedOrder.totalAmount} (100% Refund)</p>
+              </div>
+            )}
+
+            {/* Return / Exchange Request Details (if requested) */}
+            {selectedOrder.returnExchange?.isRequested && (() => {
+              const reqReason = selectedOrder.returnExchange?.reason || "";
+              const isFreeShippingReason = [
+                "Defective or damaged product",
+                "Received wrong item",
+                "Parcel received with missing items",
+                "Item damaged during transit"
+              ].includes(reqReason);
+              
+              const returnShippingFee = isFreeShippingReason
+                ? 0
+                : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
+                    ? selectedOrder.returnExchange.returnShippingFee
+                    : 99);
+
+              const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
+              const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
+
+              return (
+                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 space-y-3 text-xs text-purple-950">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm uppercase tracking-wider text-purple-950">
+                      {selectedOrder.returnExchange.requestType === "return" ? "Return Request" : "Exchange Request"}
+                    </span>
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
+                      selectedOrder.returnExchange.status === "Approved"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : selectedOrder.returnExchange.status === "Rejected"
+                        ? "bg-red-100 text-red-800 border border-red-200"
+                        : "bg-amber-100 text-amber-900 border border-amber-200"
+                    }`}>
+                      {selectedOrder.returnExchange.status}
+                    </span>
+                  </div>
+                  <p><strong>Reason:</strong> {selectedOrder.returnExchange.reason}</p>
+                  {selectedOrder.returnExchange.additionalNotes && (
+                    <p><strong>Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
+                  )}
+
+                  {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
+                  {selectedOrder.returnExchange.unboxingVideo && (
+                    <div className="bg-white p-2.5 rounded-xl border border-purple-200 space-y-1">
+                      <span className="font-semibold text-purple-900 block">Unboxing Video Proof:</span>
+                      <a
+                        href={getImageUrl(selectedOrder.returnExchange.unboxingVideo)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 underline font-medium break-all text-xs hover:text-indigo-800"
+                      >
+                        {selectedOrder.returnExchange.unboxingVideo}
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Proof Photos */}
+                  {selectedOrder.returnExchange.proofPhotos?.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <span className="font-semibold text-purple-900 block">Uploaded Proof Photos:</span>
+                      <div className="flex items-center gap-2 overflow-x-auto">
+                        {selectedOrder.returnExchange.proofPhotos.map((img, idx) => (
+                          <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
+                            <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-lg border border-purple-200" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin Action Buttons: Approve & Initiate Razorpay Refund / Reject */}
+                  {selectedOrder.returnExchange.status === "Pending Verification" && (
+                    <div className="pt-3 border-t border-purple-200/80 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
+                        disabled={actionLoading}
+                        className="flex-1 min-w-[220px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                      >
+                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        <span>
+                          {selectedOrder.returnExchange.requestType === "return"
+                            ? `Approve Return & Initiate Razorpay Refund (Rs ${netRefundAmount.toLocaleString()})`
+                            : "Approve Exchange Request"}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
+                        disabled={actionLoading}
+                        className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-800 border border-red-200 px-4 py-3 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        Reject Request
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* COD / Bank Refund Details */}
+            {selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (() => {
+              const reqReason = selectedOrder.returnExchange?.reason || "";
+              const isFreeShippingReason = [
+                "Defective or damaged product",
+                "Received wrong item",
+                "Parcel received with missing items",
+                "Item damaged during transit"
+              ].includes(reqReason);
+              
+              const returnShippingFee = isFreeShippingReason
+                ? 0
+                : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
+                    ? selectedOrder.returnExchange.returnShippingFee
+                    : 99);
+
+              const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
+              const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
+
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-3.5 text-xs text-blue-950">
+                  <div className="flex items-center justify-between border-b border-blue-200/80 pb-2.5">
+                    <span className="font-bold text-sm uppercase tracking-wider text-blue-950 block">Refund Details & Calculation</span>
+                    <span className="bg-blue-200 text-blue-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
+                      {selectedOrder.refundDetails.refundMethod}
+                    </span>
+                  </div>
+
+                  {/* Calculation Breakdown Box */}
+                  <div className="bg-white p-3.5 rounded-xl border border-blue-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-neutral-600 font-medium">
+                      <span>Order Total Paid</span>
+                      <span className="font-semibold text-neutral-900">
+                        Rs {orderGrossTotal.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-neutral-600 font-medium">
+                      <span>Return Shipping Fee</span>
+                      <span className={returnShippingFee === 0 ? "font-bold text-emerald-600" : "font-semibold text-amber-700"}>
+                        {returnShippingFee === 0 ? "Rs 0" : `- Rs ${returnShippingFee}`}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-bold text-neutral-900 text-sm">
+                      <span>Net Refund Amount</span>
+                      <span className="text-emerald-700 text-base font-mono">
+                        Rs {netRefundAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payout Credentials */}
+                  <div className="space-y-1.5 pt-1">
+                    <p><strong>Payout Method:</strong> {selectedOrder.refundDetails.refundMethod}</p>
+                    {selectedOrder.refundDetails.refundMethod === "Bank Transfer" && (
+                      <>
+                        <p><strong>Account Holder:</strong> {selectedOrder.refundDetails.bankHolderName || "N/A"}</p>
+                        <p><strong>Account Number:</strong> {selectedOrder.refundDetails.accountNumber || "N/A"}</p>
+                        <p><strong>IFSC Code:</strong> {selectedOrder.refundDetails.ifscCode || "N/A"}</p>
+                      </>
+                    )}
+                    {selectedOrder.refundDetails.refundMethod === "UPI" && (
+                      <p><strong>UPI ID:</strong> {selectedOrder.refundDetails.upiId || "N/A"}</p>
+                    )}
+                    <p>
+                      <strong>Status:</strong>{" "}
+                      <span className="font-semibold text-blue-900">{selectedOrder.refundDetails.refundStatus}</span>{" "}
+                      (Window: {selectedOrder.refundDetails.estimatedCreditWindow || "5-7 Business Days"})
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Payment Summary */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between text-neutral-600 font-medium">
@@ -453,10 +733,6 @@ export default function AdminOrdersPage() {
               <div className="flex justify-between text-neutral-600 font-medium">
                 <span>Shipping</span>
                 <span>{selectedOrder.shippingCost === 0 ? "Free" : `Rs ${selectedOrder.shippingCost}`}</span>
-              </div>
-              <div className="flex justify-between text-neutral-600 font-medium">
-                <span>Tax (GST 5%)</span>
-                <span>Rs {selectedOrder.taxAmount?.toLocaleString()}</span>
               </div>
               <div className="border-t border-neutral-200 pt-2 flex justify-between font-bold text-neutral-900 text-sm sm:text-base">
                 <span>Total Amount Paid</span>

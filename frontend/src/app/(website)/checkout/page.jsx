@@ -521,12 +521,10 @@ export default function CheckoutPage() {
         }
     };
 
-    // Calculate shipping cost
+    // Calculate shipping cost (Bacstory policy: ₹99 for orders below ₹999, Free on ₹999+)
     const getShippingCost = () => {
-        if (shippingMethod === "standard") return 0;
-        if (shippingMethod === "express") return 150;
-        if (shippingMethod === "international") return 638;
-        return 0;
+        if (activeSubtotal >= 999) return 0;
+        return 99;
     };
 
     const shippingCost = getShippingCost();
@@ -583,8 +581,8 @@ export default function CheckoutPage() {
             : Math.min(activeSubtotal, activePromo.discountValue))
         : 0;
     const taxableAmount = activeSubtotal - discountAmount;
-    const taxAmount = Math.round(taxableAmount * 0.05); // 5% GST as shown in mockup
-    const totalAmount = taxableAmount + shippingCost + taxAmount;
+    const taxAmount = 0; // Tax (GST) removed
+    const totalAmount = taxableAmount + shippingCost;
 
     // Helper to dynamically load Razorpay SDK if needed
     const loadRazorpayScript = () => {
@@ -1368,11 +1366,6 @@ export default function CheckoutPage() {
                                     <span className="font-semibold text-black">
                                         {shippingCost === 0 ? "Free" : `Rs ${shippingCost.toLocaleString()}`}
                                     </span>
-                                </div>
-
-                                <div className="flex justify-between text-neutral-500 font-medium">
-                                    <span>Tax (GST 5%)</span>
-                                    <span className="font-semibold text-black">Rs {taxAmount.toLocaleString()}</span>
                                 </div>
 
                                 <div className="border-t border-neutral-100 pt-4 flex justify-between items-baseline mt-4">

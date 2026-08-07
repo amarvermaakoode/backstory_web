@@ -224,7 +224,7 @@ export default function CartDrawer() {
 
                         {/* Note */}
                         <p className="text-[11px] sm:text-xs text-neutral-400 text-center mb-4">
-                            Taxes and shipping calculated at checkout
+                            Shipping calculated at checkout
                         </p>
 
                         {/* Proceed to Checkout Button */}

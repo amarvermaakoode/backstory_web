@@ -1,6 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const { createOrderRecord, getUserOrders, getTrackOrderStatus } = require("../../controllers/frontend/orderFrntCtrl");
+const {
+  createOrderRecord,
+  getUserOrders,
+  getTrackOrderStatus,
+  cancelUserOrder,
+  submitReturnExchange,
+  findOrderForReturn
+} = require("../../controllers/frontend/orderFrntCtrl");
 const { protect } = require("../../middlewares/auth");
 
 // Optional auth middleware helper
@@ -13,6 +20,9 @@ const optionalAuth = (req, res, next) => {
 
 router.post("/", optionalAuth, createOrderRecord);
 router.get("/my-orders", optionalAuth, getUserOrders);
+router.get("/find-order", findOrderForReturn);
 router.get("/track/:orderId", getTrackOrderStatus);
+router.post("/:orderId/cancel", optionalAuth, cancelUserOrder);
+router.post("/return-exchange", optionalAuth, submitReturnExchange);
 
 module.exports = router;
