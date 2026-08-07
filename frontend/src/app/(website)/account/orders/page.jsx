@@ -286,6 +286,11 @@ export default function AccountOrdersPage() {
                                     <p className="text-xs font-normal text-neutral-400">
                                         Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
                                     </p>
+                                    {order.paymentMethod && (
+                                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
+                                            {order.paymentMethod}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Items inside this order */}
@@ -645,7 +650,10 @@ export default function AccountOrdersPage() {
 
                                         const orderTotal = selectedTrackOrder.totalAmount || selectedTrackOrder.subtotal || 0;
                                         const netRefund = selectedTrackOrder.refundDetails?.refundAmount || Math.max(0, orderTotal - returnShippingFee);
-                                        const payoutMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+                                        const rawMethod = selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
+                                        const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
+                                        const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
+                                        const payoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
 
                                         return (
                                             <>
@@ -692,7 +700,10 @@ export default function AccountOrdersPage() {
                                 const cancelReason = selectedTrackOrder.cancellation?.cancellationReason || "Cancelled by customer before dispatch";
                                 const refundStatus = selectedTrackOrder.refundDetails?.refundStatus || "Refund Processing";
                                 const refundAmount = selectedTrackOrder.cancellation?.refundAmount || selectedTrackOrder.totalAmount || 0;
-                                const refundMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+                                const rawCancelMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+                                const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
+                                const isCancelWallet = rawCancelMethod.toLowerCase().includes("wallet") || (rawCancelMethod.toLowerCase().includes("original") && originalWasWallet);
+                                const refundMethod = isCancelWallet ? "BacStory Wallet" : rawCancelMethod;
 
                                 const CANCEL_STEPS = [
                                     { title: "Order Confirmed", desc: "Your order was successfully placed", completed: true, current: false },
@@ -720,6 +731,9 @@ export default function AccountOrdersPage() {
                             if (isReturned) {
                                 const returnReason = selectedTrackOrder.returnExchange?.reason || "Return requested";
                                 const returnStatus = selectedTrackOrder.returnExchange?.status || "Return Requested";
+                                const rawReturnMethod = selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
+                                const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
+                                const isWallet = rawReturnMethod.toLowerCase().includes("wallet") || (rawReturnMethod.toLowerCase().includes("original") && originalWasWallet) || (rawReturnMethod === "" && originalWasWallet);
 
                                 const isApproved = returnStatus === "Return Approved" || returnStatus === "Approved" || returnStatus === "Product Received" || returnStatus === "Refund Initiated" || returnStatus === "Refunded";
                                 const isReceived = returnStatus === "Product Received" || returnStatus === "Refund Initiated" || returnStatus === "Refunded";
@@ -730,8 +744,16 @@ export default function AccountOrdersPage() {
                                     { title: "Return Requested", desc: `Reason: ${returnReason}`, completed: true },
                                     { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
                                     { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
-                                    { title: "Refund Initiated", desc: "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", completed: isRefundInit },
-                                    { title: "Refunded", desc: "Refund completed & credited to bank account", completed: isRefundedDone }
+                                    { 
+                                        title: "Refund Initiated", 
+                                        desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", 
+                                        completed: isRefundInit 
+                                    },
+                                    { 
+                                        title: "Refunded", 
+                                        desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account", 
+                                        completed: isRefundedDone 
+                                    }
                                 ];
 
                                 return (

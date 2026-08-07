@@ -43,6 +43,9 @@ export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
     const { user, userFetch, refreshUser } = useUserAuth();
 
+    const [useWallet, setUseWallet] = useState(false);
+    const [selectedPaymentChoice, setSelectedPaymentChoice] = useState("online"); // "online" | "wallet"
+
     const [phoneError, setPhoneError] = useState("");
 
     // Delivery address selection & modal state
@@ -584,6 +587,12 @@ export default function CheckoutPage() {
     const taxAmount = 0; // Tax (GST) removed
     const totalAmount = taxableAmount + shippingCost;
 
+    // BacStory Wallet calculations
+    const userWalletBalance = user?.walletBalance || 0;
+    const isWalletActive = (useWallet || selectedPaymentChoice === "wallet") && userWalletBalance > 0;
+    const walletDeduction = isWalletActive ? Math.min(userWalletBalance, totalAmount) : 0;
+    const payableTotal = Math.max(0, totalAmount - walletDeduction);
+
     // Helper to dynamically load Razorpay SDK if needed
     const loadRazorpayScript = () => {
         return new Promise((resolve) => {
@@ -623,7 +632,94 @@ export default function CheckoutPage() {
             // STEP 0: Save the user's shipping address
             await saveShippingAddress();
 
-            // Load Razorpay Checkout Script
+            const localOrderId = "BAC-" + Math.floor(100000 + Math.random() * 900000);
+            const token = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
+
+            // CASE 1: Full Payment via BacStory Wallet (payableTotal === 0)
+            if (isWalletActive && payableTotal === 0) {
+                const wltPaymentId = "pay_WLT_" + Date.now();
+                const wltOrderId = "order_WLT_" + Date.now();
+
+                // Reduce stock
+                try {
+                    const checkoutItems = activeItems.map(item => ({
+                        productId: item.productId || item.id,
+                        size: item.size,
+                        color: item.color,
+                        quantity: item.quantity
+                    }));
+                    await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ items: checkoutItems })
+                    });
+                } catch (stockErr) {
+                    console.error("Error reducing stock:", stockErr);
+                }
+
+                // Create Order in DB & Debit Wallet
+                try {
+                    await fetch(`${API_BASE_URL}/frontend/orders`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(token && { Authorization: `Bearer ${token}` })
+                        },
+                        body: JSON.stringify({
+                            orderId: localOrderId,
+                            razorpayOrderId: wltOrderId,
+                            razorpayPaymentId: wltPaymentId,
+                            razorpaySignature: "wallet_signature",
+                            shippingAddress: {
+                                firstName: formData.firstName,
+                                lastName: formData.lastName,
+                                email: formData.deliveryEmail || formData.contactEmail,
+                                phoneNumber: formData.phoneNumber,
+                                streetAddress: formData.streetAddress,
+                                city: formData.city,
+                                state: formData.state,
+                                pinCode: formData.pinCode,
+                                country: formData.country
+                            },
+                            items: activeItems.map(item => ({
+                                productId: item.productId || item.id,
+                                name: item.name || item.title || "Product",
+                                category: item.tag || "COLLECTION",
+                                size: item.size || "M",
+                                color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                                colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                                price: item.price || `Rs ${item.priceNum || 0}`,
+                                priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
+                                quantity: item.quantity || 1,
+                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
+                            })),
+                            subtotal: activeSubtotal,
+                            discountAmount,
+                            shippingCost,
+                            taxAmount,
+                            totalAmount,
+                            walletDeduction: totalAmount,
+                            paymentMethod: "BacStory Wallet"
+                        })
+                    });
+                } catch (dbErr) {
+                    console.error("Error saving order to MongoDB:", dbErr);
+                }
+
+                if (refreshUser && token) {
+                    refreshUser(token);
+                }
+
+                setGeneratedOrderNum(localOrderId);
+                setIsOrderComplete(true);
+                if (!isCartEmpty) {
+                    clearCart();
+                }
+                setIsProcessingPayment(false);
+                return;
+            }
+
+            // CASE 2: Razorpay Payment (Full or Partial after Wallet Deduction)
             const scriptLoaded = await loadRazorpayScript();
             if (!scriptLoaded || typeof window.Razorpay === "undefined") {
                 setPaymentError("Razorpay Checkout SDK failed to load. Please check your internet connection.");
@@ -632,7 +728,7 @@ export default function CheckoutPage() {
             }
 
             // Amount in paise (1 INR = 100 paise). Minimum 100 paise required by Razorpay API
-            const amountInPaise = Math.max(100, Math.round(totalAmount * 100));
+            const amountInPaise = Math.max(100, Math.round(payableTotal * 100));
 
             // STEP 1: BACKEND - Create Razorpay Order
             let orderRes = await fetch(`${API_BASE_URL}/create-order`, {
@@ -663,7 +759,6 @@ export default function CheckoutPage() {
                 throw new Error(orderData.message || "Failed to create Razorpay order on backend.");
             }
 
-            const localOrderId = "BAC-" + Math.floor(100000 + Math.random() * 900000);
             const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TMPgBtafMzjbIX";
 
             // STEP 2: FRONTEND - Open Razorpay Modal
@@ -733,7 +828,6 @@ export default function CheckoutPage() {
 
                             // Save order details to MongoDB database
                             try {
-                                const token = localStorage.getItem("userToken");
                                 await fetch(`${API_BASE_URL}/frontend/orders`, {
                                     method: "POST",
                                     headers: {
@@ -772,35 +866,18 @@ export default function CheckoutPage() {
                                         discountAmount,
                                         shippingCost,
                                         taxAmount,
-                                        totalAmount
+                                        totalAmount,
+                                        walletDeduction: walletDeduction,
+                                        paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Razorpay / Prepaid"
                                     })
                                 });
                             } catch (dbErr) {
                                 console.error("Error saving order to MongoDB:", dbErr);
                             }
 
-                            // Also save to localStorage for offline fallback
-                            const newOrder = {
-                                id: localOrderId,
-                                razorpayPaymentId: response.razorpay_payment_id,
-                                razorpayOrderId: response.razorpay_order_id,
-                                createdAt: new Date().toISOString(),
-                                items: activeItems.map(item => ({
-                                    id: item.id || item.productId,
-                                    productId: item.productId || item.id,
-                                    name: item.name || item.title || "Product",
-                                    category: item.tag || "COLLECTION",
-                                    size: item.size || "M",
-                                    color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
-                                    colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
-                                    price: item.price || `Rs ${item.priceNum || 0}`,
-                                    quantity: item.quantity || 1,
-                                    orderStatus: "Processing",
-                                    paymentStatus: "Confirmed",
-                                    deliveryDate: "Estimated Delivery: 3-5 Business Days",
-                                    image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
-                                }))
-                            };
+                            if (refreshUser && token) {
+                                refreshUser(token);
+                            }
 
                             setGeneratedOrderNum(localOrderId);
                             setIsOrderComplete(true);
@@ -820,7 +897,6 @@ export default function CheckoutPage() {
                 modal: {
                     ondismiss: function () {
                         setIsProcessingPayment(false);
-                        console.log("Razorpay checkout modal dismissed by user.");
                     }
                 }
             };
@@ -1234,6 +1310,93 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
 
+                            {/* Payment Section Block */}
+                            <div className="pt-8 border-t border-neutral-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h2 className="heading-sub text-black mb-1">
+                                            Payment Method
+                                        </h2>
+                                        <p className="text-xs sm:text-sm text-neutral-400 font-normal">
+                                            Choose how you would like to complete your payment
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 pt-1">
+                                    {/* BacStory Wallet Option (if user has wallet balance) */}
+                                    {user && userWalletBalance > 0 && (
+                                        <label
+                                            className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${
+                                                selectedPaymentChoice === "wallet" || useWallet
+                                                    ? "border-black bg-neutral-900 text-white shadow-md"
+                                                    : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                            }`}
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="paymentChoice"
+                                                    value="wallet"
+                                                    checked={selectedPaymentChoice === "wallet" || useWallet}
+                                                    onChange={() => {
+                                                        setSelectedPaymentChoice("wallet");
+                                                        setUseWallet(true);
+                                                    }}
+                                                    className="w-4.5 h-4.5 text-black accent-black cursor-pointer mt-0.5"
+                                                />
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-bold">BacStory Wallet / Store Credit</p>
+                                                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
+                                                            Balance: Rs {userWalletBalance.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <p className={`text-xs mt-1 ${selectedPaymentChoice === "wallet" || useWallet ? "text-neutral-300" : "text-neutral-500"}`}>
+                                                        {userWalletBalance >= totalAmount
+                                                            ? "Pay 100% of this order using your store credit balance."
+                                                            : `Apply Rs ${Math.min(userWalletBalance, totalAmount).toLocaleString()} from your wallet, pay remaining Rs ${(totalAmount - Math.min(userWalletBalance, totalAmount)).toLocaleString()} via Razorpay.`
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
+                                                selectedPaymentChoice === "wallet" || useWallet ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-800"
+                                            }`}>
+                                                - Rs {Math.min(userWalletBalance, totalAmount).toLocaleString()}
+                                            </span>
+                                        </label>
+                                    )}
+
+                                    {/* Razorpay Online Payment Option */}
+                                    <label
+                                        className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${
+                                            selectedPaymentChoice === "online" && !useWallet
+                                                ? "border-black bg-neutral-50/80 shadow-xs text-black"
+                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="paymentChoice"
+                                                value="online"
+                                                checked={selectedPaymentChoice === "online" && !useWallet}
+                                                onChange={() => {
+                                                    setSelectedPaymentChoice("online");
+                                                    setUseWallet(false);
+                                                }}
+                                                className="w-4.5 h-4.5 text-black accent-black cursor-pointer"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-bold text-black">Pay Online (UPI, Cards, NetBanking)</p>
+                                                <p className="text-xs text-neutral-400">Fast & 100% Secure Payment via Razorpay</p>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
                             {/* Payment Error Banner */}
                             {paymentError && (
                                 <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-xs sm:text-sm font-semibold flex items-center gap-2.5">
@@ -1253,8 +1416,12 @@ export default function CheckoutPage() {
                                 {isProcessingPayment ? (
                                     <span className="flex items-center justify-center gap-2.5">
                                         <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
-                                        <span>Opening Razorpay Checkout...</span>
+                                        <span>Processing Payment...</span>
                                     </span>
+                                ) : isWalletActive && payableTotal === 0 ? (
+                                    `Pay Rs ${totalAmount.toLocaleString()} via BacStory Wallet`
+                                ) : isWalletActive ? (
+                                    `Pay Rs ${payableTotal.toLocaleString()} via Razorpay (Wallet Credit: -Rs ${walletDeduction.toLocaleString()})`
                                 ) : (
                                     "Continue to Payment"
                                 )}
@@ -1368,10 +1535,17 @@ export default function CheckoutPage() {
                                     </span>
                                 </div>
 
+                                {walletDeduction > 0 && (
+                                    <div className="flex justify-between text-emerald-700 font-medium bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 text-xs">
+                                        <span>BacStory Wallet Credit</span>
+                                        <span className="font-semibold">- Rs {walletDeduction.toLocaleString()}</span>
+                                    </div>
+                                )}
+
                                 <div className="border-t border-neutral-100 pt-4 flex justify-between items-baseline mt-4">
-                                    <span className="text-sm font-bold text-black">Total</span>
+                                    <span className="text-sm font-bold text-black">Total Payable</span>
                                     <span className="font-clashDisplay text-xl sm:text-2xl font-bold text-black">
-                                        Rs {totalAmount.toLocaleString()}
+                                        Rs {payableTotal.toLocaleString()}
                                     </span>
                                 </div>
                             </div>
@@ -1408,7 +1582,7 @@ export default function CheckoutPage() {
                             Thank you for shopping with us, {formData.firstName}.
                         </p>
 
-                        <div className="my-6 py-4 px-6 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-left space-y-2">
+                        <div className="my-6 py-4 px-6 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-left space-y-2.5">
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Order Number:</span>
                                 <span className="font-bold text-black">{generatedOrderNum}</span>
@@ -1418,14 +1592,35 @@ export default function CheckoutPage() {
                                 <span className="font-bold text-green-600">Paid</span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
-                                <span className="text-neutral-400">Method:</span>
+                                <span className="text-neutral-400">Payment Method:</span>
                                 <span className="font-semibold text-black">
-                                    {shippingMethod === "standard" ? "Standard Delivery" : shippingMethod === "express" ? "Express Delivery" : "International Shipping"}
+                                    {isWalletActive && payableTotal === 0
+                                        ? "BacStory Wallet"
+                                        : isWalletActive
+                                        ? "BacStory Wallet + Razorpay"
+                                        : "Razorpay Online"}
                                 </span>
                             </div>
-                            <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-2">
-                                <span className="text-neutral-400 font-bold">Paid Total:</span>
-                                <span className="font-semibold text-black font-clashDisplay">Rs {totalAmount.toLocaleString()}</span>
+
+                            <div className="flex justify-between text-xs sm:text-sm font-medium pt-1 border-t border-neutral-200/60">
+                                <span className="text-neutral-400">Order Total:</span>
+                                <span className="font-semibold text-black">Rs {totalAmount.toLocaleString()}</span>
+                            </div>
+
+                            {walletDeduction > 0 && (
+                                <div className="flex justify-between text-xs sm:text-sm font-medium text-emerald-700">
+                                    <span>BacStory Wallet Credit:</span>
+                                    <span className="font-semibold">- Rs {walletDeduction.toLocaleString()}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-1">
+                                <span className="text-neutral-800 font-bold">
+                                    {payableTotal === 0 ? "Amount Paid via Wallet:" : "Amount Paid via Razorpay:"}
+                                </span>
+                                <span className="font-bold text-black font-clashDisplay">
+                                    Rs {payableTotal === 0 ? totalAmount.toLocaleString() : payableTotal.toLocaleString()}
+                                </span>
                             </div>
                         </div>
 

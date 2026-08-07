@@ -1235,7 +1235,9 @@ export default function ReturnAndExchangePage() {
                                                             }`}
                                                     >
                                                         <span className="text-sm font-medium text-black">
-                                                            Original Payment Method (Prepaid Orders)
+                                                            {foundOrder?.paymentMethod?.toLowerCase().includes("wallet") || (foundOrder?.walletDeduction && foundOrder?.walletDeduction > 0)
+                                                                ? "Original Payment Method (BacStory Wallet - Instant Credit)"
+                                                                : "Original Payment Method (Prepaid Orders)"}
                                                         </span>
                                                         <div
                                                             className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"

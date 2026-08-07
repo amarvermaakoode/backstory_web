@@ -184,22 +184,32 @@ export default function AdminOrdersPage() {
   };
 
   const handleProcessReturnRefund = async (orderDbId) => {
-    const existingPaymentId = selectedOrder?.razorpayPaymentId || selectedOrder?.paymentInfo?.razorpayPaymentId;
-    let paymentIdToSend = existingPaymentId;
+    const refundMethodStr = (selectedOrder?.refundDetails?.refundMethod || selectedOrder?.returnExchange?.refundMethod || "").toLowerCase();
+    const isWalletRefund = refundMethodStr.includes("wallet");
+    let paymentIdToSend = "";
 
-    if (!paymentIdToSend) {
-      const inputId = await customPrompt("Enter Razorpay Payment ID for this order:", "", "Razorpay Payment ID Required", "e.g. pay_TMzlj6hvnzLzle");
-      if (!inputId || !inputId.trim()) {
-        await customAlert("Razorpay Payment ID is required to process refund.", "Payment ID Required");
+    if (isWalletRefund) {
+      const confirmed = await customConfirm("Confirm crediting refund amount directly to customer's BacStory Wallet?", "Process Wallet Refund");
+      if (!confirmed) return;
+    } else {
+      const existingPaymentId = selectedOrder?.razorpayPaymentId || selectedOrder?.paymentInfo?.razorpayPaymentId;
+      paymentIdToSend = existingPaymentId;
+
+      if (!paymentIdToSend) {
+        const inputId = await customPrompt("Enter Razorpay Payment ID for this order:", "", "Razorpay Payment ID Required", "e.g. pay_TMzlj6hvnzLzle");
+        if (!inputId || !inputId.trim()) {
+          await customAlert("Razorpay Payment ID is required to process refund.", "Payment ID Required");
+          return;
+        }
+        paymentIdToSend = inputId.trim();
+      }
+
+      const confirmed = await customConfirm(`Are you sure you want to process and initiate the Razorpay refund (Payment ID: ${paymentIdToSend})?`, "Process Refund");
+      if (!confirmed) {
         return;
       }
-      paymentIdToSend = inputId.trim();
     }
 
-    const confirmed = await customConfirm(`Are you sure you want to process and initiate the Razorpay refund (Payment ID: ${paymentIdToSend})?`, "Process Refund");
-    if (!confirmed) {
-      return;
-    }
     setActionLoading(true);
     try {
       const res = await adminFetch(`/orders/${orderDbId}/process-refund`, {
@@ -210,7 +220,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert(data.message || "Razorpay refund processed and completed successfully!", "Success");
+        await customAlert(data.message || "Refund processed and completed successfully!", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);

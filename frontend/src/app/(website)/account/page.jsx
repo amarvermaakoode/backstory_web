@@ -445,6 +445,24 @@ export default function AccountProfilePage() {
 
             {/* Section 1: Profile Details */}
             <section id="profile-details">
+                {/* BacStory Wallet Summary Card */}
+                <div className="bg-neutral-900 text-white p-5 sm:p-6 rounded-2xl flex items-center justify-between shadow-md mb-8 border border-neutral-800">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-300 bg-neutral-800 px-2.5 py-0.5 rounded-full border border-neutral-700">
+                                BacStory Store Credit
+                            </span>
+                        </div>
+                        <p className="text-2xl sm:text-3xl font-bold font-clashDisplay tracking-tight text-white pt-1">
+                            Rs {(user?.walletBalance || 0).toLocaleString()}
+                        </p>
+                    </div>
+                    <div className="text-right text-xs">
+                        <p className="font-semibold text-neutral-200">BacStory Wallet</p>
+                        <p className="text-[11px] text-neutral-400">Available for refunds & checkout</p>
+                    </div>
+                </div>
+
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-xl sm:text-2xl font-bold font-clashDisplay text-neutral-900 tracking-tight">
