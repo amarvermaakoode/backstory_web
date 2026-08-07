@@ -157,7 +157,6 @@ export default function PublicQRCodePage() {
         localStorage.setItem("userData", JSON.stringify(res.user));
       }
       setClaimSuccess(true);
-      showToast(res.message || "QR Code verified and linked to your account!", "success");
       fetchQRDetails();
     } else {
       showToast(res.message || "Failed to link QR code.", "error");
