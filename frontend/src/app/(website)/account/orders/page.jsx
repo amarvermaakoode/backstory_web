@@ -507,7 +507,7 @@ export default function AccountOrdersPage() {
             {/* Track Order Dynamic 5-Step Timeline Modal */}
             {selectedTrackOrder && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-6 animate-fade-in border border-neutral-100">
+                    <div className="bg-white max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-6 animate-fade-in border border-neutral-100">
                         <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                             <div>
                                 <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">Track Order</h3>
