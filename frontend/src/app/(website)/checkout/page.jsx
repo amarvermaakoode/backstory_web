@@ -105,9 +105,9 @@ export default function CheckoutPage() {
             setFormData(prev => ({
                 ...prev,
                 ...localData,
-                contactEmail: localData.contactEmail || user.email || prev.contactEmail,
-                deliveryEmail: localData.deliveryEmail || user.email || prev.deliveryEmail,
-                phoneNumber: localData.phoneNumber || user.phoneNumber || savedUserAddress.phoneNumber || prev.phoneNumber,
+                contactEmail: user.email || localData.contactEmail || prev.contactEmail || "",
+                deliveryEmail: user.email || localData.deliveryEmail || prev.deliveryEmail || "",
+                phoneNumber: user.phoneNumber || savedUserAddress.phoneNumber || localData.phoneNumber || prev.phoneNumber || "",
                 firstName: localData.firstName || fName || prev.firstName,
                 lastName: localData.lastName || lName || prev.lastName,
                 streetAddress: localData.streetAddress || savedUserAddress.streetAddress || prev.streetAddress,
@@ -205,7 +205,9 @@ export default function CheckoutPage() {
         setFormData(prev => {
             const updated = {
                 ...prev,
-                [field]: valToSet
+                [field]: valToSet,
+                ...(field === "deliveryEmail" ? { contactEmail: valToSet } : {}),
+                ...(field === "contactEmail" ? { deliveryEmail: valToSet } : {})
             };
             try {
                 localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
@@ -216,41 +218,8 @@ export default function CheckoutPage() {
         });
     };
 
-    // Save shipping address function
+    // Save shipping address function (persists locally for checkout session)
     const saveShippingAddress = async () => {
-        const addressLine1 = formData.streetAddress;
-        const cityStatePin = `${formData.city}, ${formData.state} - ${formData.pinCode}`;
-        const recipientName = `${formData.firstName} ${formData.lastName}`.trim();
-
-        // 1. Save to user profile via backend API if logged in
-        if (userFetch) {
-            try {
-                // Check if identical address already exists in user's saved addresses
-                const alreadySaved = user?.addresses && Array.isArray(user.addresses) && user.addresses.some(a =>
-                    (a.addressLine1 || "").trim().toLowerCase() === (addressLine1 || "").trim().toLowerCase() &&
-                    (a.cityStatePin || "").trim().toLowerCase() === (cityStatePin || "").trim().toLowerCase()
-                );
-
-                if (!alreadySaved) {
-                    await userFetch("/auth/addresses", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            name: "Shipping Address",
-                            recipientName,
-                            addressLine1,
-                            cityStatePin,
-                            phone: formData.phoneNumber,
-                            isDefault: true
-                        })
-                    });
-                }
-            } catch (err) {
-                console.error("Note: Address auto-save to user profile:", err.message);
-            }
-        }
-
-        // 2. Always persist to localStorage for seamless checkout experience
         try {
             localStorage.setItem("savedShippingAddress", JSON.stringify({
                 firstName: formData.firstName,
@@ -412,7 +381,7 @@ export default function CheckoutPage() {
                 order_id: orderData.order_id,
                 prefill: {
                     name: `${formData.firstName} ${formData.lastName}`.trim(),
-                    email: formData.contactEmail || formData.deliveryEmail,
+                    email: formData.deliveryEmail || formData.contactEmail,
                     contact: formData.phoneNumber
                 },
                 notes: {
@@ -484,7 +453,7 @@ export default function CheckoutPage() {
                                         shippingAddress: {
                                             firstName: formData.firstName,
                                             lastName: formData.lastName,
-                                            email: formData.contactEmail || formData.deliveryEmail,
+                                            email: formData.deliveryEmail || formData.contactEmail,
                                             phoneNumber: formData.phoneNumber,
                                             streetAddress: formData.streetAddress,
                                             city: formData.city,
@@ -537,13 +506,6 @@ export default function CheckoutPage() {
                                     image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
                                 }))
                             };
-
-                            try {
-                                const existingOrders = JSON.parse(localStorage.getItem("userOrders") || "[]");
-                                localStorage.setItem("userOrders", JSON.stringify([newOrder, ...existingOrders]));
-                            } catch (err) {
-                                console.error("Error saving user order to local storage:", err);
-                            }
 
                             setGeneratedOrderNum(localOrderId);
                             setIsOrderComplete(true);
@@ -1102,7 +1064,7 @@ export default function CheckoutPage() {
                         </div>
 
                         <p className="text-xs text-neutral-400 leading-relaxed px-4">
-                            A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{formData.contactEmail || formData.deliveryEmail}</span>.
+                            A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{formData.deliveryEmail || formData.contactEmail}</span>.
                         </p>
 
                         <Link

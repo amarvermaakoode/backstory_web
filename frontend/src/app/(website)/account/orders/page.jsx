@@ -109,23 +109,12 @@ export default function AccountOrdersPage() {
                 console.error("Error fetching orders from DB:", err);
             }
 
-            let localOrders = [];
-            try {
-                const storedOrders = localStorage.getItem("userOrders");
-                if (storedOrders) {
-                    const parsed = JSON.parse(storedOrders);
-                    if (Array.isArray(parsed)) localOrders = parsed;
-                }
-            } catch (e) {
-                console.error("Error reading local orders:", e);
+            // Clear any legacy local storage order cache
+            if (typeof window !== "undefined") {
+                localStorage.removeItem("userOrders");
             }
 
-            // DB orders take priority over local storage orders to reflect admin updates
-            const combinedMap = new Map();
-            localOrders.forEach(o => combinedMap.set(o.id, o));
-            dbOrders.forEach(o => combinedMap.set(o.id, o)); // DB status overwrites local status
-
-            setOrders(Array.from(combinedMap.values()));
+            setOrders(dbOrders);
             setLoading(false);
         };
 

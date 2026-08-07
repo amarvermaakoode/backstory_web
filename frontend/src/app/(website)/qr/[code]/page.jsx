@@ -84,21 +84,15 @@ export default function PublicQRCodePage() {
     fetchQRDetails();
   }, [codeParam]);
 
-  useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
-    }
-  }, [user]);
-
-  // Step 1: Send OTP to Email
+  // Step 1: Send OTP to Email or Phone Number
   const handleSendOtp = async (e) => {
     e.preventDefault();
     if (!orderId.trim()) {
       showToast("Please enter your Order ID.", "error");
       return;
     }
-    if (!email.trim() || !email.includes("@")) {
-      showToast("Please enter a valid email address.", "error");
+    if (!email.trim()) {
+      showToast("Please enter your registered email or mobile number.", "error");
       return;
     }
 
@@ -111,9 +105,9 @@ export default function PublicQRCodePage() {
       if (res.mockOtp) {
         setMockOtpHint(res.mockOtp);
       }
-      showToast(res.message || "Verification code sent to your email!", "success");
+      showToast(res.message || "Verification code sent successfully!", "success");
     } else {
-      showToast(res.message || "Failed to send OTP code. Please try again.", "error");
+      showToast(res.message || "Order ID and registered Email/Phone do not match. Please try again.", "error");
     }
   };
 
@@ -305,7 +299,7 @@ export default function PublicQRCodePage() {
                         </div>
                       </div>
                       <p className="text-xs sm:text-sm text-neutral-500 font-normal leading-relaxed pt-1">
-                        Enter your Order ID and Email below to receive a verification OTP and link this QR code to your profile.
+                        Enter your Order ID and registered Email or Mobile Number below to receive a verification OTP and link this QR code to your profile.
                       </p>
                     </div>
 
@@ -334,14 +328,14 @@ export default function PublicQRCodePage() {
 
                         <div className="md:col-span-5 space-y-1.5">
                           <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
-                            EMAIL ADDRESS
+                            EMAIL OR MOBILE NUMBER
                           </label>
                           <div className="relative">
                             <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
                             <input
-                              type="email"
+                              type="text"
                               required
-                              placeholder="yourname@example.com"
+                              placeholder="email@example.com or 9876543210"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
                               className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-2xl pl-10 pr-3.5 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"

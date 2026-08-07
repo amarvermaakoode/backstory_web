@@ -1,7 +1,73 @@
 const QRCodeModel = require("../../models/QRCode");
 const User = require("../../models/user");
 const Otp = require("../../models/otp");
+const Order = require("../../models/Order");
 const { generateToken } = require("../../config/jwt");
+
+// Helper function to verify if contact (email or phone) matches a registered User account profile
+async function checkContactMatchesRegisteredUser(identifier, order) {
+  if (!identifier || !order) {
+    return { matches: false, message: "Missing Order ID or contact detail." };
+  }
+
+  const rawInput = identifier.trim();
+  const isEmail = rawInput.includes("@");
+  const cleanEmail = isEmail ? rawInput.toLowerCase() : null;
+  const cleanPhone = !isEmail ? rawInput.trim() : null;
+
+  // 1. Identify the registered User account associated with this order
+  let registeredUser = null;
+
+  if (order.user) {
+    if (typeof order.user === "object" && order.user._id) {
+      registeredUser = order.user;
+    } else {
+      registeredUser = await User.findById(order.user);
+    }
+  }
+
+  // Fallback: If order.user wasn't explicitly populated at creation time, find user in DB matching shipping address
+  if (!registeredUser) {
+    const shippingEmail = (order.shippingAddress?.email || "").toLowerCase().trim();
+    const shippingPhone = (order.shippingAddress?.phoneNumber || "").trim();
+
+    if (shippingEmail) {
+      registeredUser = await User.findOne({ email: shippingEmail });
+    }
+    if (!registeredUser && shippingPhone) {
+      registeredUser = await User.findOne({ phoneNumber: shippingPhone });
+    }
+  }
+
+  // If there is NO registered User account in MongoDB for this order:
+  if (!registeredUser) {
+    return {
+      matches: false,
+      message: "No registered BACSTORY user account found for this Order. Please sign up or complete your profile first.",
+    };
+  }
+
+  // 2. MUST match against the registered User profile (User.email or User.phoneNumber), NOT shipping address!
+  if (cleanEmail) {
+    const userEmail = (registeredUser.email || "").toLowerCase().trim();
+    if (userEmail && cleanEmail === userEmail) {
+      return { matches: true, user: registeredUser };
+    }
+  } else if (cleanPhone) {
+    const inputDigits = cleanPhone.replace(/\D/g, "");
+    const userPhone = (registeredUser.phoneNumber || "").trim();
+    const userPhoneDigits = userPhone.replace(/\D/g, "");
+
+    if (userPhone && (cleanPhone === userPhone || (inputDigits.length >= 7 && userPhoneDigits.endsWith(inputDigits.slice(-10))))) {
+      return { matches: true, user: registeredUser };
+    }
+  }
+
+  return {
+    matches: false,
+    message: "The provided Email or Mobile Number does not match your registered user profile for this Order.",
+  };
+}
 
 // get qr details by code
 exports.getQRCodeByCode = async (req, res) => {
@@ -18,7 +84,7 @@ exports.getQRCodeByCode = async (req, res) => {
     const qrDoc = await QRCodeModel.findOne({
       code: { $regex: new RegExp(`^${code.trim()}$`, "i") },
     })
-      .populate("linkedUser", "name email")
+      .populate("linkedUser", "name email phoneNumber")
       .lean();
 
     if (!qrDoc) {
@@ -28,13 +94,13 @@ exports.getQRCodeByCode = async (req, res) => {
       });
     }
 
-    // Unlinked status response (Frontend shows simple Order ID + Email OTP prompt)
+    // Unlinked status response (Frontend shows simple Order ID + Registered Email / Phone OTP prompt)
     if (qrDoc.status === "unlinked") {
       return res.status(200).json({
         success: true,
         status: "unlinked",
         code: qrDoc.code,
-        message: "This QR code is unlinked. Enter your Order ID & Email to claim it.",
+        message: "This QR code is unlinked. Enter your Order ID & registered Email or Phone number to claim it.",
       });
     }
 
@@ -64,7 +130,9 @@ exports.getQRCodeByCode = async (req, res) => {
 // send OTP to claim QR code
 exports.sendClaimOTP = async (req, res) => {
   try {
-    const { code, orderId, email } = req.body;
+    const { code, orderId, email, phoneNumber, identifier } = req.body;
+
+    const contactInput = (identifier || email || phoneNumber || "").trim();
 
     if (!code || !code.trim()) {
       return res.status(400).json({
@@ -80,14 +148,12 @@ exports.sendClaimOTP = async (req, res) => {
       });
     }
 
-    if (!email || !email.trim()) {
+    if (!contactInput) {
       return res.status(400).json({
         success: false,
-        message: "Purchase Email is required",
+        message: "Registered Email Address or Mobile Number is required",
       });
     }
-
-    const cleanEmail = email.toLowerCase().trim();
 
     // Check QR existence & status
     const qrDoc = await QRCodeModel.findOne({
@@ -108,21 +174,52 @@ exports.sendClaimOTP = async (req, res) => {
       });
     }
 
+    // Find Order in DB
+    const trimmedOrderId = orderId.trim();
+    const isMongoId = trimmedOrderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(trimmedOrderId);
+    const escapedOrderId = trimmedOrderId.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+
+    const orderDoc = await Order.findOne({
+      $or: [
+        { orderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { razorpayOrderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { _id: isMongoId ? trimmedOrderId : null },
+      ],
+    }).populate("user");
+
+    if (!orderDoc) {
+      return res.status(400).json({
+        success: false,
+        message: `Order ID '${trimmedOrderId}' was not found. Please verify your Order ID.`,
+      });
+    }
+
+    // Verify contact input matches registered user profile (User.email or User.phoneNumber)
+    const matchResult = await checkContactMatchesRegisteredUser(contactInput, orderDoc);
+    if (!matchResult.matches) {
+      return res.status(400).json({
+        success: false,
+        message: matchResult.message || "The provided Email or Mobile Number does not match your registered user profile.",
+      });
+    }
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const isEmail = contactInput.includes("@");
+    const cleanEmail = isEmail ? contactInput.toLowerCase() : null;
+    const cleanPhone = !isEmail ? contactInput : null;
 
-    // Clear old OTPs for this email
-    await Otp.deleteMany({ email: cleanEmail });
-
-    // Store OTP in database
-    await Otp.create({
-      email: cleanEmail,
-      otp,
-    });
+    if (cleanEmail) {
+      await Otp.deleteMany({ email: cleanEmail });
+      await Otp.create({ email: cleanEmail, otp });
+    } else {
+      await Otp.deleteMany({ phoneNumber: cleanPhone });
+      await Otp.create({ phoneNumber: cleanPhone, otp });
+    }
 
     return res.status(200).json({
       success: true,
-      message: `OTP sent successfully to ${cleanEmail}.`,
+      message: `OTP sent successfully to ${contactInput}.`,
       mockOtp: otp,
     });
   } catch (error) {
@@ -135,33 +232,45 @@ exports.sendClaimOTP = async (req, res) => {
   }
 };
 
-// verify otp and clain qr code
+// verify otp and claim qr code
 exports.verifyClaimOTP = async (req, res) => {
   try {
-    const { code, orderId, email, otp, name } = req.body;
+    const { code, orderId, email, phoneNumber, identifier, otp, name } = req.body;
 
-    if (!code || !orderId || !email || !otp) {
+    const contactInput = (identifier || email || phoneNumber || "").trim();
+
+    if (!code || !orderId || !contactInput || !otp) {
       return res.status(400).json({
         success: false,
-        message: "Code, Order ID, Email, and OTP are all required",
+        message: "Code, Order ID, Email/Phone, and OTP are all required",
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-
-    // Verify OTP (Support universal test OTP 123456 and db matching)
+    const isEmail = contactInput.includes("@");
+    const cleanEmail = isEmail ? contactInput.toLowerCase() : null;
+    const cleanPhone = !isEmail ? contactInput : null;
     const cleanOtp = String(otp).trim();
-    let otpRecord = null;
 
+    // Verify OTP
+    let otpRecord = null;
     if (cleanOtp === "123456") {
       otpRecord = true;
     } else {
-      otpRecord = await Otp.findOne({ email: cleanEmail, otp: cleanOtp });
-      if (!otpRecord) {
-        // Fallback: check latest OTP for email
-        const latestOtpDoc = await Otp.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
-        if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
-          otpRecord = true;
+      if (cleanEmail) {
+        otpRecord = await Otp.findOne({ email: cleanEmail, otp: cleanOtp });
+        if (!otpRecord) {
+          const latestOtpDoc = await Otp.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
+          if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
+            otpRecord = true;
+          }
+        }
+      } else if (cleanPhone) {
+        otpRecord = await Otp.findOne({ phoneNumber: cleanPhone, otp: cleanOtp });
+        if (!otpRecord) {
+          const latestOtpDoc = await Otp.findOne({ phoneNumber: cleanPhone }).sort({ createdAt: -1 });
+          if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
+            otpRecord = true;
+          }
         }
       }
     }
@@ -192,29 +301,54 @@ exports.verifyClaimOTP = async (req, res) => {
       });
     }
 
-    // Find or Create User Account automatically
-    let user = await User.findOne({ email: cleanEmail });
-    if (!user) {
-      user = await User.create({
-        email: cleanEmail,
-        name: name ? name.trim() : cleanEmail.split("@")[0],
-        role: "user",
+    // Double check Order match for security
+    const trimmedOrderId = orderId.trim();
+    const isMongoId = trimmedOrderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(trimmedOrderId);
+    const escapedOrderId = trimmedOrderId.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+
+    const orderDoc = await Order.findOne({
+      $or: [
+        { orderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { razorpayOrderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { _id: isMongoId ? trimmedOrderId : null },
+      ],
+    }).populate("user");
+
+    if (!orderDoc) {
+      return res.status(400).json({
+        success: false,
+        message: `Order ID '${trimmedOrderId}' was not found.`,
       });
     }
 
+    // Match against registered user profile
+    const matchResult = await checkContactMatchesRegisteredUser(contactInput, orderDoc);
+    if (!matchResult.matches) {
+      return res.status(400).json({
+        success: false,
+        message: matchResult.message || "Order ID and registered user profile do not match.",
+      });
+    }
+
+    const user = matchResult.user;
+
     // Link QR Code to User
     qrDoc.status = "claimed";
-    qrDoc.orderId = orderId.trim();
+    qrDoc.orderId = orderDoc.orderId;
     qrDoc.linkedUser = user._id;
     qrDoc.linkedAt = new Date();
 
     await qrDoc.save();
 
     // Delete used OTP
-    await Otp.deleteMany({ email: cleanEmail });
+    if (cleanEmail) {
+      await Otp.deleteMany({ email: cleanEmail });
+    } else if (cleanPhone) {
+      await Otp.deleteMany({ phoneNumber: cleanPhone });
+    }
 
     // Generate JWT token for user session
-    const token = generateToken(user._id);
+    const token = generateToken({ id: user._id, role: user.role || "user" });
 
     return res.status(200).json({
       success: true,
@@ -224,6 +358,7 @@ exports.verifyClaimOTP = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        phoneNumber: user.phoneNumber,
       },
       qrCode: qrDoc,
     });
