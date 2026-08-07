@@ -34,7 +34,7 @@ export default function ColorsAdminPage() {
     fetchColors();
   }, []);
 
-  const fetchColors = async () => {
+  async function fetchColors() {
     try {
       setLoading(true);
       setError("");
@@ -54,7 +54,7 @@ export default function ColorsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -198,7 +198,7 @@ export default function ColorsAdminPage() {
           </div>
         ) : colors.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-neutral-500 text-sm font-semibold">No colors found. Click "Add Color" to get started.</p>
+            <p className="text-neutral-500 text-sm font-semibold">No colors found. Click &quot;Add Color&quot; to get started.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">

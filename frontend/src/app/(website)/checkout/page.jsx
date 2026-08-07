@@ -467,7 +467,7 @@ export default function CheckoutPage() {
     };
 
     // Save shipping address function (persists locally for checkout session & syncs to backend user profile)
-    const saveShippingAddress = async () => {
+    async function saveShippingAddress() {
         try {
             const addrObj = {
                 firstName: formData.firstName,
@@ -1432,6 +1432,7 @@ export default function CheckoutPage() {
                         <p className="text-xs text-neutral-400 leading-relaxed px-4">
                             A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{formData.deliveryEmail || formData.contactEmail}</span>.
                         </p>
+
 
                         <Link
                             href="/"

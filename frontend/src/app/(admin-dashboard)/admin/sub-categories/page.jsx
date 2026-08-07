@@ -42,7 +42,7 @@ export default function SubCategoriesAdminPage() {
     fetchInitialData();
   }, []);
 
-  const fetchInitialData = async () => {
+  async function fetchInitialData() {
     try {
       setLoading(true);
       setError("");
@@ -65,7 +65,7 @@ export default function SubCategoriesAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const getCategoryName = (catRef) => {
     if (!catRef) return "Unassigned";
@@ -252,7 +252,7 @@ export default function SubCategoriesAdminPage() {
           </div>
         ) : subCategories.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-neutral-500 text-sm font-semibold">No sub-categories found. Click "Add Sub-Category" to get started.</p>
+            <p className="text-neutral-500 text-sm font-semibold">No sub-categories found. Click &quot;Add Sub-Category&quot; to get started.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">

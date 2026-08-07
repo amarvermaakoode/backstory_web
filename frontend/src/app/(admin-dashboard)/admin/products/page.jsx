@@ -97,7 +97,7 @@ export default function ProductsAdminPage() {
     }
   }, [selectedCategory]);
 
-  const fetchInitialData = async () => {
+  async function fetchInitialData() {
     try {
       setLoading(true);
       setError("");
@@ -130,9 +130,9 @@ export default function ProductsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchSubCategories = async (categoryId) => {
+  async function fetchSubCategories(categoryId) {
     try {
       const res = await adminFetch(`/sub-categories/category/${categoryId}`);
       const data = await res.json();
@@ -140,7 +140,7 @@ export default function ProductsAdminPage() {
     } catch (err) {
       console.error(err);
     }
-  };
+  }
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -489,7 +489,7 @@ export default function ProductsAdminPage() {
           </div>
         ) : products.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-neutral-500 text-sm font-semibold">No products found. Click "Add Product" to get started.</p>
+            <p className="text-neutral-500 text-sm font-semibold">No products found. Click &quot;Add Product&quot; to get started.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
@@ -1061,7 +1061,7 @@ export default function ProductsAdminPage() {
                 </div>
 
                 {faqs.length === 0 ? (
-                  <p className="text-xs text-neutral-400 italic font-sans">No FAQs added yet. Click "+ Add FAQ" to add product-specific FAQs.</p>
+                  <p className="text-xs text-neutral-400 italic font-sans">No FAQs added yet. Click &quot;+ Add FAQ&quot; to add product-specific FAQs.</p>
                 ) : (
                   <div className="space-y-4">
                     {faqs.map((faq, index) => (
@@ -1145,7 +1145,7 @@ export default function ProductsAdminPage() {
                   Product Reviews
                 </h3>
                 <p className="text-xs text-neutral-500 font-semibold mt-0.5">
-                  Reviews for "{selectedProductForReviews.title}"
+                  Reviews for &quot;{selectedProductForReviews.title}&quot;
                 </p>
               </div>
               <button

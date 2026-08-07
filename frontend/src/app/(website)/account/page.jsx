@@ -596,7 +596,7 @@ export default function AccountProfilePage() {
                         <MapPin className="w-8 h-8 text-neutral-400 mx-auto stroke-[1.2]" />
                         <h4 className="text-sm font-bold text-neutral-900">No Saved Addresses</h4>
                         <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                            You haven't saved any delivery addresses yet. Click "Add New Address" above to save an address for faster checkout.
+                            You haven&apos;t saved any delivery addresses yet. Click &quot;Add New Address&quot; above to save an address for faster checkout.
                         </p>
                     </div>
                 ) : (

@@ -39,7 +39,7 @@ export default function PromoCodesAdminPage() {
     fetchPromoCodes();
   }, []);
 
-  const fetchPromoCodes = async () => {
+  async function fetchPromoCodes() {
     try {
       setLoading(true);
       setError("");
@@ -57,7 +57,7 @@ export default function PromoCodesAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -200,7 +200,7 @@ export default function PromoCodesAdminPage() {
           </div>
         ) : promoCodes.length === 0 ? (
           <div className="py-20 text-center text-neutral-400 font-semibold text-sm">
-            No promo codes found. Click "Add Promo Code" to create one.
+            No promo codes found. Click &quot;Add Promo Code&quot; to create one.
           </div>
         ) : (
           <div className="overflow-x-auto w-full">

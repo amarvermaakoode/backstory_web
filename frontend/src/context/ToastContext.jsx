@@ -32,31 +32,31 @@ export function ToastProvider({ children }) {
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
-                        className="w-full bg-neutral-900 text-white rounded-2xl px-5 py-3.5 shadow-2xl border border-neutral-700/80 flex items-center justify-between gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-top-4 duration-200"
+                        className="w-full bg-white text-neutral-900 rounded-2xl px-5 py-3.5 shadow-xl border border-neutral-200 flex items-center justify-between gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-top-4 duration-200"
                     >
                         <div className="flex items-center gap-3">
                             {toast.type === "success" && (
-                                <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                                 </div>
                             )}
                             {toast.type === "error" && (
-                                <div className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                                    <AlertCircle className="w-4 h-4 text-red-400" />
+                                <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                    <AlertCircle className="w-4 h-4 text-red-700" />
                                 </div>
                             )}
                             {toast.type === "info" && (
-                                <div className="w-7 h-7 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0">
-                                    <Info className="w-4 h-4 text-sky-400" />
+                                <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center shrink-0">
+                                    <Info className="w-4 h-4 text-sky-700" />
                                 </div>
                             )}
-                            <p className="text-xs sm:text-sm font-semibold text-neutral-100 leading-snug">
+                            <p className="text-xs sm:text-sm font-semibold text-neutral-800 leading-snug">
                                 {toast.message}
                             </p>
                         </div>
                         <button
                             onClick={() => removeToast(toast.id)}
-                            className="text-neutral-400 hover:text-white p-1 transition-colors cursor-pointer shrink-0"
+                            className="text-neutral-400 hover:text-neutral-700 p-1 transition-colors cursor-pointer shrink-0"
                             aria-label="Dismiss notification"
                         >
                             <X className="w-4 h-4" />

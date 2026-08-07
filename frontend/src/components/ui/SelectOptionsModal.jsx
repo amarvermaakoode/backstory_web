@@ -72,17 +72,17 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                     const firstInStock = finalSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, dbProd) > 0) || finalSizes[0] || "M";
                     setSelectedSize(firstInStock);
                 } else {
-                    useFallbacks();
+                    applyFallbacks();
                 }
             } catch (err) {
                 console.error("Failed to fetch product details for modal:", err);
-                useFallbacks();
+                applyFallbacks();
             } finally {
                 setLoading(false);
             }
         };
 
-        const useFallbacks = () => {
+        const applyFallbacks = () => {
             const defaultSizes = sizes.length > 0 ? sizes : ["S", "M", "L", "XL"];
             const defaultColors = colors.length > 0 ? colors : [
                 { name: "Blue", hex: "#2563EB" },
