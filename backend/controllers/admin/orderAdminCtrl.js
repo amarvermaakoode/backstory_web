@@ -1,13 +1,16 @@
 const Order = require("../../models/Order");
 
 const ALLOWED_STATUSES = [
+  "Placed",
   "Order Confirmed",
   "Ready to Pack & Ship",
   "Dispatched & In Transit",
   "Out for Delivery",
   "Delivered",
+  "Return In Progress",
+  "Returned",
   "Cancelled",
-  "Returned"
+  "Processing"
 ];
 
 // Get all orders for admin management
@@ -116,6 +119,25 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // Auto-update return lifecycle status based on user table:
+    // Stage 5: Product picked up/received -> Order: Return In Progress, Return: Product Received, Payment: Paid
+    // Stage 7: Refund completed -> Order: Returned, Return: Refunded, Payment: Refunded
+    if (status === "Return In Progress") {
+      if (!order.returnExchange) order.returnExchange = {};
+      if (order.returnExchange.status !== "Refund Initiated") {
+        order.returnExchange.status = "Product Received";
+      }
+      if (order.paymentStatus !== "Refund Processing" && order.paymentStatus !== "Refunded") {
+        order.paymentStatus = "Paid";
+      }
+    } else if (status === "Returned") {
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Refunded";
+      order.paymentStatus = "Refunded";
+      if (!order.refundDetails) order.refundDetails = {};
+      order.refundDetails.refundStatus = "Refunded";
+    }
+
     await order.save();
 
     return res.status(200).json({
@@ -132,7 +154,7 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-// Update refund status of an order (e.g. "Pending", "Initiated", "Processing", "Processed", "Failed")
+// Update refund status of an order (e.g. "None", "Paid", "Refund Processing", "Refunded")
 const updateRefundStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -153,8 +175,23 @@ const updateRefundStatus = async (req, res) => {
 
     if (refundStatus) order.refundDetails.refundStatus = refundStatus;
     if (estimatedCreditWindow) order.refundDetails.estimatedCreditWindow = estimatedCreditWindow;
-    order.refundDetails.updatedAt = new Date();
 
+    // Sync return lifecycle according to table when refund status changes:
+    // Stage 6: Refund initiated -> Order: Return In Progress, Return: Refund Initiated, Payment: Refund Processing
+    // Stage 7: Refund completed -> Order: Returned, Return: Refunded, Payment: Refunded
+    if (refundStatus === "Refund Processing" || refundStatus === "Initiated / Refund Pending") {
+      order.orderStatus = "Return In Progress";
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Refund Initiated";
+      order.paymentStatus = "Refund Processing";
+    } else if (refundStatus === "Refunded" || refundStatus === "Processed / Credited") {
+      order.orderStatus = "Returned";
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Refunded";
+      order.paymentStatus = "Refunded";
+    }
+
+    order.refundDetails.updatedAt = new Date();
     await order.save();
 
     return res.status(200).json({
@@ -171,7 +208,7 @@ const updateRefundStatus = async (req, res) => {
   }
 };
 
-// Approve Return or Exchange request & initiate Razorpay refund for prepaid returns
+// Approve Return or Exchange request
 const approveReturnRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -191,62 +228,20 @@ const approveReturnRequest = async (req, res) => {
     const reqType = order.returnExchange.requestType || "return";
 
     if (reqType === "return") {
-      order.returnExchange.status = "Approved";
-      // Keep original orderStatus (e.g. Delivered). Order status only becomes Returned when manually updated upon return item receipt.
-
-      const isPrepaid = order.refundDetails?.refundMethod === "Original Payment Method" || order.paymentMethod === "Prepaid" || order.paymentStatus === "Paid" || order.paymentStatus === "Confirmed";
+      // Stage 4: Admin approves return -> Order: Delivered, Return: Return Approved, Payment: Paid
+      order.returnExchange.status = "Return Approved";
+      order.orderStatus = "Delivered";
+      order.paymentStatus = "Paid";
 
       const returnFee = order.returnExchange?.returnShippingFee || 0;
       const refundAmountRs = order.refundDetails?.refundAmount || Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnFee);
       
       if (!order.refundDetails) order.refundDetails = {};
       order.refundDetails.refundAmount = refundAmountRs;
-
-      if (isPrepaid) {
-        const paymentId = order.razorpayPaymentId || order.paymentInfo?.razorpayPaymentId || order.paymentDetails?.razorpay_payment_id;
-        
-        let refundResult = null;
-        try {
-          const keyId = process.env.RAZORPAY_KEY_ID;
-          const keySecret = process.env.RAZORPAY_KEY_SECRET;
-          
-          if (paymentId && keyId && keySecret) {
-            const Razorpay = require("razorpay");
-            const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
-
-            refundResult = await rzp.payments.refund(paymentId, {
-              amount: Math.round(refundAmountRs * 100),
-              notes: {
-                orderId: order.orderId,
-                reason: order.returnExchange.reason || "Return request approved by admin"
-              }
-            });
-
-            order.refundDetails.refundId = refundResult.id;
-            order.refundDetails.refundStatus = refundResult.status === "processed" ? "Processed / Credited" : "Initiated / Refund Pending";
-          } else {
-            // Mock test mode fallback (when test key without active razorpay payment id)
-            order.refundDetails.refundId = `rfnd_rzp_${Date.now().toString(36)}`;
-            order.refundDetails.refundStatus = "Initiated / Refund Pending";
-          }
-        } catch (rzpError) {
-          console.error("Razorpay API refund error:", rzpError.message || rzpError);
-          order.refundDetails.refundId = `rfnd_pending_${Date.now().toString(36)}`;
-          order.refundDetails.refundStatus = "Initiated / Refund Pending";
-        }
-
-        order.paymentStatus = "Refund Pending";
-        if (order.refundDetails.refundStatus === "Processed / Credited") {
-          order.paymentStatus = "Refunded";
-        }
-      } else {
-        // COD Return
-        order.refundDetails.refundStatus = "Approved / Processing Payout";
-        order.paymentStatus = "Refund Pending";
-      }
+      order.refundDetails.refundStatus = "None";
     } else {
       // Exchange request
-      order.returnExchange.status = "Approved";
+      order.returnExchange.status = "Exchange Approved";
       order.orderStatus = "Ready to Pack & Ship";
     }
 
@@ -255,7 +250,7 @@ const approveReturnRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `${reqType === "return" ? "Return request approved and Razorpay refund initiated" : "Exchange request approved"} successfully!`,
+      message: `${reqType === "return" ? "Return request approved" : "Exchange request approved"} successfully!`,
       data: order
     });
   } catch (error) {

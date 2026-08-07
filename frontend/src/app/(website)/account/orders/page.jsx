@@ -353,24 +353,23 @@ export default function AccountOrdersPage() {
                                         </button>
 
                                         {order.returnExchange?.isRequested ? (
-                                            <Link
-                                                href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
-                                                className={`border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${order.returnExchange.status === "Approved"
-                                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                                    : order.returnExchange.status === "Rejected"
-                                                        ? "bg-red-50 text-red-800 border-red-300 hover:bg-red-100"
-                                                        : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                                                    }`}
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5 text-current" />
-                                                <span>
-                                                    {order.returnExchange.status === "Approved"
-                                                        ? "Return Request Approved"
-                                                        : order.returnExchange.status === "Rejected"
-                                                            ? "Return Request Rejected"
-                                                            : "Return Request (Under Review)"}
-                                                </span>
-                                            </Link>
+                                            order.returnExchange.status === "Approved" ? (
+                                                <Link
+                                                    href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                    className="border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5 text-current" />
+                                                    <span>Return Request Approved</span>
+                                                </Link>
+                                            ) : order.returnExchange.status === "Rejected" ? (
+                                                <Link
+                                                    href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                    className="border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer bg-red-50 text-red-800 border-red-300 hover:bg-red-100"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5 text-current" />
+                                                    <span>Return Request Rejected</span>
+                                                </Link>
+                                            ) : null
                                         ) : currentOrderStatus === "Delivered" ? (
                                             <Link
                                                 href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
@@ -524,23 +523,44 @@ export default function AccountOrdersPage() {
                             </button>
                         </div>
 
-                        {/* Order, Payment & Refund Overview Box */}
+                        {/* Order, Return & Payment Status Overview Box */}
                         {(() => {
-                            const modalOrderStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Order Confirmed";
-                            const isCancelledModal = modalOrderStatus === "Cancelled" || selectedTrackOrder.cancellation?.isCancelled;
-                            const isRefundedModal = selectedTrackOrder.refundDetails?.refundStatus === "Processed / Credited" || selectedTrackOrder.refundDetails?.refundStatus === "Processed" || selectedTrackOrder.refundDetails?.refundStatus === "Credited" || selectedTrackOrder.paymentStatus === "Refunded";
+                            const rawOrderStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Placed";
+                            const isCancelledModal = rawOrderStatus === "Cancelled" || selectedTrackOrder.cancellation?.isCancelled;
+                            const isReturnRequestedModal = selectedTrackOrder.returnExchange?.isRequested;
 
-                            let modalPayStatus = selectedTrackOrder.paymentStatus || "Confirmed";
+                            let modalOrderStatus = rawOrderStatus;
+                            let modalReturnStatus = selectedTrackOrder.returnExchange?.status || "None";
+                            let modalPayStatus = selectedTrackOrder.paymentStatus || "Paid";
+
                             if (isCancelledModal) {
-                                if (isRefundedModal) {
+                                modalOrderStatus = "Cancelled";
+                                if (selectedTrackOrder.paymentStatus === "Refunded" || selectedTrackOrder.refundDetails?.refundStatus === "Refunded") {
                                     modalPayStatus = "Refunded";
-                                } else if (selectedTrackOrder.cancellation?.refundAmount > 0 || selectedTrackOrder.paymentStatus === "Refund Pending" || selectedTrackOrder.paymentStatus === "Refund Initiated") {
-                                    modalPayStatus = "Refund Pending";
+                                } else if (selectedTrackOrder.cancellation?.refundAmount > 0) {
+                                    modalPayStatus = "Refund Processing";
                                 } else {
                                     modalPayStatus = "Cancelled (Unpaid)";
                                 }
-                            } else if (isRefundedModal) {
-                                modalPayStatus = "Refunded";
+                            } else if (isReturnRequestedModal) {
+                                if (modalReturnStatus === "Refunded") {
+                                    modalOrderStatus = "Returned";
+                                    modalPayStatus = "Refunded";
+                                } else if (modalReturnStatus === "Refund Initiated") {
+                                    modalOrderStatus = "Return In Progress";
+                                    modalPayStatus = "Refund Processing";
+                                } else if (modalReturnStatus === "Product Received") {
+                                    modalOrderStatus = "Return In Progress";
+                                    modalPayStatus = "Paid";
+                                } else if (modalReturnStatus === "Return Approved" || modalReturnStatus === "Approved") {
+                                    modalOrderStatus = "Delivered";
+                                    modalReturnStatus = "Return Approved";
+                                    modalPayStatus = "Paid";
+                                } else {
+                                    modalOrderStatus = "Delivered";
+                                    modalReturnStatus = "Return Requested";
+                                    modalPayStatus = "Paid";
+                                }
                             }
 
                             const cancelReason = selectedTrackOrder.cancellation?.cancellationReason;
@@ -555,6 +575,14 @@ export default function AccountOrdersPage() {
                                             {modalOrderStatus}
                                         </span>
                                     </div>
+                                    {isReturnRequestedModal && (
+                                        <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
+                                            <span className="text-neutral-500 font-medium">Return Status:</span>
+                                            <span className="font-semibold text-neutral-900">
+                                                {modalReturnStatus}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
                                         <span className="text-neutral-500 font-medium">Payment Status:</span>
                                         <span className="font-semibold text-neutral-900">
@@ -569,7 +597,7 @@ export default function AccountOrdersPage() {
                                             </span>
                                         </div>
                                     )}
-                                    {(isCancelledModal || isRefundedModal || selectedTrackOrder.cancellation?.refundAmount > 0) && (
+                                    {(isCancelledModal || selectedTrackOrder.cancellation?.refundAmount > 0) && (
                                         <>
                                             <div className="border-t border-neutral-200/50 pt-2 space-y-1.5">
                                                 <div className="flex items-center justify-between">
@@ -599,26 +627,77 @@ export default function AccountOrdersPage() {
                                             </div>
                                         </>
                                     )}
+                                    {isReturnRequestedModal && (() => {
+                                        const reqReason = selectedTrackOrder.returnExchange?.reason || "";
+                                        const isFreeShippingReason = [
+                                            "Defective or damaged product",
+                                            "Received wrong item",
+                                            "Parcel received with missing items",
+                                            "Item damaged during transit",
+                                            "Item defective or damaged"
+                                        ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
+
+                                        const returnShippingFee = isFreeShippingReason
+                                            ? 0
+                                            : (typeof selectedTrackOrder.returnExchange?.returnShippingFee === "number"
+                                                ? selectedTrackOrder.returnExchange.returnShippingFee
+                                                : 99);
+
+                                        const orderTotal = selectedTrackOrder.totalAmount || selectedTrackOrder.subtotal || 0;
+                                        const netRefund = selectedTrackOrder.refundDetails?.refundAmount || Math.max(0, orderTotal - returnShippingFee);
+                                        const payoutMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+
+                                        return (
+                                            <>
+                                                <div className="border-t border-neutral-200/50 pt-2 space-y-1.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-neutral-500 font-medium">Order Total:</span>
+                                                        <span className="font-semibold text-neutral-900">
+                                                            Rs {Number(orderTotal)?.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-neutral-500 font-medium">Return Shipping Fee:</span>
+                                                        <span className={returnShippingFee === 0 ? "font-semibold text-emerald-600" : "font-semibold text-amber-700"}>
+                                                            {returnShippingFee === 0 ? "Rs 0 (Free Return)" : `- Rs ${returnShippingFee}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between border-t border-neutral-200/80 pt-1.5">
+                                                        <span className="text-neutral-900 font-bold">Refund Amount:</span>
+                                                        <span className="font-bold text-neutral-900 text-xs sm:text-sm">
+                                                            Rs {Number(netRefund)?.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
+                                                    <span className="text-neutral-500 font-medium">Payout Method:</span>
+                                                    <span className="font-semibold text-neutral-900">
+                                                        {payoutMethod}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             );
                         })()}
 
                         {/* Dynamic Progress Timeline (Delivery vs Cancelled vs Returned) */}
                         {(() => {
-                            const currentStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Order Confirmed";
+                            const currentStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Placed";
                             const isCancelled = currentStatus === "Cancelled" || selectedTrackOrder.cancellation?.isCancelled;
                             const isReturned = currentStatus === "Returned" || selectedTrackOrder.returnExchange?.isRequested;
 
                             if (isCancelled) {
                                 const cancelReason = selectedTrackOrder.cancellation?.cancellationReason || "Cancelled by customer before dispatch";
-                                const refundStatus = selectedTrackOrder.refundDetails?.refundStatus || "Refund Pending";
+                                const refundStatus = selectedTrackOrder.refundDetails?.refundStatus || "Refund Processing";
                                 const refundAmount = selectedTrackOrder.cancellation?.refundAmount || selectedTrackOrder.totalAmount || 0;
                                 const refundMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
 
                                 const CANCEL_STEPS = [
                                     { title: "Order Confirmed", desc: "Your order was successfully placed", completed: true, current: false },
-                                    { title: "Order Cancelled", desc: `Reason: ${cancelReason}`, completed: true, current: refundStatus !== "Processed" && refundStatus !== "Credited" && refundStatus !== "Processed / Credited" },
-                                    { title: `Refund Status: ${refundStatus}`, desc: `Rs ${refundAmount?.toLocaleString()} via ${refundMethod} (Credited in 5-7 Business Days)`, completed: refundStatus === "Processed" || refundStatus === "Credited" || refundStatus === "Processed / Credited", current: refundStatus === "Processed" || refundStatus === "Credited" || refundStatus === "Processed / Credited" }
+                                    { title: "Order Cancelled", desc: `Reason: ${cancelReason}`, completed: true, current: refundStatus !== "Refunded" },
+                                    { title: `Refund Status: ${refundStatus}`, desc: `Rs ${refundAmount?.toLocaleString()} via ${refundMethod}`, completed: refundStatus === "Refunded", current: refundStatus === "Refunded" }
                                 ];
 
                                 return (
@@ -639,29 +718,24 @@ export default function AccountOrdersPage() {
                             }
 
                             if (isReturned) {
-                                const returnReason = selectedTrackOrder.returnExchange?.reason || "Return / Exchange requested";
-                                const returnStatus = selectedTrackOrder.returnExchange?.status || "Pending Verification";
-                                const reqType = selectedTrackOrder.returnExchange?.requestType === "exchange" ? "Exchange" : "Return";
-                                const refundStatus = selectedTrackOrder.refundDetails?.refundStatus || "Pending Inspection";
+                                const returnReason = selectedTrackOrder.returnExchange?.reason || "Return requested";
+                                const returnStatus = selectedTrackOrder.returnExchange?.status || "Return Requested";
+
+                                const isApproved = returnStatus === "Return Approved" || returnStatus === "Approved" || returnStatus === "Product Received" || returnStatus === "Refund Initiated" || returnStatus === "Refunded";
+                                const isReceived = returnStatus === "Product Received" || returnStatus === "Refund Initiated" || returnStatus === "Refunded";
+                                const isRefundInit = returnStatus === "Refund Initiated" || returnStatus === "Refunded";
+                                const isRefundedDone = returnStatus === "Refunded";
 
                                 const RETURN_STEPS = [
-                                    { title: `${reqType} Requested`, desc: `Reason: ${returnReason}`, completed: true, current: false },
-                                    { title: `Inspection & ${returnStatus}`, desc: "Item under quality verification at warehouse", completed: returnStatus !== "Pending Verification", current: returnStatus === "Pending Verification" },
-                                    { title: reqType === "Return" ? `Refund Status: ${refundStatus}` : "Replacement Dispatched", desc: "Initiated post inspection within 2 business days", completed: returnStatus === "Completed" || returnStatus === "Approved", current: returnStatus !== "Pending Verification" }
+                                    { title: "Return Requested", desc: `Reason: ${returnReason}`, completed: true },
+                                    { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
+                                    { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
+                                    { title: "Refund Initiated", desc: "Refund payment processing", completed: isRefundInit },
+                                    { title: "Refunded", desc: "Refund completed & credited to account", completed: isRefundedDone }
                                 ];
 
                                 return (
                                     <div className="space-y-6">
-                                        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-1.5 text-xs text-purple-950">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-sm uppercase text-purple-950">{reqType} Status: {returnStatus}</span>
-                                                <span className="bg-purple-200 text-purple-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                                    {refundStatus}
-                                                </span>
-                                            </div>
-                                            <p className="text-purple-900 leading-relaxed"><strong>Reason:</strong> {returnReason}</p>
-                                        </div>
-
                                         <div className="space-y-6 relative pl-6 border-l-2 border-purple-200">
                                             {RETURN_STEPS.map((step, idx) => (
                                                 <div key={idx} className="relative space-y-0.5">

@@ -464,7 +464,7 @@ const submitReturnExchange = async (req, res) => {
       reportedWithin48Hours: !!reportedWithin48Hours,
       returnShippingFee,
       requestedAt: new Date(),
-      status: "Pending Verification"
+      status: requestType === "exchange" ? "Exchange Requested" : "Return Requested"
     };
 
     if (requestType === "return") {
@@ -488,9 +488,13 @@ const submitReturnExchange = async (req, res) => {
         accountNumber: accountNumber || "",
         ifscCode: ifscCode || "",
         upiId: upiId || "",
-        refundStatus: "Pending Inspection",
+        refundStatus: "None",
         estimatedCreditWindow: "5-7 Business Days"
       };
+    }
+
+    if (order.paymentStatus !== "COD" && order.paymentStatus !== "Cancelled (Unpaid)") {
+      order.paymentStatus = "Paid";
     }
 
     await order.save();

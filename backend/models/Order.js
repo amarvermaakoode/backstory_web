@@ -54,18 +54,20 @@ const orderSchema = new mongoose.Schema(
         orderStatus: {
           type: String,
           enum: [
+            "Placed",
             "Order Confirmed",
             "Ready to Pack & Ship",
             "Dispatched & In Transit",
             "Out for Delivery",
             "Delivered",
-            "Cancelled",
+            "Return In Progress",
             "Returned",
+            "Cancelled",
             "Processing"
           ],
-          default: "Order Confirmed",
+          default: "Placed",
         },
-        paymentStatus: { type: String, default: "Confirmed" },
+        paymentStatus: { type: String, default: "Paid" },
         deliveryDate: { type: String, default: "Estimated Delivery: 3-5 Business Days" },
       },
     ],
@@ -76,21 +78,33 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true, default: 0 },
     paymentStatus: {
       type: String,
-      default: "Confirmed",
+      enum: [
+        "Paid",
+        "Confirmed",
+        "Pending",
+        "Failed",
+        "Refund Processing",
+        "Refunded",
+        "Cancelled (Unpaid)",
+        "COD"
+      ],
+      default: "Paid",
     },
     orderStatus: {
       type: String,
       enum: [
+        "Placed",
         "Order Confirmed",
         "Ready to Pack & Ship",
         "Dispatched & In Transit",
         "Out for Delivery",
         "Delivered",
-        "Cancelled",
+        "Return In Progress",
         "Returned",
+        "Cancelled",
         "Processing"
       ],
-      default: "Order Confirmed",
+      default: "Placed",
     },
     cancellation: {
       isCancelled: { type: Boolean, default: false },
@@ -112,6 +126,18 @@ const orderSchema = new mongoose.Schema(
       requestedAt: { type: Date },
       status: {
         type: String,
+        enum: [
+          "None",
+          "Return Requested",
+          "Return Approved",
+          "Product Received",
+          "Refund Initiated",
+          "Refunded",
+          "Rejected",
+          "Pending Verification",
+          "Exchange Requested",
+          "Exchange Approved"
+        ],
         default: "None"
       }
     },
@@ -126,7 +152,17 @@ const orderSchema = new mongoose.Schema(
       upiId: { type: String, default: "" },
       refundStatus: {
         type: String,
-        default: "Not Applicable"
+        enum: [
+          "None",
+          "Paid",
+          "Refund Processing",
+          "Refunded",
+          "Processed / Credited",
+          "Initiated / Refund Pending",
+          "Return Pending Approval",
+          "Not Applicable"
+        ],
+        default: "None"
       },
       refundAmount: { type: Number, default: 0 },
       refundId: { type: String, default: "" },
