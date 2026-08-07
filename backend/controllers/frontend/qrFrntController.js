@@ -421,12 +421,7 @@ exports.updateQRProfile = async (req, res) => {
     qrDoc.profileData = {
       title: title !== undefined ? title : qrDoc.profileData?.title || "",
       bio: bio !== undefined ? bio : qrDoc.profileData?.bio || "",
-      socialLinks: {
-        instagram: socialLinks?.instagram ?? qrDoc.profileData?.socialLinks?.instagram ?? "",
-        twitter: socialLinks?.twitter ?? qrDoc.profileData?.socialLinks?.twitter ?? "",
-        spotify: socialLinks?.spotify ?? qrDoc.profileData?.socialLinks?.spotify ?? "",
-        customUrl: socialLinks?.customUrl ?? qrDoc.profileData?.socialLinks?.customUrl ?? "",
-      },
+      socialLinks: typeof socialLinks === "object" && socialLinks !== null ? socialLinks : qrDoc.profileData?.socialLinks || {},
       avatarUrl: avatarUrl !== undefined ? avatarUrl : qrDoc.profileData?.avatarUrl || "",
       coverUrl: coverUrl !== undefined ? coverUrl : qrDoc.profileData?.coverUrl || "",
       themeColor: themeColor || qrDoc.profileData?.themeColor || "#000000",

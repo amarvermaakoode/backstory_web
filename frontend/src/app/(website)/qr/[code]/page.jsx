@@ -7,6 +7,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
 import {
+  QrCode,
   Tag,
   Award,
   ShieldCheck,
@@ -37,9 +38,36 @@ const InstagramIcon = (props) => (
   </svg>
 );
 
+const LinkedinIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect x="2" y="9" width="4" height="12" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
 const TwitterIcon = (props) => (
   <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
+  </svg>
+);
+
+const FacebookIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+  </svg>
+);
+
+const SnapchatIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M12 2a6 6 0 0 1 6 6c0 1.5-.5 2.5-1 3.5 1 .5 2 1.5 2 3 0 1.5-1.5 2-2.5 2-.5 1-1.5 2.5-4.5 2.5s-4-1.5-4.5-2.5c-1 0-2.5-.5-2.5-2 0-1.5 1-2.5 2-3-.5-1-1-2-1-3.5a6 6 0 0 1 6-6z" />
+  </svg>
+);
+
+const YoutubeIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
+    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
   </svg>
 );
 
@@ -572,7 +600,7 @@ export default function PublicQRCodePage() {
 
         {/* CLAIM SUCCESS STATE / QR LINKED BUT NOT ACTIVATED */}
         {(claimSuccess || (!loading && !errorMsg && qrData?.status !== "unlinked" && !qrData?.profileData?.customText && !qrData?.profileData?.bio)) && (
-          <div className="min-h-screen w-full bg-[#FAF9F5] relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
+          <div className="min-h-screen w-full bg-[#E7DCD3] bg-[url('/images/qr-about/bg.png')] bg-cover bg-center bg-no-repeat relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
             {/* Background Decorative Rings & Effects */}
 
             {/* Top Brand Logo */}
@@ -645,179 +673,162 @@ export default function PublicQRCodePage() {
           </div>
         )}
 
-        {/* LINKED / ACTIVATED STATE: Display Public Story Profile */}
+        {/* LINKED / ACTIVATED STATE: Display Public Story Profile (Matching Reference Design) */}
         {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (qrData?.profileData?.customText || qrData?.profileData?.bio || qrData?.profileData?.title) && (
-          <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 pt-6 pb-12 space-y-8 animate-in fade-in duration-300">
-            <Link href="/" className="inline-block cursor-pointer mb-2">
-              <img
-                src="/images/logo-dark.svg"
-                alt="BACSTORY"
-                className="h-6 sm:h-7 lg:h-8 w-auto object-contain"
-              />
-            </Link>
-            <div className="max-w-4xl mx-auto w-full relative overflow-hidden bg-white border border-neutral-200 rounded-3xl shadow-sm">
-              {/* Cover Banner */}
-              <div
-                className="h-44 sm:h-56 w-full relative bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-300 overflow-hidden"
-                style={{
-                  backgroundColor: qrData?.profileData?.themeColor || "#f5f5f5",
-                }}
-              >
-                {qrData?.profileData?.coverUrl ? (
-                  <img
-                    src={qrData.profileData.coverUrl}
-                    alt="Cover"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-200 via-neutral-100 to-white" />
-                )}
-              </div>
+          <div className="min-h-screen w-full md:bg-[#E7DCD3] bg-[#E7DCD3]/40   lg:bg-[url('/images/qr-about/imageCopy.png')] bg-contain bg-start bg-no-repeat relative overflow-y-auto flex flex-col justify-between p-6 select-none animate-in fade-in duration-300">
+            {/* Top Brand Header & Navigation Bar */}
+            <div className="w-full max-w-full mx-auto z-20 md:pb-6 pb-0">
+              <Link href="/" className="inline-block cursor-pointer">
+                <img
+                  src="/images/logo-dark.svg"
+                  alt="BACSTORY"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </Link>
 
-              {/* Profile Info */}
-              <div className="px-6 sm:px-10 pb-10 relative -mt-16 sm:-mt-20 space-y-6">
-                <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 text-center sm:text-left">
-                  {/* Avatar */}
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-neutral-100 shadow-md overflow-hidden shrink-0 flex items-center justify-center text-neutral-800 relative">
+
+            </div>
+
+            {/* Main Center Container with Public Garment Card & Hangtag Graphic */}
+            <div className="w-full max-w-[100%] md:max-w-[90%] mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center z-10 md:py-6 py-0">
+              {/* Left/Center Column: Public Garment Story Card */}
+              <div className="lg:col-span-7 xl:col-span-6 w-full max-w-[100%] mx-auto bg-[#F8F5F2] rounded-[18px] p-7 sm:p-9 shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 ">
+                {/* Circular Avatar Image with Green Ring & Check Badge */}
+                <div className="relative w-24 h-24 mx-auto">
+                  <div className="w-full h-full rounded-full border-4 border-[#F3F4F1] shadow-xs overflow-hidden bg-neutral-100 flex items-center justify-center">
                     {qrData?.profileData?.avatarUrl ? (
                       <img
                         src={qrData.profileData.avatarUrl}
-                        alt="Avatar"
+                        alt={qrData?.linkedUser?.name || "Owner"}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <User className="w-12 h-12 text-neutral-400" />
+                      <div className="w-full h-full bg-[#EFECE6] flex items-center justify-center text-[#707659]">
+                        <User className="w-12 h-12 stroke-[1.5]" />
                       </div>
                     )}
                   </div>
+
                 </div>
 
-                {/* Title & User Name */}
-                <div className="space-y-1 text-center sm:text-left">
-                  <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-neutral-900">
-                    {qrData?.profileData?.title || qrData?.linkedUser?.name || "BACSTORY Garment Owner"}
+                {/* Owner Info & Verified Owner Badge */}
+                <div>
+                  {/* <p className="text-xs sm:text-sm font-medium text-neutral-500 font-sans">
+                    This garment is claimed by
+                  </p> */}
+                  <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 capitalize tracking-tight font-sans flex items-center justify-center gap-1.5">
+                    <span>{qrData?.profileData?.title?.trim() || qrData?.linkedUser?.name || "Anonymous"}</span>
                   </h2>
-                  <p className="text-xs font-mono text-neutral-500">
-                    Linked by {qrData?.linkedUser?.name || "BACSTORY Member"}
+
+
+                </div>
+
+                {/* Diamond Separator Line */}
+                <div className="relative mb-4 flex items-center justify-center">
+                  <div className="w-full border-t border-neutral-200/70" />
+                  <div className="absolute px-2.5 text-[#C4C2B4] text-[10px]">✦</div>
+                </div>
+
+                {/* About the Owner Section */}
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold text-neutral-700 tracking-widest uppercase text-center">
+                    ABOUT THE OWNER
+                  </p>
+                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal text-center px-2">
+                    {qrData?.profileData?.bio || qrData?.profileData?.customText || "Loves minimal fashion, good coffee and creating a positive impact."}
                   </p>
                 </div>
 
-                {/* Custom Story / Bio */}
-                {(qrData?.profileData?.customText || qrData?.profileData?.bio) && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-2">
-                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider font-mono">
-                      Digital Story & Bio
-                    </p>
-                    <p className="text-sm sm:text-base text-neutral-800 leading-relaxed font-normal italic">
-                      "{qrData?.profileData?.customText || qrData?.profileData?.bio}"
-                    </p>
-                  </div>
-                )}
-
-                {/* Social Links Grid */}
+                {/* Connect Section (Social Links - Dynamic for all platforms) */}
                 {qrData?.profileData?.socialLinks &&
-                  Object.values(qrData.profileData.socialLinks).some((val) => val) && (
-                    <div className="space-y-3">
-                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider font-mono">
-                        Connect & Socials
+                  Object.entries(qrData.profileData.socialLinks).some(([_, val]) => val && String(val).trim().length > 0) && (
+                    <div className="space-y-2.5">
+                      <p className="text-[11px] font-bold text-neutral-700 tracking-widest uppercase text-center">
+                        CONNECT
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {qrData.profileData.socialLinks.instagram && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.instagram.startsWith("http")
-                                ? qrData.profileData.socialLinks.instagram
-                                : `https://instagram.com/${qrData.profileData.socialLinks.instagram.replace("@", "")}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-pink-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center">
-                                <InstagramIcon className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-pink-600 transition-colors">
-                                Instagram
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-pink-600 transition-colors" />
-                          </a>
-                        )}
+                      <div className="bg-[#EFE9E5]/40 border border-neutral-200/60 rounded-2xl p-3.5 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                        {Object.entries(qrData.profileData.socialLinks).map(([platformId, linkVal]) => {
+                          if (!linkVal || !String(linkVal).trim()) return null;
+                          const rawVal = String(linkVal).trim();
+                          const iconMap = {
+                            instagram: "/images/landing-page/instagram.svg",
+                            linkedin: "/images/landing-page/linkedin.svg",
+                            twitter: "/images/landing-page/twitter.svg",
+                            facebook: "/images/icons/facebook.svg",
+                            snapchat: "/images/icons/snapchat.svg",
+                            youtube: "/images/icons/youtube.svg",
+                            spotify: "/images/icons/spotify.svg",
+                            discord: "/images/icons/discord.svg",
+                            dribble: "/images/icons/dribble.svg",
+                            github: "/images/icons/github.svg",
+                            pintrest: "/images/icons/pintrest.svg",
+                            pinterest: "/images/icons/pintrest.svg",
+                            telegram: "/images/icons/telegram.svg",
+                            threds: "/images/icons/threds.svg",
+                            threads: "/images/icons/threds.svg",
+                            tiktok: "/images/icons/tiktok.svg",
+                            whatsapp: "/images/icons/whatsapp.svg",
+                            customUrl: "/images/landing-page/linkedin.svg",
+                          };
+                          const urlPrefixMap = {
+                            instagram: "https://instagram.com/",
+                            facebook: "https://facebook.com/",
+                            snapchat: "https://snapchat.com/add/",
+                            youtube: "https://youtube.com/",
+                            twitter: "https://twitter.com/",
+                            linkedin: "https://linkedin.com/in/",
+                            spotify: "https://open.spotify.com/",
+                            tiktok: "https://tiktok.com/@",
+                            whatsapp: "https://wa.me/",
+                            telegram: "https://t.me/",
+                            github: "https://github.com/",
+                            discord: "https://discord.gg/",
+                            threds: "https://threads.net/@",
+                            threads: "https://threads.net/@",
+                            pintrest: "https://pinterest.com/",
+                            pinterest: "https://pinterest.com/",
+                            dribble: "https://dribbble.com/",
+                          };
 
-                        {qrData.profileData.socialLinks.twitter && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.twitter.startsWith("http")
-                                ? qrData.profileData.socialLinks.twitter
-                                : `https://twitter.com/${qrData.profileData.socialLinks.twitter.replace("@", "")}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-sky-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
-                                <TwitterIcon className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-sky-600 transition-colors">
-                                Twitter / X
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-sky-600 transition-colors" />
-                          </a>
-                        )}
+                          const iconSrc = iconMap[platformId] || "/images/landing-page/linkedin.svg";
+                          const defaultPrefix = urlPrefixMap[platformId] || "https://";
+                          const finalUrl = rawVal.startsWith("http")
+                            ? rawVal
+                            : `${defaultPrefix}${rawVal.replace(/^@/, "")}`;
 
-                        {qrData.profileData.socialLinks.spotify && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.spotify.startsWith("http")
-                                ? qrData.profileData.socialLinks.spotify
-                                : `https://open.spotify.com/${qrData.profileData.socialLinks.spotify}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-emerald-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                <Music className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-emerald-600 transition-colors">
-                                Spotify Track
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-emerald-600 transition-colors" />
-                          </a>
-                        )}
-
-                        {qrData.profileData.socialLinks.customUrl && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.customUrl.startsWith("http")
-                                ? qrData.profileData.socialLinks.customUrl
-                                : `https://${qrData.profileData.socialLinks.customUrl}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-purple-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                                <Globe className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-purple-600 transition-colors">
-                                Custom Link
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-purple-600 transition-colors" />
-                          </a>
-                        )}
+                          return (
+                            <a
+                              key={platformId}
+                              href={finalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-10 h-10 rounded-full bg-white shadow-2xs border border-neutral-200/80 flex items-center justify-center text-neutral-800 hover:scale-105 transition-transform cursor-pointer"
+                              title={platformId}
+                            >
+                              <img src={iconSrc} alt={platformId} className="w-5 h-5 object-contain invert" />
+                            </a>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
+
+
               </div>
+
+
+            </div>
+
+            {/* Bottom Footer Signoff */}
+            <div className="w-full text-center space-y-1 pt-4 z-20">
+              <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
+                Authentic Apparel. Built on Trust.
+              </p>
+              <img
+                src="/images/logo-dark.svg"
+                alt="BACSTORY"
+                className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
+              />
             </div>
           </div>
         )}
