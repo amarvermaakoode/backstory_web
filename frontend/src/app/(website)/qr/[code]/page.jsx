@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/components/layout/Footer";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
@@ -729,7 +728,6 @@ export default function PublicQRCodePage() {
         )}
       </main>
 
-      <Footer />
     </div>
   );
 }
