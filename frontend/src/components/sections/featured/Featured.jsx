@@ -8,12 +8,14 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
+import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
     const { toggleWishlist, wishlistItems } = useWishlist();
     const [products, setProducts] = useState([]);
+    const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
     useEffect(() => {
         const fetchFeatured = async () => {
@@ -56,6 +58,10 @@ export default function FeaturedProducts() {
 
         fetchFeatured();
     }, []);
+
+    const handleConfirmAddToCart = (prod, quantity, size, color) => {
+        addToCart(prod, quantity, size, color);
+    };
 
     return (
         <section className="w-full bg-[#FFFFFF] py-10 md:py-16 md:px-16 lg:px-[4%] text-black overflow-hidden">
@@ -140,7 +146,7 @@ export default function FeaturedProducts() {
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        addToCart(product, 1);
+                                        setSelectedProductForOptions(product);
                                     }}
                                     className="flex items-center justify-center w-8 h-8 mr-3 rounded-full bg-[#F0EEE9] text-black hover:bg-neutral-200 transition-colors cursor-pointer"
                                     aria-label="Add to cart"
@@ -152,6 +158,13 @@ export default function FeaturedProducts() {
                     ))}
                 </div>
             </div>
+
+            <SelectOptionsModal
+                isOpen={!!selectedProductForOptions}
+                onClose={() => setSelectedProductForOptions(null)}
+                product={selectedProductForOptions}
+                onConfirmAddToCart={handleConfirmAddToCart}
+            />
         </section>
     );
 }

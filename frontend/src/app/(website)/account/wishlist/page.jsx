@@ -1,15 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
 import { getImageUrl } from "@/lib/api";
 import { Heart, Trash2, ShoppingBag } from "lucide-react";
+import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 
 export default function AccountWishlistPage() {
     const { wishlistItems, removeFromWishlist } = useWishlist();
     const { addToCart } = useCart();
+    const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
+
+    const handleConfirmAddToCart = (prod, quantity, size, color) => {
+        addToCart(prod, quantity, size, color);
+    };
 
     if (wishlistItems.length === 0) {
         return (
@@ -63,7 +70,7 @@ export default function AccountWishlistPage() {
                                 <p className="text-xs font-medium text-neutral-500 mt-1">{item.price}</p>
                             </div>
                             <button
-                                onClick={() => addToCart(item)}
+                                onClick={() => setSelectedProductForOptions(item)}
                                 className="w-full bg-neutral-900 text-white rounded-xl py-2.5 text-xs font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 <ShoppingBag className="w-3.5 h-3.5" />
@@ -73,6 +80,13 @@ export default function AccountWishlistPage() {
                     </div>
                 ))}
             </div>
+
+            <SelectOptionsModal
+                isOpen={!!selectedProductForOptions}
+                onClose={() => setSelectedProductForOptions(null)}
+                product={selectedProductForOptions}
+                onConfirmAddToCart={handleConfirmAddToCart}
+            />
         </div>
     );
 }
