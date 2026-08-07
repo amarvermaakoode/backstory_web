@@ -389,7 +389,8 @@ const submitReturnExchange = async (req, res) => {
       bankHolderName,
       accountNumber,
       ifscCode,
-      upiId
+      upiId,
+      items // Array of { itemId, name, size, color, returnQuantity, image }
     } = req.body;
 
     if (!orderId || !requestType || !reason) {
@@ -462,6 +463,7 @@ const submitReturnExchange = async (req, res) => {
       proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
       unboxingVideo: unboxingVideo || "",
       reportedWithin48Hours: !!reportedWithin48Hours,
+      requestedItems: Array.isArray(items) ? items : [],
       returnShippingFee,
       requestedAt: new Date(),
       status: requestType === "exchange" ? "Exchange Requested" : "Return Requested"

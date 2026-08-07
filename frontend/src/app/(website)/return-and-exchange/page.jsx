@@ -87,42 +87,7 @@ const stepsOverview = [
     },
 ];
 
-// Mock Order Items for selection step
-const mockOrderItems = [
-    {
-        id: "item-1",
-        title: "Miles Over Words",
-        subtitle: "Biker Series",
-        size: "XL",
-        color: "Black",
-        colorDot: "#000000",
-        price: 1100,
-        orderId: "BS-0421",
-        image: "/images/landing-page/coding-tshirt.png",
-    },
-    {
-        id: "item-2",
-        title: "Built In Public",
-        subtitle: "Original Series",
-        size: "M",
-        color: "Raw Cream",
-        colorDot: "#EFE8D8",
-        price: 1499,
-        orderId: "BS-0421",
-        image: "/images/landing-page/biker-tshirt.png",
-    },
-    {
-        id: "item-3",
-        title: "Miles Over Words",
-        subtitle: "Biker Series",
-        size: "XXL",
-        color: "Off White",
-        colorDot: "#FAFAFA",
-        price: 1200,
-        orderId: "BS-0421",
-        image: "/images/landing-page/ai-and-tech.png",
-    },
-];
+
 
 const returnReasonOptions = [
     "Fabric or print quality issue",
@@ -151,13 +116,14 @@ export default function ReturnAndExchangePage() {
 
     // Dynamic fetched order data & items
     const [foundOrder, setFoundOrder] = useState(null);
-    const [orderItems, setOrderItems] = useState(mockOrderItems);
+    const [orderItems, setOrderItems] = useState([]);
     const [orderEligibility, setOrderEligibility] = useState(null);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchError, setSearchError] = useState("");
 
-    // Step 2: Selected items IDs
-    const [selectedItemIds, setSelectedItemIds] = useState(["item-1"]);
+    // Step 2: Selected items IDs & quantities
+    const [selectedItemIds, setSelectedItemIds] = useState([]);
+    const [selectedQuantities, setSelectedQuantities] = useState({});
 
     // Step 3: Reason & Request details
     const [requestType, setRequestType] = useState("return"); // "return" | "exchange"
@@ -177,7 +143,7 @@ export default function ReturnAndExchangePage() {
     const [upiId, setUpiId] = useState("");
 
     // Generated Return ID & Submit states
-    const [returnRequestId, setReturnRequestId] = useState("RET-84920");
+    const [returnRequestId, setReturnRequestId] = useState("");
     const [submitLoading, setSubmitLoading] = useState(false);
     const [submitError, setSubmitError] = useState("");
 
@@ -212,14 +178,21 @@ export default function ReturnAndExchangePage() {
                         color: i.color || "Standard",
                         colorDot: i.colorHex || "#000000",
                         price: i.priceNum || 0,
+                        quantity: i.quantity || 1,
                         orderId: data.data.orderId,
                         image: i.image || "/images/landing-page/coding-tshirt.png"
                     }));
                     setOrderItems(mappedItems);
                     setSelectedItemIds([mappedItems[0].id]);
+                    const initialQuantities = {};
+                    mappedItems.forEach((i) => {
+                        initialQuantities[i.id] = i.quantity || 1;
+                    });
+                    setSelectedQuantities(initialQuantities);
                 } else {
-                    setOrderItems(mockOrderItems);
-                    setSelectedItemIds([mockOrderItems[0].id]);
+                    setOrderItems([]);
+                    setSelectedItemIds([]);
+                    setSelectedQuantities({});
                 }
 
                 setCurrentStep(2);
@@ -257,7 +230,7 @@ export default function ReturnAndExchangePage() {
         }
 
         try {
-            const targetOrderId = foundOrder ? foundOrder.orderId : (orderNumber || "BS-0421");
+            const targetOrderId = foundOrder ? foundOrder.orderId : orderNumber;
             const payload = {
                 orderId: targetOrderId,
                 requestType,
@@ -272,7 +245,17 @@ export default function ReturnAndExchangePage() {
                 accountNumber,
                 ifscCode,
                 upiId,
-                reportedWithin48Hours: orderEligibility?.isWithin48Hours || true
+                reportedWithin48Hours: orderEligibility?.isWithin48Hours || true,
+                items: selectedItemIds.map((id) => {
+                    const itemObj = orderItems.find((i) => i.id === id);
+                    return {
+                        itemId: id,
+                        name: itemObj?.title,
+                        size: itemObj?.size,
+                        color: itemObj?.color,
+                        returnQuantity: selectedQuantities[id] || itemObj?.quantity || 1
+                    };
+                })
             };
 
             const res = await fetch(`${API_BASE_URL}/frontend/orders/return-exchange`, {
@@ -338,8 +321,8 @@ export default function ReturnAndExchangePage() {
     };
 
     // Calculate selected item details
-    const activeItemsList = orderItems.length > 0 ? orderItems : mockOrderItems;
-    const selectedItem = activeItemsList.find((i) => selectedItemIds.includes(i.id)) || activeItemsList[0];
+    const activeItemsList = orderItems;
+    const selectedItem = activeItemsList.find((i) => selectedItemIds.includes(i.id)) || activeItemsList[0] || {};
     const itemSubtotal = selectedItemIds.reduce((sum, id) => {
         const item = activeItemsList.find((i) => i.id === id);
         return sum + (item ? item.price : 0);
@@ -623,111 +606,156 @@ export default function ReturnAndExchangePage() {
                                         </h2>
                                         {foundOrder && (
                                             <p className="text-xs text-neutral-500">
-                                                Order Number: <strong className="text-neutral-900">{foundOrder.orderId}</strong> • Status: <span className="text-emerald-700 font-semibold">{foundOrder.orderStatus}</span>
+                                                Order Number: <strong className="text-neutral-900">{foundOrder.orderId}</strong>
                                             </p>
                                         )}
                                         {foundOrder?.returnExchange?.isRequested && (
-                                         <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs text-purple-950 space-y-2">
-                                             <div className="flex items-center justify-between">
-                                                 <p className="font-bold text-sm text-purple-950 uppercase tracking-wider">
-                                                      {foundOrder.returnExchange.status === "Approved"
-                                                          ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Approved & Refund Initiated" : "Exchange Request Approved")
-                                                          : foundOrder.returnExchange.status === "Rejected"
-                                                          ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Rejected" : "Exchange Request Rejected")
-                                                          : (foundOrder.returnExchange.requestType === "return" ? "Return Request Already Submitted" : "Exchange Request Already Submitted")
-                                                      }
-                                                  </p>
-                                                 <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                                                     foundOrder.returnExchange.status === "Approved"
-                                                         ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                         : foundOrder.returnExchange.status === "Rejected"
-                                                         ? "bg-red-100 text-red-800 border border-red-200"
-                                                         : "bg-amber-100 text-amber-900 border border-amber-200"
-                                                 }`}>
-                                                     {foundOrder.returnExchange.status === "Pending Verification" ? "Under Review" : foundOrder.returnExchange.status}
-                                                 </span>
-                                             </div>
-                                             <p><strong>Reason:</strong> {foundOrder.returnExchange.reason}</p>
-                                             {foundOrder.returnExchange.status === "Approved" && foundOrder.refundDetails && foundOrder.refundDetails.refundMethod !== "None" && (
-                                                  <div className="pt-1.5 border-t border-purple-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-900 font-medium">
-                                                      <span>Payout: <strong>{foundOrder.refundDetails.refundMethod}</strong></span>
-                                                      <span>Refund Status: <strong className="text-emerald-700 font-bold">{foundOrder.refundDetails.refundStatus || "Pending Inspection"}</strong></span>
-                                                      {foundOrder.refundDetails.refundAmount > 0 && (
-                                                          <span>Net Refund: <strong className="text-purple-950 font-bold">Rs {foundOrder.refundDetails.refundAmount.toLocaleString()}</strong></span>
-                                                      )}
-                                                  </div>
-                                              )}
-                                         </div>
-                                     )}
+                                            <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs text-purple-950 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-bold text-sm text-purple-950 uppercase tracking-wider">
+                                                        {foundOrder.returnExchange.status === "Approved"
+                                                            ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Approved & Refund Initiated" : "Exchange Request Approved")
+                                                            : foundOrder.returnExchange.status === "Rejected"
+                                                                ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Rejected" : "Exchange Request Rejected")
+                                                                : (foundOrder.returnExchange.requestType === "return" ? "Return Request Already Submitted" : "Exchange Request Already Submitted")
+                                                        }
+                                                    </p>
+                                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${foundOrder.returnExchange.status === "Approved"
+                                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                        : foundOrder.returnExchange.status === "Rejected"
+                                                            ? "bg-red-100 text-red-800 border border-red-200"
+                                                            : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                        }`}>
+                                                        {foundOrder.returnExchange.status === "Pending Verification" ? "Under Review" : foundOrder.returnExchange.status}
+                                                    </span>
+                                                </div>
+                                                <p><strong>Reason:</strong> {foundOrder.returnExchange.reason}</p>
+                                                {foundOrder.returnExchange.status === "Approved" && foundOrder.refundDetails && foundOrder.refundDetails.refundMethod !== "None" && (
+                                                    <div className="pt-1.5 border-t border-purple-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-900 font-medium">
+                                                        <span>Payout: <strong>{foundOrder.refundDetails.refundMethod}</strong></span>
+                                                        <span>Refund Status: <strong className="text-emerald-700 font-bold">{foundOrder.refundDetails.refundStatus || "Pending Inspection"}</strong></span>
+                                                        {foundOrder.refundDetails.refundAmount > 0 && (
+                                                            <span>Net Refund: <strong className="text-purple-950 font-bold">Rs {foundOrder.refundDetails.refundAmount.toLocaleString()}</strong></span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
-                                     {orderEligibility && !orderEligibility.isWithin7Days && (
-                                         <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-1">
-                                             <p className="font-bold text-sm text-amber-950">Notice: 7-Day Window Expired</p>
-                                             <p>Returns and exchanges are accepted within 7 days of delivery according to Bacstory policy.</p>
-                                         </div>
-                                     )}
+                                        {orderEligibility && !orderEligibility.isWithin7Days && (
+                                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-1">
+                                                <p className="font-bold text-sm text-amber-950">Notice: 7-Day Window Expired</p>
+                                                <p>Returns and exchanges are accepted within 7 days of delivery according to Bacstory policy.</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="space-y-4">
                                         {orderItems.map((item) => {
                                             const isSelected = selectedItemIds.includes(item.id);
+                                            const itemOrderedQty = item.quantity || 1;
+                                            const returnQty = selectedQuantities[item.id] || itemOrderedQty;
+
                                             return (
                                                 <div
                                                     key={item.id}
-                                                    onClick={() => toggleSelectItem(item.id)}
-                                                    className={`border rounded-2xl p-4 sm:p-5 flex items-center justify-between cursor-pointer transition-all ${isSelected
+                                                    className={`border rounded-2xl p-4 sm:p-5 transition-all ${isSelected
                                                         ? "border-black bg-white shadow-sm"
                                                         : "border-neutral-200/90 bg-white/70 hover:border-neutral-300"
                                                         }`}
                                                 >
-                                                    <div className="flex items-center gap-4 sm:gap-5">
-                                                        <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                                                            <Image
-                                                                src={getImageUrl(item.image)}
-                                                                alt={item.title}
-                                                                fill
-                                                                className="object-cover object-center"
-                                                                unoptimized
-                                                            />
-                                                        </div>
+                                                    <div
+                                                        onClick={() => toggleSelectItem(item.id)}
+                                                        className="flex items-center justify-between cursor-pointer"
+                                                    >
+                                                        <div className="flex items-center gap-4 sm:gap-5">
+                                                            <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
+                                                                <Image
+                                                                    src={getImageUrl(item.image)}
+                                                                    alt={item.title}
+                                                                    fill
+                                                                    className="object-cover object-center"
+                                                                    unoptimized
+                                                                />
+                                                            </div>
 
-                                                        <div className="space-y-1.5">
-                                                            <h3 className="font-semibold text-base sm:text-lg text-black">
-                                                                {item.title}
-                                                            </h3>
-                                                            <p className="text-xs text-neutral-400 font-normal">
-                                                                {item.subtitle}
-                                                            </p>
-                                                            <div className="flex items-center gap-2 text-[11px] text-neutral-600 font-medium">
-                                                                <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
-                                                                    {item.size}
-                                                                </span>
-                                                                <span className="flex items-center gap-1.5 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
-                                                                    <span
-                                                                        className="w-2 h-2 rounded-full inline-block border border-neutral-300"
-                                                                        style={{ backgroundColor: item.colorDot }}
-                                                                    />
-                                                                    {item.color}
-                                                                </span>
+                                                            <div className="space-y-1.5">
+                                                                <h3 className="font-semibold text-base sm:text-lg text-black">
+                                                                    {item.title}
+                                                                </h3>
+                                                                <p className="text-xs text-neutral-400 font-normal">
+                                                                    {item.subtitle}
+                                                                </p>
+                                                                <div className="flex items-center flex-wrap gap-2 text-[11px] text-neutral-600 font-medium">
+                                                                    <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
+                                                                        {item.size}
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1.5 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
+                                                                        <span
+                                                                            className="w-2 h-2 rounded-full inline-block border border-neutral-300"
+                                                                            style={{ backgroundColor: item.colorDot }}
+                                                                        />
+                                                                        {item.color}
+                                                                    </span>
+                                                                    {isSelected ? (
+                                                                        <div
+                                                                            className="flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-300 font-semibold text-neutral-800"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <span className="text-neutral-700">Qty:</span>
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={returnQty <= 1}
+                                                                                onClick={() => {
+                                                                                    if (returnQty > 1) {
+                                                                                        setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty - 1 }));
+                                                                                    }
+                                                                                }}
+                                                                                className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200 ml-0.5"
+                                                                            >
+                                                                                -
+                                                                            </button>
+                                                                            <span className="px-1 text-center font-bold text-neutral-900 text-xs">
+                                                                                {returnQty}
+                                                                            </span>
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={returnQty >= itemOrderedQty}
+                                                                                onClick={() => {
+                                                                                    if (returnQty < itemOrderedQty) {
+                                                                                        setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty + 1 }));
+                                                                                    }
+                                                                                }}
+                                                                                className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200"
+                                                                            >
+                                                                                +
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60 font-semibold text-neutral-700">
+                                                                            Qty: {itemOrderedQty}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    <div className="text-right space-y-2 shrink-0">
-                                                        <p className="font-semibold text-base sm:text-lg text-black">
-                                                            Rs {item.price?.toLocaleString()}
-                                                        </p>
-                                                        <p className="text-[11px] text-neutral-400">
-                                                            Order {item.orderId}
-                                                        </p>
-                                                        <div className="flex justify-end pt-1">
-                                                            <div
-                                                                className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSelected
-                                                                    ? "bg-[#101820] text-white"
-                                                                    : "border-2 border-neutral-300 bg-transparent"
-                                                                    }`}
-                                                            >
-                                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                                        <div className="text-right space-y-2 shrink-0">
+                                                            <p className="font-semibold text-base sm:text-lg text-black">
+                                                                Rs {item.price?.toLocaleString()}
+                                                            </p>
+                                                            <p className="text-[11px] text-neutral-400">
+                                                                Order {item.orderId}
+                                                            </p>
+                                                            <div className="flex justify-end pt-1">
+                                                                <div
+                                                                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSelected
+                                                                        ? "bg-[#101820] text-white"
+                                                                        : "border-2 border-neutral-300 bg-transparent"
+                                                                        }`}
+                                                                >
+                                                                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -914,11 +942,10 @@ export default function ReturnAndExchangePage() {
                                                 <label className="block text-xs font-semibold text-black font-sans">
                                                     Unboxing Video <span className="text-red-500">*</span>
                                                 </label>
-                                                <label className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                                                    unboxingVideoFile
-                                                        ? "border-emerald-300 bg-emerald-50/40"
-                                                        : "border-amber-300 bg-amber-50/50 hover:bg-amber-100/50"
-                                                } ${orderEligibility?.isWithin48Hours === false ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}>
+                                                <label className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${unboxingVideoFile
+                                                    ? "border-emerald-300 bg-emerald-50/40"
+                                                    : "border-amber-300 bg-amber-50/50 hover:bg-amber-100/50"
+                                                    } ${orderEligibility?.isWithin48Hours === false ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}>
                                                     <input
                                                         type="file"
                                                         accept="video/*"
@@ -1060,11 +1087,10 @@ export default function ReturnAndExchangePage() {
                                             <button
                                                 onClick={handleStep3Continue}
                                                 disabled={isBlockedBy48h}
-                                                className={`w-full py-4 rounded-full font-medium text-sm transition-all shadow-sm ${
-                                                    isBlockedBy48h
-                                                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                                                        : "bg-[#101820] text-white hover:bg-black cursor-pointer"
-                                                }`}
+                                                className={`w-full py-4 rounded-full font-medium text-sm transition-all shadow-sm ${isBlockedBy48h
+                                                    ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                    : "bg-[#101820] text-white hover:bg-black cursor-pointer"
+                                                    }`}
                                             >
                                                 {isBlockedBy48h ? "Reporting Window Expired (Past 48 Hours)" : "Review Request"}
                                             </button>
@@ -1110,6 +1136,9 @@ export default function ReturnAndExchangePage() {
                                                                 style={{ backgroundColor: selectedItem.colorDot }}
                                                             />
                                                             {selectedItem.color}
+                                                        </span>
+                                                        <span className="bg-neutral-100 px-2 py-0.5 rounded-md font-semibold text-neutral-900">
+                                                            Qty to {requestType}: {selectedQuantities[selectedItem.id] || selectedItem.quantity || 1}
                                                         </span>
                                                     </div>
                                                 </div>

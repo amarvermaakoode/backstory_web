@@ -314,16 +314,6 @@ export default function AdminOrdersPage() {
                               : "No email"}
                           </span>
                         </p>
-                        {/* <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-neutral-400 shrink-0" />
-                          <span>{addr.phoneNumber || "No phone"}</span>
-                        </p>
-                        <p className="text-[11px] text-neutral-600 font-normal mt-1.5 flex items-start gap-1 line-clamp-2">
-                          <MapPin className="w-3 h-3 text-neutral-400 shrink-0 mt-0.5" />
-                          <span>
-                            {addr.streetAddress}, {addr.city}, {addr.state} - {addr.pinCode}
-                          </span>
-                        </p> */}
                       </td>
 
                       {/* Items Summary */}
@@ -542,6 +532,28 @@ export default function AdminOrdersPage() {
                   <p><strong>Reason:</strong> {selectedOrder.returnExchange.reason}</p>
                   {selectedOrder.returnExchange.additionalNotes && (
                     <p><strong>Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
+                  )}
+
+                  {/* Requested Return Items */}
+                  {selectedOrder.returnExchange.requestedItems?.length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-purple-200/60">
+                      <span className="font-semibold text-purple-900 block text-xs uppercase tracking-wider">
+                        Requested {selectedOrder.returnExchange.requestType === "exchange" ? "Exchange" : "Return"} Items:
+                      </span>
+                      <div className="space-y-1">
+                        {selectedOrder.returnExchange.requestedItems.map((ritem, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs bg-white p-2 rounded-xl border border-purple-100 font-medium">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-neutral-900">{ritem.name}</span>
+                              <span className="text-neutral-500">({ritem.size} / {ritem.color})</span>
+                            </div>
+                            <span className="font-bold text-purple-950 bg-purple-100 px-2 py-0.5 rounded-md">
+                              Qty: {ritem.returnQuantity || 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
                   {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
