@@ -37,12 +37,7 @@ const qrCodeSchema = new mongoose.Schema(
     profileData: {
       title: { type: String, default: "" },
       bio: { type: String, default: "" },
-      socialLinks: {
-        instagram: { type: String, default: "" },
-        twitter: { type: String, default: "" },
-        spotify: { type: String, default: "" },
-        customUrl: { type: String, default: "" },
-      },
+      socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },
       avatarUrl: { type: String, default: "" },
       coverUrl: { type: String, default: "" },
       themeColor: { type: String, default: "#000000" },

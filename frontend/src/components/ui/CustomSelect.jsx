@@ -24,6 +24,8 @@ export default function CustomSelect({
   required = false,
   name,
   showPlaceholderInMenu = true,
+  dropUp = false,
+  openUpwards = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -132,7 +134,11 @@ export default function CustomSelect({
 
       {/* Options Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-60 overflow-y-auto py-1 animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className={`absolute z-50 left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-60 overflow-y-auto py-1 animate-in fade-in zoom-in-95 duration-150 ${
+            dropUp || openUpwards ? "bottom-full mb-2" : "top-full mt-1.5"
+          }`}
+        >
           {placeholder && showPlaceholderInMenu && (
             <button
               type="button"

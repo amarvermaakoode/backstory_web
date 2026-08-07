@@ -5,7 +5,27 @@ import Link from "next/link";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getMyQRCodes, updateQRProfile } from "@/services/qrService";
-import { Scan, QrCode, ExternalLink, Pencil, Loader2, X, Sparkles, ShieldCheck } from "lucide-react";
+import CustomSelect from "@/components/ui/CustomSelect";
+import { Scan, QrCode, ExternalLink, Pencil, Loader2, X, Sparkles, ShieldCheck, Upload, User, Trash2, Plus } from "lucide-react";
+
+const ALL_PLATFORMS = [
+  { id: "instagram", name: "Instagram", icon: "/images/landing-page/instagram.svg", placeholder: "Instagram Handle or Link" },
+  { id: "facebook", name: "Facebook", icon: "/images/icons/facebook.svg", placeholder: "Facebook Profile or Page Link" },
+  { id: "snapchat", name: "Snapchat", icon: "/images/icons/snapchat.svg", placeholder: "Snapchat Username or Link" },
+  { id: "youtube", name: "YouTube", icon: "/images/icons/youtube.svg", placeholder: "YouTube Channel or Video Link" },
+  { id: "twitter", name: "Twitter / X", icon: "/images/landing-page/twitter.svg", placeholder: "Twitter / X Handle or Link" },
+  { id: "linkedin", name: "LinkedIn", icon: "/images/landing-page/linkedin.svg", placeholder: "LinkedIn Profile Link" },
+  { id: "spotify", name: "Spotify", icon: "/images/icons/spotify.svg", placeholder: "Spotify Artist or Track Link" },
+  { id: "tiktok", name: "TikTok", icon: "/images/icons/tiktok.svg", placeholder: "TikTok Profile Link" },
+  { id: "whatsapp", name: "WhatsApp", icon: "/images/icons/whatsapp.svg", placeholder: "WhatsApp Number or Chat Link" },
+  { id: "telegram", name: "Telegram", icon: "/images/icons/telegram.svg", placeholder: "Telegram Username or Channel" },
+  { id: "github", name: "GitHub", icon: "/images/icons/github.svg", placeholder: "GitHub Profile Link" },
+  { id: "discord", name: "Discord", icon: "/images/icons/discord.svg", placeholder: "Discord Invite Link" },
+  { id: "threds", name: "Threads", icon: "/images/icons/threds.svg", placeholder: "Threads Profile Link" },
+  { id: "pintrest", name: "Pinterest", icon: "/images/icons/pintrest.svg", placeholder: "Pinterest Profile Link" },
+  { id: "dribble", name: "Dribbble", icon: "/images/icons/dribble.svg", placeholder: "Dribbble Profile Link" },
+  { id: "customUrl", name: "Custom Website", icon: "/images/landing-page/linkedin.svg", placeholder: "Custom Website Link (https://...)" },
+];
 
 export default function AccountQrIdentityPage() {
   const { user, userFetch } = useUserAuth();
@@ -26,7 +46,9 @@ export default function AccountQrIdentityPage() {
     socialLinks: {
       instagram: "",
       twitter: "",
-      spotify: "",
+      facebook: "",
+      snapchat: "",
+      youtube: "",
       customUrl: "",
     },
   });
@@ -56,12 +78,9 @@ export default function AccountQrIdentityPage() {
       bio: qr.profileData?.bio || "",
       avatarUrl: qr.profileData?.avatarUrl || "",
       coverUrl: qr.profileData?.coverUrl || "",
-      socialLinks: {
-        instagram: qr.profileData?.socialLinks?.instagram || "",
-        twitter: qr.profileData?.socialLinks?.twitter || "",
-        spotify: qr.profileData?.socialLinks?.spotify || "",
-        customUrl: qr.profileData?.socialLinks?.customUrl || "",
-      },
+      socialLinks: qr.profileData?.socialLinks && Object.keys(qr.profileData.socialLinks).length > 0
+        ? { ...qr.profileData.socialLinks }
+        : { instagram: "", facebook: "", twitter: "" },
     });
   };
 
@@ -149,8 +168,8 @@ export default function AccountQrIdentityPage() {
                     </div>
                     <span
                       className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${qr.status === "active"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-amber-50 text-amber-800 border border-amber-200"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border border-amber-200"
                         }`}
                     >
                       {qr.status === "active" ? "Active Story" : "Claimed (Unactivated)"}
@@ -207,7 +226,7 @@ export default function AccountQrIdentityPage() {
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-neutral-900" />
                 <div>
-                  <h3 className="text-lg font-bold font-clashDisplay text-neutral-900">
+                  <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">
                     Add / Edit Story Details
                   </h3>
                   <p className="text-xs font-mono text-neutral-400">
@@ -252,73 +271,173 @@ export default function AccountQrIdentityPage() {
                 />
               </div>
 
-              {/* Avatar URL */}
-              <div className="space-y-1">
+              {/* Avatar Image File Picker */}
+              <div className="space-y-2">
                 <label className="block text-xs font-semibold text-neutral-700 uppercase">
-                  Avatar Image URL
+                  Upload Avatar Photo
                 </label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/photo.jpg"
-                  value={editForm.avatarUrl}
-                  onChange={(e) => setEditForm({ ...editForm, avatarUrl: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-300 rounded-xl px-4 py-2.5 text-neutral-900 placeholder-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white"
-                />
+                <div className="flex items-center gap-4 bg-neutral-50 border border-neutral-200 rounded-2xl p-3.5">
+                  <div className="w-16 h-16 rounded-full bg-neutral-200 border-2 border-white shadow-xs overflow-hidden shrink-0 flex items-center justify-center relative">
+                    {editForm.avatarUrl ? (
+                      <img
+                        src={editForm.avatarUrl}
+                        alt="Avatar Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-8 h-8 text-neutral-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold cursor-pointer transition-colors shadow-2xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{editForm.avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 10 * 1024 * 1024) {
+                              showToast("Image size should be less than 10MB", "error");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const img = new Image();
+                              img.src = event.target.result;
+                              img.onload = () => {
+                                const canvas = document.createElement("canvas");
+                                const maxDim = 400;
+                                let width = img.width;
+                                let height = img.height;
+                                if (width > height) {
+                                  if (width > maxDim) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                  }
+                                } else {
+                                  if (height > maxDim) {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                  }
+                                }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext("2d");
+                                ctx.drawImage(img, 0, 0, width, height);
+                                const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+                                setEditForm((prev) => ({ ...prev, avatarUrl: compressedDataUrl }));
+                              };
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {editForm.avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, avatarUrl: "" })}
+                        className="block text-[11px] font-semibold text-red-600 hover:underline cursor-pointer"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* Social Links */}
-              <div className="space-y-2.5 pt-2 border-t border-neutral-100">
-                <label className="block text-xs font-semibold text-neutral-700 uppercase">
-                  Social Links (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Instagram Handle or Link"
-                  value={editForm.socialLinks.instagram}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      socialLinks: { ...editForm.socialLinks, instagram: e.target.value },
-                    })
-                  }
-                  className="w-full bg-neutral-50 border border-neutral-300 rounded-xl px-4 py-2 text-neutral-900 placeholder-neutral-400 text-xs focus:outline-none focus:border-neutral-900 focus:bg-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Twitter / X Handle or Link"
-                  value={editForm.socialLinks.twitter}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      socialLinks: { ...editForm.socialLinks, twitter: e.target.value },
-                    })
-                  }
-                  className="w-full bg-neutral-50 border border-neutral-300 rounded-xl px-4 py-2 text-neutral-900 placeholder-neutral-400 text-xs focus:outline-none focus:border-neutral-900 focus:bg-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Spotify Track or Artist Link"
-                  value={editForm.socialLinks.spotify}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      socialLinks: { ...editForm.socialLinks, spotify: e.target.value },
-                    })
-                  }
-                  className="w-full bg-neutral-900/5 border border-neutral-300 rounded-xl px-4 py-2 text-neutral-900 placeholder-neutral-400 text-xs focus:outline-none focus:border-neutral-900 focus:bg-white"
-                />
-                <input
-                  type="url"
-                  placeholder="Custom Website Link"
-                  value={editForm.socialLinks.customUrl}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      socialLinks: { ...editForm.socialLinks, customUrl: e.target.value },
-                    })
-                  }
-                  className="w-full bg-neutral-50 border border-neutral-300 rounded-xl px-4 py-2 text-neutral-900 placeholder-neutral-400 text-xs focus:outline-none focus:border-neutral-900 focus:bg-white"
-                />
+              {/* Dynamic Social Links */}
+              <div className="space-y-3 pt-3 border-t border-neutral-100">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-neutral-700 uppercase">
+                    Social Links (Optional)
+                  </label>
+                  <span className="text-[10px] text-neutral-400">
+                    Add social accounts to your QR page
+                  </span>
+                </div>
+
+                {/* Active Platform Inputs */}
+                <div className="space-y-2">
+                  {Object.keys(editForm.socialLinks || {}).map((platformId) => {
+                    const platform = ALL_PLATFORMS.find((p) => p.id === platformId) || {
+                      id: platformId,
+                      name: platformId,
+                      icon: "/images/landing-page/linkedin.svg",
+                      placeholder: `${platformId} link or handle`,
+                    };
+
+                    return (
+                      <div key={platformId} className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0">
+                          <img src={platform.icon} alt={platform.name} className="w-4 h-4 object-contain invert" />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={platform.placeholder}
+                          value={editForm.socialLinks[platformId] || ""}
+                          onChange={(e) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              socialLinks: {
+                                ...prev.socialLinks,
+                                [platformId]: e.target.value,
+                              },
+                            }))
+                          }
+                          className="flex-1 bg-neutral-50 border border-neutral-300 rounded-xl px-3.5 py-2 text-neutral-900 placeholder-neutral-400 text-xs focus:outline-none focus:border-neutral-900 focus:bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditForm((prev) => {
+                              const updated = { ...prev.socialLinks };
+                              delete updated[platformId];
+                              return { ...prev, socialLinks: updated };
+                            });
+                          }}
+                          className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                          title="Remove link"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Dropdown to Add Platform */}
+                {ALL_PLATFORMS.filter((p) => !Object.keys(editForm.socialLinks || {}).includes(p.id)).length > 0 && (
+                  <div className="pt-1">
+                    <CustomSelect
+                      placeholder="+ Add Social Platform (Snapchat, YouTube, Discord, TikTok, WhatsApp...)"
+                      showPlaceholderInMenu={false}
+                      dropUp={true}
+                      options={ALL_PLATFORMS.filter((p) => !Object.keys(editForm.socialLinks || {}).includes(p.id)).map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                      }))}
+                      value=""
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        if (selectedId) {
+                          setEditForm((prev) => ({
+                            ...prev,
+                            socialLinks: {
+                              ...prev.socialLinks,
+                              [selectedId]: "",
+                            },
+                          }));
+                        }
+                      }}
+                      className="w-full bg-neutral-50 hover:bg-neutral-100/80 border border-neutral-300 rounded-xl px-4 py-2.5 text-neutral-800 text-xs font-semibold"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Submit Buttons */}

@@ -7,6 +7,8 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
 import {
+  QrCode,
+  Tag,
   Award,
   ShieldCheck,
   Leaf,
@@ -15,6 +17,8 @@ import {
   Sparkles,
   KeyRound,
   Loader2,
+  Check,
+  Link2,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -34,9 +38,36 @@ const InstagramIcon = (props) => (
   </svg>
 );
 
+const LinkedinIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect x="2" y="9" width="4" height="12" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
 const TwitterIcon = (props) => (
   <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
+  </svg>
+);
+
+const FacebookIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+  </svg>
+);
+
+const SnapchatIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M12 2a6 6 0 0 1 6 6c0 1.5-.5 2.5-1 3.5 1 .5 2 1.5 2 3 0 1.5-1.5 2-2.5 2-.5 1-1.5 2.5-4.5 2.5s-4-1.5-4.5-2.5c-1 0-2.5-.5-2.5-2 0-1.5 1-2.5 2-3-.5-1-1-2-1-3.5a6 6 0 0 1 6-6z" />
+  </svg>
+);
+
+const YoutubeIcon = (props) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
+    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
   </svg>
 );
 
@@ -54,6 +85,7 @@ export default function PublicQRCodePage() {
   // Claim & OTP Flow States
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
+  const [garmentLabel, setGarmentLabel] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [mockOtpHint, setMockOtpHint] = useState("");
@@ -87,12 +119,36 @@ export default function PublicQRCodePage() {
   // Step 1: Send OTP to Email or Phone Number
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!orderId.trim()) {
+    const cleanOrderId = orderId.trim();
+    if (!cleanOrderId) {
       showToast("Please enter your Order ID.", "error");
       return;
     }
-    if (!email.trim()) {
+    if (!cleanOrderId.startsWith("BAC-") || cleanOrderId.length !== 10) {
+      showToast("Order ID must follow format BAC-180019 (BAC- followed by 6 digits)", "error");
+      return;
+    }
+    const cleanContact = email.trim();
+    if (!cleanContact) {
       showToast("Please enter your registered email or mobile number.", "error");
+      return;
+    }
+    const isEmailInput = cleanContact.includes("@");
+    if (!isEmailInput) {
+      const phoneDigits = cleanContact.replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        showToast("Please enter a valid 10-digit mobile number.", "error");
+        return;
+      }
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanContact)) {
+        showToast("Please enter a valid email address.", "error");
+        return;
+      }
+    }
+    if (!garmentLabel.trim()) {
+      showToast("Please enter a label for your garment.", "error");
       return;
     }
 
@@ -120,7 +176,7 @@ export default function PublicQRCodePage() {
     }
 
     setVerifying(true);
-    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim());
+    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim(), garmentLabel.trim());
     setVerifying(false);
 
     if (res.success) {
@@ -129,7 +185,6 @@ export default function PublicQRCodePage() {
         localStorage.setItem("userData", JSON.stringify(res.user));
       }
       setClaimSuccess(true);
-      showToast(res.message || "QR Code verified and linked to your account!", "success");
       fetchQRDetails();
     } else {
       showToast(res.message || "Failed to link QR code.", "error");
@@ -200,18 +255,18 @@ export default function PublicQRCodePage() {
             {/* FULL WIDTH HERO BANNER CONTAINER */}
             <div className="w-full relative overflow-hidden bg-[#F3F0EA] min-h-[600px] lg:min-h-[680px] flex items-center">
               {/* Full Uncropped Background Image */}
-              <div className="absolute inset-0 z-0 flex items-center justify-end">
+              <div className="absolute inset-0 z-0 flex items-start justify-end">
                 <img
                   src="/images/qr-about/qr-bacstory-about.png"
                   alt="BACSTORY Authentic Garment Tag"
-                  className="w-full h-full object-contain object-right"
+                  className="w-full h-full object-cover object-top object-right"
                 />
                 {/* Soft gradient overlay for text readability on mobile/tablet */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F3]/90 via-[#FAF8F3]/70 to-[#FAF8F3]/90 lg:bg-gradient-to-r lg:from-[#FAF8F3]/95 lg:via-[#FAF8F3]/75 lg:to-transparent z-0" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F3]/60 via-[#FAF8F3]/30 to-[#FAF8F3]/40 lg:bg-gradient-to-r lg:from-[#FAF8F3]/95 lg:via-[#FAF8F3]/75 lg:to-transparent z-0" />
               </div>
 
               {/* Top Left Brand Logo Inside Hero Section */}
-              <div className="absolute top-6 left-6 sm:left-10 lg:left-16 z-30">
+              <div className="absolute top-4 left-6 sm:left-10 lg:left-16 z-30">
                 <Link href="/" className="inline-block cursor-pointer">
                   <img
                     src="/images/logo-dark.svg"
@@ -281,14 +336,11 @@ export default function PublicQRCodePage() {
                 </div>
 
                 {/* Right Column: Floating Claim Card positioned at mt-48 */}
-                <div className="lg:col-span-7 w-full max-w-[100%] mx-auto mt-12 lg:mt-68">
-                  <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 lg:p-9 border border-neutral-200/10 shadow-xl space-y-5">
+                <div className="lg:col-span-7 w-full max-w-[100%] mx-auto mt-1 lg:mt-68">
+                  <div className="md:bg-white/10 bg-[#FAF8F3]/90 backdrop-blur-md rounded-3xl p-6 border border-neutral-200/10 shadow-xl space-y-5">
                     {/* Header with Icon & Two-Line Title */}
                     <div className="space-y-3">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs border border-[#DDD9CB]">
-                          <ShieldCheck className="w-6 h-6 stroke-[1.5]" />
-                        </div>
+                      <div className="flex items-start">
                         <div className="space-y-0.5">
                           <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 font-sans tracking-tight leading-tight">
                             Verify & Claim Your
@@ -307,47 +359,89 @@ export default function PublicQRCodePage() {
                     <div className="border-b border-neutral-200/70 my-4" />
 
                     {!otpSent ? (
-                      /* Step 1 Form: Horizontal 3-column layout on Desktop */
-                      <form onSubmit={handleSendOtp} className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-                        <div className="md:col-span-4 space-y-1.5">
-                          <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
-                            ORDER ID
-                          </label>
+                      /* Step 1 Form: Single Horizontal Row Layout */
+                      <form onSubmit={handleSendOtp} className="grid grid-cols-1 lg:grid-cols-12 gap-1 items-center pt-1">
+                        {/* Order ID */}
+                        <div className="lg:col-span-3">
                           <div className="relative">
-                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
                             <input
                               type="text"
                               required
-                              placeholder="e.g. ORD-109283"
+                              maxLength={10}
+                              placeholder="BAC-180019*"
                               value={orderId}
-                              onChange={(e) => setOrderId(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-2xl pl-10 pr-3.5 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono transition-colors"
+                              onChange={(e) => {
+                                const raw = e.target.value.toUpperCase();
+                                if (!raw) {
+                                  setOrderId("");
+                                  return;
+                                }
+                                let digitsAndLetters = raw.replace(/[^A-Z0-9]/g, "");
+                                if (digitsAndLetters.startsWith("BAC")) {
+                                  digitsAndLetters = digitsAndLetters.slice(3);
+                                }
+                                setOrderId(digitsAndLetters ? `BAC-${digitsAndLetters.slice(0, 6)}` : "BAC-");
+                              }}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
                             />
                           </div>
                         </div>
 
-                        <div className="md:col-span-5 space-y-1.5">
-                          <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
-                            EMAIL OR MOBILE NUMBER
-                          </label>
+                        {/* Email or Mobile */}
+                        <div className="lg:col-span-4">
                           <div className="relative">
-                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
                             <input
                               type="text"
                               required
-                              placeholder="email@example.com or 9876543210"
+                              maxLength={50}
+                              placeholder="Email or Mobile*"
                               value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-2xl pl-10 pr-3.5 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) {
+                                  setEmail("");
+                                  return;
+                                }
+                                if (val.includes("@")) {
+                                  setEmail(val.toLowerCase().replace(/\s/g, "").slice(0, 50));
+                                } else {
+                                  const hasPlus = val.startsWith("+");
+                                  const digits = val.replace(/\D/g, "");
+                                  if (hasPlus) {
+                                    setEmail(`+${digits.slice(0, 12)}`);
+                                  } else {
+                                    setEmail(digits.slice(0, 10));
+                                  }
+                                }
+                              }}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
                             />
                           </div>
                         </div>
 
-                        <div className="md:col-span-3">
+                        {/* Label */}
+                        <div className="lg:col-span-3">
+                          <div className="relative">
+                            <Tag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
+                            <input
+                              type="text"
+                              required
+                              placeholder="Garment Label*"
+                              value={garmentLabel}
+                              onChange={(e) => setGarmentLabel(e.target.value)}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Verify Button */}
+                        <div className="lg:col-span-2">
                           <button
                             type="submit"
                             disabled={sendingOtp}
-                            className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-12 px-4 rounded-2xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
+                            className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[42px] px-3 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
                           >
                             {sendingOtp ? (
                               <>
@@ -356,8 +450,8 @@ export default function PublicQRCodePage() {
                               </>
                             ) : (
                               <>
-                                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-                                <span>Verify Code</span>
+                                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                <span>Verify</span>
                               </>
                             )}
                           </button>
@@ -419,8 +513,8 @@ export default function PublicQRCodePage() {
                               </>
                             ) : (
                               <>
-                                <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                                Verify & Link Code
+                                <ShieldCheck className="w-4 h-4 text-yellow" />
+                                Verify Code
                               </>
                             )}
                           </button>
@@ -433,67 +527,59 @@ export default function PublicQRCodePage() {
             </div>
 
             {/* FULL WIDTH BOTTOM 4 FEATURES SECTION */}
-            <div className="w-full bg-white border-t border-neutral-200/80 py-8 sm:py-12">
-              <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-neutral-100">
+            <div className="w-full bg-white/40 border-t border-neutral-200/80 py-6 sm:py-8">
+              <div className="max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-16">
+                <div className="grid grid-cols-4 divide-x md:divide-neutral-200/70 divide-neutral-200/30">
                   {/* Feature 1 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 first:pt-0 sm:first:pl-0 sm:pl-4 lg:pl-0">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Award className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Award className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        100% Authentic
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Original BACSTORY products guaranteed.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      100% Authentic
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Original products guaranteed.
+                    </p>
                   </div>
 
                   {/* Feature 2 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <User className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Digital Ownership
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Link your garment to your unique profile.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Digital Ownership
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Link your garment to your profile.
+                    </p>
                   </div>
 
                   {/* Feature 3 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Gift className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Gift className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Exclusive Benefits
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Get access to rewards and special offers.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Exclusive Benefits
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Get access to rewards and offers.
+                    </p>
                   </div>
 
                   {/* Feature 4 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Headphones className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Headphones className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Customer Support
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        We're here to help you anytime.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Customer Support
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      We're here to help you anytime.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -501,222 +587,237 @@ export default function PublicQRCodePage() {
           </div>
         )}
 
-        {/* CLAIM SUCCESS STATE */}
-        {claimSuccess && (
-          <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 pt-6">
-            <Link href="/" className="inline-block cursor-pointer mb-8">
-              <img
-                src="/images/logo-dark.svg"
-                alt="BACSTORY"
-                className="h-6 sm:h-7 lg:h-8 w-auto object-contain"
-              />
-            </Link>
-            <div className="max-w-lg mx-auto w-full my-12 bg-white border border-neutral-200/90 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-sm animate-in fade-in duration-300">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
+        {/* CLAIM SUCCESS STATE / QR LINKED BUT NOT ACTIVATED */}
+        {(claimSuccess || (!loading && !errorMsg && qrData?.status !== "unlinked" && !qrData?.profileData?.customText && !qrData?.profileData?.bio)) && (
+          <div className="min-h-screen w-full bg-[#E7DCD3] bg-[url('/images/qr-about/bg.png')] bg-cover bg-center bg-no-repeat relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
+            {/* Background Decorative Rings & Effects */}
+
+            {/* Top Brand Logo */}
+            <div className="w-full max-w-[1600px] mx-auto z-20">
+              <Link href="/" className="inline-block cursor-pointer">
+                <img
+                  src="/images/logo-dark.svg"
+                  alt="BACSTORY"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </Link>
+            </div>
+
+            {/* Main Center Card */}
+            <div className="w-full max-w-lg mx-auto my-auto bg-white rounded-3xl p-8 sm:p-11 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 relative z-10 my-10">
+              {/* Green Circle Badge with Sparkles */}
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-pulse" />
+                <div className="absolute inset-2 rounded-full bg-emerald-500/15" />
+                <div className="relative w-12 h-12 rounded-full border-[2.5px] border-emerald-500 text-emerald-500 flex items-center justify-center bg-white shadow-2xs">
+                  <Check className="w-6 h-6 stroke-[3] text-emerald-500" />
+                </div>
+                <Sparkles className="w-4 h-4 text-emerald-400 absolute top-1 left-2" />
+                <Sparkles className="w-3 h-3 text-emerald-300 absolute bottom-2 right-2" />
+                <Sparkles className="w-2.5 h-2.5 text-emerald-400 absolute top-4 right-1" />
+                <Sparkles className="w-3 h-3 text-emerald-300 absolute bottom-3 left-3" />
               </div>
 
+              {/* Pill Badge */}
+              <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#FEF3C7] border border-[#FDE68A] text-[#D97706] text-[11px] font-bold tracking-wider uppercase">
+                <Link2 className="w-3.5 h-3.5 text-[#D97706]" />
+                <span>QR CLAIMED • STORY NOT ACTIVATED</span>
+              </div>
+
+              {/* Main Title Header */}
               <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold uppercase tracking-wider">
-                  QR Claimed • Story Not Activated
-                </span>
-                <h2 className="text-2xl font-semibold font-clashDisplay text-neutral-900">
-                  Your QR Code is Linked!
+                <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight font-sans">
+                  Your QR Code is <span className="text-[#22C55E] font-bold">Linked!</span>
                 </h2>
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  Your QR code <span className="font-mono text-neutral-900 font-semibold">{codeParam}</span> has been successfully linked to your account. Your digital story is currently unactivated.
-                </p>
-                <p className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-left leading-relaxed">
-                  ✨ Now you can add your custom story message, bio, avatar, and social links from your <strong>QR Identity</strong> section in your profile!
+                <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal px-2">
+                  Your QR code <span className="font-mono text-[#22C55E] font-bold">{codeParam}</span> has been successfully linked to your account. Your digital story is currently unactivated.
                 </p>
               </div>
 
+              {/* Callout Box */}
+              <div className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-4 text-xs sm:text-sm text-neutral-700 font-normal leading-relaxed text-left flex items-start gap-3">
+                <span className="text-base select-none shrink-0">🪄</span>
+                <p>
+                  Now you can add your custom story message, bio, avatar, and social links from your <strong className="text-[#22C55E] font-bold">QR Identity</strong> section in your profile!
+                </p>
+              </div>
+
+              {/* Dark CTA Button */}
               <div className="pt-2">
                 <Link
                   href="/account/qr-identity"
-                  className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  className="w-full bg-[#111827] hover:bg-black text-white font-bold py-3.5 px-6 rounded-2xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-md group"
                 >
-                  Go to Profile Section to Add Story
-                  <ArrowRight className="w-4 h-4" />
+                  <span className="w-6 h-6 rounded-lg border-[1.5px] border-[#22C55E] flex items-center justify-center text-[#22C55E] shrink-0">
+                    <User className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </span>
+                  <span>Go to Profile Section to Add Story</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
             </div>
+
+            {/* Bottom Spacer */}
+            <div className="h-4" />
           </div>
         )}
 
-        {/* LINKED / ACTIVATED STATE: Display Public Story Profile */}
-        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (
-          <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 pt-6 pb-12 space-y-8 animate-in fade-in duration-300">
-            <Link href="/" className="inline-block cursor-pointer mb-2">
-              <img
-                src="/images/logo-dark.svg"
-                alt="BACSTORY"
-                className="h-6 sm:h-7 lg:h-8 w-auto object-contain"
-              />
-            </Link>
-            <div className="max-w-4xl mx-auto w-full relative overflow-hidden bg-white border border-neutral-200 rounded-3xl shadow-sm">
-              {/* Cover Banner */}
-              <div
-                className="h-44 sm:h-56 w-full relative bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-300 overflow-hidden"
-                style={{
-                  backgroundColor: qrData?.profileData?.themeColor || "#f5f5f5",
-                }}
-              >
-                {qrData?.profileData?.coverUrl ? (
-                  <img
-                    src={qrData.profileData.coverUrl}
-                    alt="Cover"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-neutral-200 via-neutral-100 to-white" />
-                )}
-              </div>
+        {/* LINKED / ACTIVATED STATE: Display Public Story Profile (Matching Reference Design) */}
+        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (qrData?.profileData?.customText || qrData?.profileData?.bio || qrData?.profileData?.title) && (
+          <div className="min-h-screen w-full md:bg-[#E7DCD3] bg-[#E7DCD3]/40   lg:bg-[url('/images/qr-about/imageCopy.png')] bg-contain bg-start bg-no-repeat relative overflow-y-auto flex flex-col justify-between p-6 select-none animate-in fade-in duration-300">
+            {/* Top Brand Header & Navigation Bar */}
+            <div className="w-full max-w-full mx-auto z-20 md:pb-6 pb-0">
+              <Link href="/" className="inline-block cursor-pointer">
+                <img
+                  src="/images/logo-dark.svg"
+                  alt="BACSTORY"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </Link>
 
-              {/* Profile Info */}
-              <div className="px-6 sm:px-10 pb-10 relative -mt-16 sm:-mt-20 space-y-6">
-                <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 text-center sm:text-left">
-                  {/* Avatar */}
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-neutral-100 shadow-md overflow-hidden shrink-0 flex items-center justify-center text-neutral-800 relative">
+
+            </div>
+
+            {/* Main Center Container with Public Garment Card & Hangtag Graphic */}
+            <div className="w-full max-w-[100%] md:max-w-[90%] mx-auto my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center z-10 md:py-6 py-0">
+              {/* Left/Center Column: Public Garment Story Card */}
+              <div className="lg:col-span-7 xl:col-span-6 w-full max-w-[100%] mx-auto bg-[#F8F5F2] rounded-[18px] p-7 sm:p-9 shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 ">
+                {/* Circular Avatar Image with Green Ring & Check Badge */}
+                <div className="relative w-24 h-24 mx-auto">
+                  <div className="w-full h-full rounded-full border-4 border-[#F3F4F1] shadow-xs overflow-hidden bg-neutral-100 flex items-center justify-center">
                     {qrData?.profileData?.avatarUrl ? (
                       <img
                         src={qrData.profileData.avatarUrl}
-                        alt="Avatar"
+                        alt={qrData?.linkedUser?.name || "Owner"}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
-                        <User className="w-12 h-12 text-neutral-400" />
+                      <div className="w-full h-full bg-[#EFECE6] flex items-center justify-center text-[#707659]">
+                        <User className="w-12 h-12 stroke-[1.5]" />
                       </div>
                     )}
                   </div>
+
                 </div>
 
-                {/* Title & User Name */}
-                <div className="space-y-1 text-center sm:text-left">
-                  <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-neutral-900">
-                    {qrData?.profileData?.title || qrData?.linkedUser?.name || "BACSTORY Garment Owner"}
+                {/* Owner Info & Verified Owner Badge */}
+                <div>
+                  {/* <p className="text-xs sm:text-sm font-medium text-neutral-500 font-sans">
+                    This garment is claimed by
+                  </p> */}
+                  <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 capitalize tracking-tight font-sans flex items-center justify-center gap-1.5">
+                    <span>{qrData?.profileData?.title?.trim() || qrData?.linkedUser?.name || "Anonymous"}</span>
                   </h2>
-                  <p className="text-xs font-mono text-neutral-500">
-                    Linked by {qrData?.linkedUser?.name || "BACSTORY Member"}
+
+
+                </div>
+
+                {/* Diamond Separator Line */}
+                <div className="relative mb-4 flex items-center justify-center">
+                  <div className="w-full border-t border-neutral-200/70" />
+                  <div className="absolute px-2.5 text-[#C4C2B4] text-[10px]">✦</div>
+                </div>
+
+                {/* About the Owner Section */}
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold text-neutral-700 tracking-widest uppercase text-center">
+                    ABOUT THE OWNER
+                  </p>
+                  <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal text-center px-2">
+                    {qrData?.profileData?.bio || qrData?.profileData?.customText || "Loves minimal fashion, good coffee and creating a positive impact."}
                   </p>
                 </div>
 
-                {/* Custom Story / Bio */}
-                {(qrData?.profileData?.customText || qrData?.profileData?.bio) && (
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 space-y-2">
-                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider font-mono">
-                      Digital Story & Bio
-                    </p>
-                    <p className="text-sm sm:text-base text-neutral-800 leading-relaxed font-normal italic">
-                      "{qrData?.profileData?.customText || qrData?.profileData?.bio}"
-                    </p>
-                  </div>
-                )}
-
-                {/* Social Links Grid */}
+                {/* Connect Section (Social Links - Dynamic for all platforms) */}
                 {qrData?.profileData?.socialLinks &&
-                  Object.values(qrData.profileData.socialLinks).some((val) => val) && (
-                    <div className="space-y-3">
-                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider font-mono">
-                        Connect & Socials
+                  Object.entries(qrData.profileData.socialLinks).some(([_, val]) => val && String(val).trim().length > 0) && (
+                    <div className="space-y-2.5">
+                      <p className="text-[11px] font-bold text-neutral-700 tracking-widest uppercase text-center">
+                        CONNECT
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {qrData.profileData.socialLinks.instagram && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.instagram.startsWith("http")
-                                ? qrData.profileData.socialLinks.instagram
-                                : `https://instagram.com/${qrData.profileData.socialLinks.instagram.replace("@", "")}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-pink-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center">
-                                <InstagramIcon className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-pink-600 transition-colors">
-                                Instagram
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-pink-600 transition-colors" />
-                          </a>
-                        )}
+                      <div className="bg-[#EFE9E5]/40 border border-neutral-200/60 rounded-2xl p-3.5 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+                        {Object.entries(qrData.profileData.socialLinks).map(([platformId, linkVal]) => {
+                          if (!linkVal || !String(linkVal).trim()) return null;
+                          const rawVal = String(linkVal).trim();
+                          const iconMap = {
+                            instagram: "/images/landing-page/instagram.svg",
+                            linkedin: "/images/landing-page/linkedin.svg",
+                            twitter: "/images/landing-page/twitter.svg",
+                            facebook: "/images/icons/facebook.svg",
+                            snapchat: "/images/icons/snapchat.svg",
+                            youtube: "/images/icons/youtube.svg",
+                            spotify: "/images/icons/spotify.svg",
+                            discord: "/images/icons/discord.svg",
+                            dribble: "/images/icons/dribble.svg",
+                            github: "/images/icons/github.svg",
+                            pintrest: "/images/icons/pintrest.svg",
+                            pinterest: "/images/icons/pintrest.svg",
+                            telegram: "/images/icons/telegram.svg",
+                            threds: "/images/icons/threds.svg",
+                            threads: "/images/icons/threds.svg",
+                            tiktok: "/images/icons/tiktok.svg",
+                            whatsapp: "/images/icons/whatsapp.svg",
+                            customUrl: "/images/landing-page/linkedin.svg",
+                          };
+                          const urlPrefixMap = {
+                            instagram: "https://instagram.com/",
+                            facebook: "https://facebook.com/",
+                            snapchat: "https://snapchat.com/add/",
+                            youtube: "https://youtube.com/",
+                            twitter: "https://twitter.com/",
+                            linkedin: "https://linkedin.com/in/",
+                            spotify: "https://open.spotify.com/",
+                            tiktok: "https://tiktok.com/@",
+                            whatsapp: "https://wa.me/",
+                            telegram: "https://t.me/",
+                            github: "https://github.com/",
+                            discord: "https://discord.gg/",
+                            threds: "https://threads.net/@",
+                            threads: "https://threads.net/@",
+                            pintrest: "https://pinterest.com/",
+                            pinterest: "https://pinterest.com/",
+                            dribble: "https://dribbble.com/",
+                          };
 
-                        {qrData.profileData.socialLinks.twitter && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.twitter.startsWith("http")
-                                ? qrData.profileData.socialLinks.twitter
-                                : `https://twitter.com/${qrData.profileData.socialLinks.twitter.replace("@", "")}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-sky-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
-                                <TwitterIcon className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-sky-600 transition-colors">
-                                Twitter / X
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-sky-600 transition-colors" />
-                          </a>
-                        )}
+                          const iconSrc = iconMap[platformId] || "/images/landing-page/linkedin.svg";
+                          const defaultPrefix = urlPrefixMap[platformId] || "https://";
+                          const finalUrl = rawVal.startsWith("http")
+                            ? rawVal
+                            : `${defaultPrefix}${rawVal.replace(/^@/, "")}`;
 
-                        {qrData.profileData.socialLinks.spotify && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.spotify.startsWith("http")
-                                ? qrData.profileData.socialLinks.spotify
-                                : `https://open.spotify.com/${qrData.profileData.socialLinks.spotify}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-emerald-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                <Music className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-emerald-600 transition-colors">
-                                Spotify Track
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-emerald-600 transition-colors" />
-                          </a>
-                        )}
-
-                        {qrData.profileData.socialLinks.customUrl && (
-                          <a
-                            href={
-                              qrData.profileData.socialLinks.customUrl.startsWith("http")
-                                ? qrData.profileData.socialLinks.customUrl
-                                : `https://${qrData.profileData.socialLinks.customUrl}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3.5 bg-neutral-50 border border-neutral-200 hover:border-purple-500 rounded-xl transition-all group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                                <Globe className="w-4 h-4" />
-                              </div>
-                              <span className="text-xs font-semibold text-neutral-900 group-hover:text-purple-600 transition-colors">
-                                Custom Link
-                              </span>
-                            </div>
-                            <ExternalLink className="w-3.5 h-3.5 text-neutral-400 group-hover:text-purple-600 transition-colors" />
-                          </a>
-                        )}
+                          return (
+                            <a
+                              key={platformId}
+                              href={finalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-10 h-10 rounded-full bg-white shadow-2xs border border-neutral-200/80 flex items-center justify-center text-neutral-800 hover:scale-105 transition-transform cursor-pointer"
+                              title={platformId}
+                            >
+                              <img src={iconSrc} alt={platformId} className="w-5 h-5 object-contain invert" />
+                            </a>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
+
+
               </div>
+
+
+            </div>
+
+            {/* Bottom Footer Signoff */}
+            <div className="w-full text-center space-y-1 pt-4 z-20">
+              <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
+                Authentic Apparel. Built on Trust.
+              </p>
+              <img
+                src="/images/logo-dark.svg"
+                alt="BACSTORY"
+                className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
+              />
             </div>
           </div>
         )}
