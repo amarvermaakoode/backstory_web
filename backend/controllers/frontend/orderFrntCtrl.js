@@ -549,25 +549,12 @@ const submitReturnExchange = async (req, res) => {
     // Calculate Return Shipping Fee: Bacstory pays for our fault, customer pays ₹99 for change of mind
     const returnShippingFee = isDamagedOrWrong ? 0 : 99;
 
-    order.returnExchange = {
-      isRequested: true,
-      requestType,
-      reason,
-      additionalNotes: additionalNotes || "",
-      requestedSize: requestedSize || "",
-      requestedColor: requestedColor || "",
-      proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
-      unboxingVideo: unboxingVideo || "",
-      reportedWithin48Hours: !!reportedWithin48Hours,
-      requestedItems: Array.isArray(items) ? items : [],
-      returnShippingFee,
-      requestedAt: new Date(),
-      status: requestType === "exchange" ? "Exchange Requested" : "Return Requested"
-    };
+    let finalRefundMethod = "Original Payment Method";
+    let refundAmount = 0;
 
     if (requestType === "return") {
       const isCodOrder = order.paymentMethod === "COD" || order.paymentStatus === "COD";
-      let finalRefundMethod = refundMethod || (isCodOrder ? "Bank Transfer" : "Original Payment Method");
+      finalRefundMethod = refundMethod || (isCodOrder ? "Bank Transfer" : "Original Payment Method");
 
       if (isCodOrder && finalRefundMethod === "Original Payment Method") {
         return res.status(400).json({
@@ -601,7 +588,7 @@ const submitReturnExchange = async (req, res) => {
       }
 
       const calculatedRefund = Math.max(0, itemsSubtotal - returnShippingFee);
-      const refundAmount = parseNumericPrice(calculatedRefund, Math.max(0, orderTotalNum - returnShippingFee));
+      refundAmount = parseNumericPrice(calculatedRefund, Math.max(0, orderTotalNum - returnShippingFee));
 
       order.refundDetails = {
         refundMethod: finalRefundMethod,
@@ -615,6 +602,52 @@ const submitReturnExchange = async (req, res) => {
         estimatedCreditWindow: "5-7 Business Days"
       };
     }
+
+    const initialStatus = requestType === "exchange" ? "Exchange Requested" : "Return Requested";
+    const requestId = `RET-${Date.now()}`;
+
+    const newReturnEntry = {
+      requestId,
+      requestType,
+      reason,
+      additionalNotes: additionalNotes || "",
+      requestedSize: requestedSize || "",
+      requestedColor: requestedColor || "",
+      proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
+      unboxingVideo: unboxingVideo || "",
+      reportedWithin48Hours: !!reportedWithin48Hours,
+      requestedItems: Array.isArray(items) ? items : [],
+      returnShippingFee,
+      refundAmount,
+      refundMethod: finalRefundMethod,
+      bankHolderName: bankHolderName || "",
+      accountNumber: accountNumber || "",
+      ifscCode: ifscCode || "",
+      upiId: upiId || "",
+      requestedAt: new Date(),
+      status: initialStatus
+    };
+
+    order.returnExchange = {
+      isRequested: true,
+      requestType,
+      reason,
+      additionalNotes: additionalNotes || "",
+      requestedSize: requestedSize || "",
+      requestedColor: requestedColor || "",
+      proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
+      unboxingVideo: unboxingVideo || "",
+      reportedWithin48Hours: !!reportedWithin48Hours,
+      requestedItems: Array.isArray(items) ? items : [],
+      returnShippingFee,
+      requestedAt: new Date(),
+      status: initialStatus
+    };
+
+    if (!Array.isArray(order.returnRequestsHistory)) {
+      order.returnRequestsHistory = [];
+    }
+    order.returnRequestsHistory.push(newReturnEntry);
 
     if (order.paymentStatus !== "COD" && order.paymentStatus !== "Cancelled (Unpaid)") {
       order.paymentStatus = "Paid";

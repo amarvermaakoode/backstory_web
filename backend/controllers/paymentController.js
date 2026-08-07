@@ -178,23 +178,50 @@ const handleRazorpayWebhook = async (req, res) => {
 
     const { event, payload } = req.body;
 
-    if (event === "refund.processed" || event === "payment.refunded") {
+    if (event === "refund.credited") {
       const paymentId = payload?.refund?.entity?.payment_id || payload?.payment?.entity?.id;
       if (paymentId) {
         const Order = require("../models/Order");
         const order = await Order.findOne({ razorpayPaymentId: paymentId });
         if (order) {
           if (!order.refundDetails) order.refundDetails = {};
-          order.refundDetails.refundStatus = "Processed / Credited";
+          order.refundDetails.refundStatus = "Refunded";
           order.refundDetails.updatedAt = new Date();
           order.paymentStatus = "Refunded";
+          order.orderStatus = "Returned";
+          if (!order.returnExchange) order.returnExchange = {};
+          order.returnExchange.status = "Refunded";
+          if (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+            order.returnRequestsHistory[order.returnRequestsHistory.length - 1].status = "Refunded";
+          }
           if (order.items && Array.isArray(order.items)) {
             order.items.forEach((item) => {
+              item.orderStatus = "Returned";
               item.paymentStatus = "Refunded";
             });
           }
           await order.save();
-          console.log(`Razorpay Webhook: Automatically updated order ${order.orderId} refund status to 'Processed / Credited'`);
+          console.log(`Razorpay Webhook: Automatically updated order ${order.orderId} refund status to 'Refunded'`);
+        }
+      }
+    } else if (event === "refund.processed" || event === "payment.refunded") {
+      const paymentId = payload?.refund?.entity?.payment_id || payload?.payment?.entity?.id;
+      if (paymentId) {
+        const Order = require("../models/Order");
+        const order = await Order.findOne({ razorpayPaymentId: paymentId });
+        if (order && order.returnExchange?.status !== "Refunded") {
+          if (!order.refundDetails) order.refundDetails = {};
+          order.refundDetails.refundStatus = "Refund Processing";
+          order.refundDetails.updatedAt = new Date();
+          order.paymentStatus = "Refund Processing";
+          order.orderStatus = "Return In Progress";
+          if (!order.returnExchange) order.returnExchange = {};
+          order.returnExchange.status = "Refund Initiated";
+          if (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+            order.returnRequestsHistory[order.returnRequestsHistory.length - 1].status = "Refund Initiated";
+          }
+          await order.save();
+          console.log(`Razorpay Webhook: Order ${order.orderId} marked as Refund Processing (Credited in 5-7 days)`);
         }
       }
     } else if (event === "refund.failed") {
