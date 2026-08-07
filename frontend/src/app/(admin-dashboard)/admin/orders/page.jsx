@@ -7,6 +7,8 @@ import {
   Search,
   Filter,
   Eye,
+  Pencil,
+  Trash2,
   CheckCircle2,
   Clock,
   Truck,
@@ -34,11 +36,13 @@ const ORDER_STATUS_STEPS = [
 ];
 
 const STATUS_BADGE_STYLES = {
+  "Placed": "bg-blue-50 text-blue-700 border-blue-200",
   "Order Confirmed": "bg-blue-50 text-blue-700 border-blue-200",
   "Ready to Pack & Ship": "bg-amber-50 text-amber-800 border-amber-200",
   "Dispatched & In Transit": "bg-purple-50 text-purple-700 border-purple-200",
   "Out for Delivery": "bg-indigo-50 text-indigo-700 border-indigo-200",
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Return In Progress": "bg-purple-50 text-purple-800 border-purple-200",
   "Cancelled": "bg-red-50 text-red-700 border-red-200",
   "Returned": "bg-neutral-100 text-neutral-700 border-neutral-300"
 };
@@ -54,7 +58,7 @@ export default function AdminOrdersPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const handleApproveReturn = async (orderDbId) => {
-    if (!confirm("Are you sure you want to approve this request? If prepaid, Razorpay refund will be initiated automatically.")) {
+    if (!confirm("Are you sure you want to approve this return request?")) {
       return;
     }
     setActionLoading(true);
@@ -66,7 +70,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert(data.message || "Return request approved & Razorpay refund initiated successfully!");
+        alert(data.message || "Return request approved successfully!");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -79,6 +83,81 @@ export default function AdminOrdersPage() {
     } catch (error) {
       console.error("Error approving return request:", error);
       alert("Failed to approve return request.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkProductReceived = async (orderDbId) => {
+    if (!confirm("Confirm that the returned product has been picked up and received by seller?")) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/product-received`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert(data.message || "Product marked as received! You can now process the refund.");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        alert(data.message || "Failed to mark product received.");
+      }
+    } catch (error) {
+      console.error("Error marking product received:", error);
+      alert("Failed to mark product received.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleProcessReturnRefund = async (orderDbId) => {
+    const existingPaymentId = selectedOrder?.razorpayPaymentId || selectedOrder?.paymentInfo?.razorpayPaymentId;
+    let paymentIdToSend = existingPaymentId;
+
+    if (!paymentIdToSend) {
+      const inputId = prompt("Enter Razorpay Payment ID for this order (e.g. pay_TMzlj6hvnzLzle):");
+      if (!inputId || !inputId.trim()) {
+        alert("Razorpay Payment ID is required to process refund.");
+        return;
+      }
+      paymentIdToSend = inputId.trim();
+    }
+
+    if (!confirm(`Are you sure you want to process and initiate the Razorpay refund (Payment ID: ${paymentIdToSend})?`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/process-refund`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ razorpayPaymentId: paymentIdToSend })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert(data.message || "Razorpay refund processed and completed successfully!");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        alert(data.message || "Failed to process refund.");
+      }
+    } catch (error) {
+      console.error("Error processing return refund:", error);
+      alert("Failed to process return refund.");
     } finally {
       setActionLoading(false);
     }
@@ -113,6 +192,29 @@ export default function AdminOrdersPage() {
       alert("Failed to reject return request.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderDbId) => {
+    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrders(prev => prev.filter(o => o._id !== orderDbId && o.orderId !== orderDbId));
+        if (selectedOrder && (selectedOrder._id === orderDbId || selectedOrder.orderId === orderDbId)) {
+          setSelectedOrder(null);
+        }
+      } else {
+        alert(data.message || "Failed to delete order.");
+      }
+    } catch (err) {
+      console.error("Delete order error:", err);
+      alert("Failed to delete order. Please try again.");
     }
   };
 
@@ -257,9 +359,9 @@ export default function AdminOrdersPage() {
                 <tr>
                   <th className="py-3.5 px-4 sm:px-6">Order ID & Date</th>
                   <th className="py-3.5 px-4">Customer Details</th>
-                  <th className="py-3.5 px-4">Items Summary</th>
-                  <th className="py-3.5 px-4">Amount & Payment</th>
-                  <th className="py-3.5 px-4">Fulfillment Status</th>
+                  <th className="py-3.5 px-4">Items</th>
+                  <th className="py-3.5 px-4">Amount</th>
+                  <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -285,20 +387,6 @@ export default function AdminOrdersPage() {
                           })}
                         </span>
 
-                        {/* Live Return / Exchange Badge */}
-                        {order.returnExchange?.isRequested && (
-                          <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${order.returnExchange.status === "Approved"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                            : order.returnExchange.status === "Rejected"
-                              ? "bg-red-50 text-red-800 border-red-200"
-                              : "bg-amber-50 text-amber-900 border-amber-200"
-                            }`}>
-                            <RotateCcw className="w-3 h-3 shrink-0" />
-                            {order.returnExchange.status === "Pending Verification"
-                              ? `${order.returnExchange.requestType === "return" ? "Return" : "Exchange"} Requested`
-                              : `${order.returnExchange.requestType === "return" ? "Return" : "Exchange"} ${order.returnExchange.status}`}
-                          </span>
-                        )}
                       </td>
 
                       {/* Customer & Shipping Address */}
@@ -367,42 +455,31 @@ export default function AdminOrdersPage() {
 
                       </td>
 
-                      {/* Fulfillment Status Select Box */}
+                      {/* Fulfillment Status Display Badge */}
                       <td className="py-4 px-4 align-top">
-                        <div className="relative">
-                          <select
-                            disabled={isUpdating}
-                            value={currentStatus}
-                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                            className={`w-full appearance-none pl-3 pr-1 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer transition-colors focus:outline-none ${STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"
-                              } ${isUpdating ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {ORDER_STATUS_STEPS.map((st) => (
-                              <option key={st} value={st} className="bg-white text-neutral-900 font-medium">
-                                {st}
-                              </option>
-                            ))}
-                            <option value="Cancelled" className="bg-white text-red-600 font-medium">Cancelled</option>
-                            <option value="Returned" className="bg-white text-neutral-700 font-medium">Returned</option>
-                          </select>
-                          <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-current opacity-70" />
-                        </div>
-                        {isUpdating && (
-                          <span className="text-[10px] text-neutral-400 font-medium flex items-center gap-1 mt-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Updating...
-                          </span>
-                        )}
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border ${STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"}`}>
+                          {currentStatus}
+                        </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-4 px-4 sm:px-6 align-top text-right">
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="px-3 py-1.5 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-xs font-semibold text-neutral-800 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-neutral-600" />
-                          <span>View</span>
-                        </button>
+                      <td className="py-4 px-4 sm:px-6 align-top text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            title="Edit Order"
+                            className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-100 text-neutral-700 transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-4 h-4 text-neutral-700" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrder(order._id || order.orderId)}
+                            title="Delete Order"
+                            className="p-2 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -437,10 +514,40 @@ export default function AdminOrdersPage() {
 
 
 
+            {/* Change Order Status Section */}
+            <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
+                  Order Status
+                </span>
+                <span className="text-xs font-bold text-neutral-900 mt-0.5 block">
+                  Current: <span className="text-purple-700">{selectedOrder.orderStatus || "Placed"}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-neutral-500">Change Status:</span>
+                <select
+                  disabled={updatingOrderId === selectedOrder._id}
+                  value={selectedOrder.orderStatus || "Placed"}
+                  onChange={(e) => handleStatusChange(selectedOrder._id || selectedOrder.orderId, e.target.value)}
+                  className="bg-white border border-neutral-300 rounded-xl px-3 py-2 text-xs font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-xs"
+                >
+                  {ORDER_STATUS_STEPS.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                  <option value="Return In Progress">Return In Progress</option>
+                  <option value="Returned">Returned</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+
             {/* Shipping Address Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2">
               <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
-                Shipping Address (Nearest Courier Destination)
+                Shipping Address
               </span>
               <p className="text-sm font-semibold text-neutral-900">
                 {selectedOrder.shippingAddress?.firstName} {selectedOrder.shippingAddress?.lastName}
@@ -573,31 +680,89 @@ export default function AdminOrdersPage() {
                     </div>
                   )}
 
-                  {/* Admin Action Buttons: Approve & Initiate Razorpay Refund / Reject */}
-                  {selectedOrder.returnExchange.status === "Pending Verification" && (
-                    <div className="pt-3 border-t border-purple-200/80 flex flex-wrap items-center gap-3">
-                      <button
-                        onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
-                        disabled={actionLoading}
-                        className="flex-1 min-w-[220px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                      >
-                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                        <span>
-                          {selectedOrder.returnExchange.requestType === "return"
-                            ? `Approve Return & Initiate Razorpay Refund (Rs ${netRefundAmount.toLocaleString()})`
-                            : "Approve Exchange Request"}
-                        </span>
-                      </button>
+                  {/* Admin Action Buttons matching exact 7-stage return table workflow */}
+                  {(() => {
+                    const retStatus = selectedOrder.returnExchange.status;
 
-                      <button
-                        onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
-                        disabled={actionLoading}
-                        className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-800 border border-red-200 px-4 py-3 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
-                      >
-                        Reject Request
-                      </button>
-                    </div>
-                  )}
+                    if (retStatus === "Pending Verification" || retStatus === "Return Requested") {
+                      return (
+                        <div className="pt-3 border-t border-purple-200/80 flex flex-wrap items-center gap-3">
+                          <button
+                            onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
+                            disabled={actionLoading}
+                            className="flex-1 min-w-[200px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                            <span>Approve Return Request</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
+                            disabled={actionLoading}
+                            className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-800 border border-red-200 px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
+                          >
+                            Reject Request
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (retStatus === "Return Approved" || retStatus === "Approved") {
+                      return (
+                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between gap-3">
+                          <span className="text-xs text-purple-950 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
+                          <button
+                            onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId)}
+                            disabled={actionLoading}
+                            className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                            <span>Mark Product Received by Seller</span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (retStatus === "Product Received") {
+                      return (
+                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between gap-3">
+                          <span className="text-xs text-purple-950 font-medium">Next Action: <strong>Refund Processing</strong></span>
+                          <button
+                            onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId)}
+                            disabled={actionLoading}
+                            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                            <span>Initiate & Process Refund via Razorpay (Rs {netRefundAmount.toLocaleString()})</span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (retStatus === "Refund Initiated") {
+                      return (
+                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-amber-700 flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Initiated & Processing (Takes 5-7 Working Days)
+                          </span>
+                          <span className="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full uppercase">Refund Processing</span>
+                        </div>
+                      );
+                    }
+
+                    if (retStatus === "Refunded") {
+                      return (
+                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Razorpay Refund Processed & Credited to Customer
+                          </span>
+                          <span className="bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full uppercase">Refunded</span>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
                 </div>
               );
             })()}
@@ -681,27 +846,7 @@ export default function AdminOrdersPage() {
               );
             })()}
 
-            {/* Payment Summary */}
-            <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2 text-xs sm:text-sm">
-              <div className="flex justify-between text-neutral-600 font-medium">
-                <span>Subtotal</span>
-                <span>Rs {selectedOrder.subtotal?.toLocaleString()}</span>
-              </div>
-              {selectedOrder.discountAmount > 0 && (
-                <div className="flex justify-between text-green-600 font-medium">
-                  <span>Discount</span>
-                  <span>-Rs {selectedOrder.discountAmount?.toLocaleString()}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-neutral-600 font-medium">
-                <span>Shipping</span>
-                <span>{selectedOrder.shippingCost === 0 ? "Free" : `Rs ${selectedOrder.shippingCost}`}</span>
-              </div>
-              <div className="border-t border-neutral-200 pt-2 flex justify-between font-bold text-neutral-900 text-sm sm:text-base">
-                <span>Total Amount Paid</span>
-                <span className="font-clashDisplay text-lg">Rs {selectedOrder.totalAmount?.toLocaleString()}</span>
-              </div>
-            </div>
+
 
             {/* Footer Buttons */}
             <div className="flex justify-end">

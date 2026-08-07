@@ -259,6 +259,154 @@ const approveReturnRequest = async (req, res) => {
   }
 };
 
+// Mark return product received by seller (Stage 5: Order: Return In Progress, Return: Product Received, Payment: Paid)
+const markProductReceived = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
+    const order = await Order.findOne({
+      $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (!order.returnExchange || !order.returnExchange.isRequested) {
+      return res.status(400).json({ success: false, message: "No return request found for this order." });
+    }
+
+    order.orderStatus = "Return In Progress";
+    order.returnExchange.status = "Product Received";
+    order.paymentStatus = "Paid";
+    order.returnExchange.receivedAt = new Date();
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach((item) => {
+        item.orderStatus = "Return In Progress";
+      });
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Product marked as received by seller. You can now process the refund.",
+      data: order
+    });
+  } catch (error) {
+    console.error("Admin mark product received error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to mark product received" });
+  }
+};
+
+// Process & execute Razorpay refund for returned product (Stage 6 & 7: Refund Initiated / Refunded)
+const processReturnRefund = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
+    const order = await Order.findOne({
+      $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (!order.returnExchange || !order.returnExchange.isRequested) {
+      return res.status(400).json({ success: false, message: "No return request found for this order." });
+    }
+
+    const returnFee = typeof order.returnExchange?.returnShippingFee === "number" ? order.returnExchange.returnShippingFee : 0;
+    const orderTotal = order.totalAmount || order.orderTotal || 1100;
+    const refundAmountRs = (typeof order.refundDetails?.refundAmount === "number" && order.refundDetails.refundAmount > 0)
+      ? order.refundDetails.refundAmount
+      : Math.max(0, orderTotal - returnFee);
+
+    if (!order.refundDetails) order.refundDetails = {};
+    order.refundDetails.refundAmount = refundAmountRs;
+
+    // Retrieve payment ID (from body or order schema)
+    let paymentId = req.body?.razorpayPaymentId || order.razorpayPaymentId || order.paymentInfo?.razorpayPaymentId || order.paymentDetails?.razorpay_payment_id;
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return res.status(500).json({
+        success: false,
+        message: "Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) missing in server environment (.env)."
+      });
+    }
+
+    if (!paymentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay Payment ID (pay_...) is missing on this order. Please provide razorpayPaymentId."
+      });
+    }
+
+    // Call Razorpay API
+    const Razorpay = require("razorpay");
+    const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+
+    let refundResult;
+    try {
+      refundResult = await rzp.payments.refund(paymentId, {
+        amount: Math.round(refundAmountRs * 100),
+        notes: {
+          orderId: order.orderId,
+          reason: order.returnExchange.reason || "Return refund post inspection"
+        }
+      });
+    } catch (rzpErr) {
+      console.error("Razorpay API Refund Error:", rzpErr);
+      const errorDescription = rzpErr?.error?.description || rzpErr?.description || rzpErr?.message || "Razorpay API refund failed";
+      return res.status(400).json({
+        success: false,
+        message: `Razorpay Refund Failed: ${errorDescription}`
+      });
+    }
+
+    if (!refundResult || !refundResult.id) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay refund call did not return a valid refund object."
+      });
+    }
+
+    // Save payment ID on order if passed
+    order.razorpayPaymentId = paymentId;
+
+    // Stage 6: Refund initiated & processing (Razorpay processing timeline: 5-7 working days)
+    order.orderStatus = "Return In Progress";
+    order.returnExchange.status = "Refund Initiated";
+    order.paymentStatus = "Refund Processing";
+    order.refundDetails.refundStatus = "Refund Processing";
+    order.refundDetails.refundId = refundResult.id;
+    order.refundDetails.razorpayRefundId = refundResult.id;
+    order.refundDetails.estimatedCreditWindow = "5-7 Working Days";
+
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach((item) => {
+        item.orderStatus = "Return In Progress";
+        item.paymentStatus = "Refund Processing";
+      });
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Razorpay refund of Rs ${refundAmountRs.toLocaleString()} initiated successfully (Refund ID: ${refundResult.id})!`,
+      data: order
+    });
+  } catch (error) {
+    console.error("Admin process return refund error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to process return refund" });
+  }
+};
+
 // Reject Return or Exchange request
 const rejectReturnRequest = async (req, res) => {
   try {
@@ -295,11 +443,37 @@ const rejectReturnRequest = async (req, res) => {
   }
 };
 
+// Delete an order (by _id or orderId)
+const deleteOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
+    const order = await Order.findOneAndDelete({
+      $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order deleted successfully."
+    });
+  } catch (error) {
+    console.error("Admin delete order error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to delete order" });
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
   updateOrderStatus,
   updateRefundStatus,
   approveReturnRequest,
+  markProductReceived,
+  processReturnRefund,
   rejectReturnRequest,
+  deleteOrder,
 };
