@@ -55,6 +55,43 @@ export default function AccountOrdersPage() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [selectedStatusFilter, setSelectedStatusFilter] = useState("All");
 
+    const [cancellingOrder, setCancellingOrder] = useState(null);
+    const [cancelReason, setCancelReason] = useState("");
+    const [cancelLoading, setCancelLoading] = useState(false);
+
+    const handleCancelOrderSubmit = async (e) => {
+        e.preventDefault();
+        if (!cancellingOrder) return;
+        setCancelLoading(true);
+
+        try {
+            const token = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
+            const res = await fetch(`${API_BASE_URL}/frontend/orders/${cancellingOrder.id}/cancel`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token && { Authorization: `Bearer ${token}` })
+                },
+                body: JSON.stringify({ reason: cancelReason || "Cancelled by customer before dispatch" })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert("Order cancelled successfully! 100% refund initiated for prepaid orders (no cancellation fee).");
+                setOrders(prev => prev.map(o => o.id === cancellingOrder.id ? { ...o, orderStatus: "Cancelled" } : o));
+                setCancellingOrder(null);
+                setCancelReason("");
+            } else {
+                alert(data.message || "Failed to cancel order.");
+            }
+        } catch (err) {
+            console.error("Error cancelling order:", err);
+            alert("An error occurred while cancelling order.");
+        } finally {
+            setCancelLoading(false);
+        }
+    };
+
     useEffect(() => {
         const fetchOrders = async () => {
             let dbOrders = [];
@@ -296,6 +333,24 @@ export default function AccountOrdersPage() {
                                             <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
                                             Return or Exchange
                                         </Link>
+
+                                        {/* Cancellation Action according to Bacstory policy */}
+                                        {currentOrderStatus === "Order Confirmed" ? (
+                                            <button
+                                                onClick={() => setCancellingOrder(order)}
+                                                className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                            >
+                                                <X className="w-3.5 h-3.5 text-red-600" />
+                                                Cancel Order
+                                            </button>
+                                        ) : currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned" ? (
+                                            <span
+                                                className="text-[11px] text-neutral-400 font-light border border-neutral-200 rounded-full px-3 py-1 bg-neutral-50"
+                                                title="Orders cannot be cancelled once packed or shipped for dispatch"
+                                            >
+                                                Packed & Non-Cancellable
+                                            </span>
+                                        ) : null}
                                     </div>
                                     <Link
                                         href="/account/support"
@@ -457,6 +512,74 @@ export default function AccountOrdersPage() {
                         >
                             Close Tracking
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Order Modal */}
+            {cancellingOrder && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 animate-fade-in border border-neutral-100">
+                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                            <div>
+                                <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">Cancel Order</h3>
+                                <p className="text-xs text-neutral-400 mt-0.5">
+                                    Order ID: <span className="font-mono font-semibold text-neutral-800">{cancellingOrder.id}</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setCancellingOrder(null)}
+                                className="text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 space-y-1.5 text-xs text-amber-900">
+                            <p className="font-semibold text-sm text-amber-950">Bacstory Cancellation Policy</p>
+                            <p className="leading-relaxed">
+                                • <strong>100% Refund:</strong> Prepaid orders cancelled before packing receive a full 100% refund.
+                            </p>
+                            <p className="leading-relaxed">
+                                • <strong>Zero Fee:</strong> No cancellation fee is charged.
+                            </p>
+                            <p className="leading-relaxed">
+                                • <strong>Packing Cutoff:</strong> Once packed for dispatch, orders cannot be cancelled.
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleCancelOrderSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                                    Reason for Cancellation (Optional)
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Tell us why you are cancelling..."
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs text-black focus:outline-none focus:border-black resize-none"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCancellingOrder(null)}
+                                    className="flex-1 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+                                >
+                                    Keep Order
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={cancelLoading}
+                                    className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    {cancelLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                                    <span>Confirm Cancel</span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

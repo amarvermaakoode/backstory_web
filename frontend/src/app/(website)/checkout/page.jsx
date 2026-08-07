@@ -521,12 +521,10 @@ export default function CheckoutPage() {
         }
     };
 
-    // Calculate shipping cost
+    // Calculate shipping cost (Bacstory policy: ₹99 for orders below ₹999, Free on ₹999+)
     const getShippingCost = () => {
-        if (shippingMethod === "standard") return 0;
-        if (shippingMethod === "express") return 150;
-        if (shippingMethod === "international") return 638;
-        return 0;
+        if (activeSubtotal >= 999) return 0;
+        return 99;
     };
 
     const shippingCost = getShippingCost();

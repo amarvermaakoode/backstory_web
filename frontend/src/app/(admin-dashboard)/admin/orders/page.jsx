@@ -438,6 +438,82 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            {/* Cancellation Info (if cancelled) */}
+            {selectedOrder.cancellation?.isCancelled && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1.5 text-xs text-red-900">
+                <span className="font-bold text-sm uppercase tracking-wider text-red-950 block">Order Cancelled</span>
+                <p><strong>Reason:</strong> {selectedOrder.cancellation.cancellationReason}</p>
+                <p><strong>Fee Charged:</strong> Rs {selectedOrder.cancellation.cancellationFee || 0} (Zero Cancellation Fee)</p>
+                <p><strong>Refund Amount:</strong> Rs {selectedOrder.cancellation.refundAmount || selectedOrder.totalAmount} (100% Refund)</p>
+              </div>
+            )}
+
+            {/* Return / Exchange Request Details (if requested) */}
+            {selectedOrder.returnExchange?.isRequested && (
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-2 text-xs text-purple-950">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm uppercase tracking-wider text-purple-950">
+                    {selectedOrder.returnExchange.requestType === "return" ? "Return Request" : "Exchange Request"}
+                  </span>
+                  <span className="bg-purple-200 text-purple-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {selectedOrder.returnExchange.status}
+                  </span>
+                </div>
+                <p><strong>Reason:</strong> {selectedOrder.returnExchange.reason}</p>
+                {selectedOrder.returnExchange.additionalNotes && (
+                  <p><strong>Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
+                )}
+
+                {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
+                {selectedOrder.returnExchange.unboxingVideo && (
+                  <div className="bg-white p-2.5 rounded-xl border border-purple-200 space-y-1">
+                    <span className="font-semibold text-purple-900 block">Mandatory Unboxing Video Proof:</span>
+                    <a
+                      href={selectedOrder.returnExchange.unboxingVideo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 underline font-medium break-all text-xs"
+                    >
+                      {selectedOrder.returnExchange.unboxingVideo}
+                    </a>
+                  </div>
+                )}
+
+                {/* Proof Photos */}
+                {selectedOrder.returnExchange.proofPhotos?.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <span className="font-semibold text-purple-900 block">Uploaded Proof Photos:</span>
+                    <div className="flex items-center gap-2 overflow-x-auto">
+                      {selectedOrder.returnExchange.proofPhotos.map((img, idx) => (
+                        <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
+                          <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-lg border border-purple-200" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* COD / Bank Refund Details */}
+            {selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-1.5 text-xs text-blue-950">
+                <span className="font-bold text-sm uppercase tracking-wider text-blue-950 block">Refund Details</span>
+                <p><strong>Payout Method:</strong> {selectedOrder.refundDetails.refundMethod}</p>
+                {selectedOrder.refundDetails.refundMethod === "Bank Transfer" && (
+                  <>
+                    <p><strong>Account Holder:</strong> {selectedOrder.refundDetails.bankHolderName}</p>
+                    <p><strong>Account Number:</strong> {selectedOrder.refundDetails.accountNumber}</p>
+                    <p><strong>IFSC Code:</strong> {selectedOrder.refundDetails.ifscCode}</p>
+                  </>
+                )}
+                {selectedOrder.refundDetails.refundMethod === "UPI" && (
+                  <p><strong>UPI ID:</strong> {selectedOrder.refundDetails.upiId}</p>
+                )}
+                <p><strong>Status:</strong> {selectedOrder.refundDetails.refundStatus} (Window: {selectedOrder.refundDetails.estimatedCreditWindow || "5-7 Business Days"})</p>
+              </div>
+            )}
+
             {/* Payment Summary */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between text-neutral-600 font-medium">

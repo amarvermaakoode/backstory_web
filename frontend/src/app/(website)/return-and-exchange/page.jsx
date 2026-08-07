@@ -25,33 +25,39 @@ import { getImageUrl } from "@/lib/api";
 const policyItems = [
     {
         number: "01",
-        title: "30-day window",
+        title: "7-day return & exchange window",
         description:
-            "Items can be returned or exchanged within 30 days of delivery. The item must be unworn, unwashed, and returned with all original tags attached.",
+            "Returns and exchanges are accepted within 7 days of delivery. Items must be unused, unwashed, with original tags and packaging intact. Returns are not accepted for used, damaged, or customized products.",
     },
     {
         number: "02",
-        title: "Free returns",
+        title: "Shipping & Return shipping",
         description:
-            "We cover the return shipping. A prepaid label is emailed to you within 1–2 business days of submitting your request.",
+            "Shipping is ₹99 for orders below ₹999, and Free on ₹999+. Customer bears return shipping for change of mind. Bacstory bears all shipping costs for defective, damaged, or incorrect items.",
     },
     {
         number: "03",
-        title: "Exceptions",
+        title: "Damaged / Wrong product policy",
         description:
-            "Sale items marked final sale, intimates, and personalised pieces cannot be returned or exchanged. Damaged or washed items will be rejected on arrival.",
+            "Damaged or incorrect products must be reported within 48 hours of delivery with clear photos PLUS a mandatory complete unboxing video. After verification, we arrange free reverse pickup or courier reimbursement.",
     },
     {
         number: "04",
-        title: "Refunds",
+        title: "Order cancellation policy",
         description:
-            "Once we receive and inspect your item, refunds are issued to your original payment method within 5–7 business days. You'll receive an email confirmation.",
+            "Cancel free of charge before your order is packed for dispatch (100% refund for prepaid orders, zero cancellation fee). Once packed or shipped, orders cannot be cancelled.",
     },
     {
         number: "05",
+        title: "Refund processing & COD payouts",
+        description:
+            "Refunds are initiated within 2 business days after returned products pass quality inspection (credited in 5–7 business days). COD refunds are processed via Bank Transfer or UPI.",
+    },
+    {
+        number: "06",
         title: "Exchanges",
         description:
-            "Select 'Exchange' when starting your request to swap for a different size or colour. Your new item ships as soon as your return is received.",
+            "Allowed within 7 days for size change, color change (subject to stock), damaged, or incorrect products. One exchange is allowed per order. Store credit or refund if requested item is unavailable.",
     },
 ];
 
@@ -67,14 +73,14 @@ const stepsOverview = [
         step: "STEP 02",
         title: "Ship it back",
         description:
-            "We email you a free prepaid label within 1–2 business days. Drop it off at any post office.",
+            "For defective/damaged items or approved returns, we arrange free reverse pickup or provide courier reimbursement instructions.",
         icon: Truck,
     },
     {
         step: "STEP 03",
         title: "Refund or new item",
         description:
-            "Refunds land in 5–7 business days. Exchanges ship as soon as we receive your return.",
+            "Refunds are initiated within 2 business days after inspection (credited in 5–7 business days). Exchanges ship upon receipt.",
         icon: RotateCcw,
     },
 ];
@@ -117,10 +123,10 @@ const mockOrderItems = [
 ];
 
 const reasonOptions = [
-    "Product is too small/large",
-    "Received wrong item",
+    "Product is too small/large (Size Change)",
+    "Color change (subject to stock)",
     "Item defective or damaged",
-    "Quality not as expected",
+    "Received wrong item",
     "Changed my mind",
 ];
 
@@ -137,17 +143,21 @@ export default function ReturnAndExchangePage() {
 
     // Step 3: Reason & Request details
     const [requestType, setRequestType] = useState("return"); // "return" | "exchange"
-    const [selectedReason, setSelectedReason] = useState("Product is too small/large");
-    const [additionalNotes, setAdditionalNotes] = useState("The product is extremely oversized.");
+    const [selectedReason, setSelectedReason] = useState("Product is too small/large (Size Change)");
+    const [additionalNotes, setAdditionalNotes] = useState("");
+    const [unboxingVideoUrl, setUnboxingVideoUrl] = useState("");
     const [uploadedImages, setUploadedImages] = useState([
         "/images/landing-page/biker-tshirt.png",
         "/images/landing-page/coding-tshirt.png",
         "/images/landing-page/ai-and-tech.png",
-        "/images/landing-page/first.png",
     ]);
 
-    // Step 4: Payment mode
-    const [paymentMode, setPaymentMode] = useState("original"); // "original" | "wallet"
+    // Step 4: Payment mode & COD Bank/UPI refund details
+    const [paymentMode, setPaymentMode] = useState("original"); // "original" | "wallet" | "bank" | "upi"
+    const [bankHolderName, setBankHolderName] = useState("");
+    const [accountNumber, setAccountNumber] = useState("");
+    const [ifscCode, setIfscCode] = useState("");
+    const [upiId, setUpiId] = useState("");
 
     // Generated Return ID
     const [returnRequestId, setReturnRequestId] = useState("RET-84920");
@@ -627,16 +637,36 @@ export default function ReturnAndExchangePage() {
                                         {/* Additional Notes Textarea */}
                                         <textarea
                                             rows={3}
-                                            placeholder="Tell us more..."
+                                            placeholder="Tell us more about the issue..."
                                             value={additionalNotes}
                                             onChange={(e) => setAdditionalNotes(e.target.value)}
                                             className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl p-5 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all resize-none"
                                         />
 
+                                        {/* Mandatory Unboxing Video Notice & Input for Damaged / Wrong Items */}
+                                        {(selectedReason.includes("damaged") || selectedReason.includes("wrong")) && (
+                                            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 space-y-3">
+                                                <div className="flex items-start gap-2 text-amber-900 text-xs sm:text-sm font-semibold">
+                                                    <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">Mandatory Proof</span>
+                                                    <span>Reported within 48 hours of delivery</span>
+                                                </div>
+                                                <p className="text-xs text-amber-800 leading-relaxed">
+                                                    Damaged or wrong products must be reported within 48 hours with clear photos <strong>PLUS a complete unboxing video</strong>.
+                                                </p>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Link to complete unboxing video (Google Drive / Cloud / Youtube)"
+                                                    value={unboxingVideoUrl}
+                                                    onChange={(e) => setUnboxingVideoUrl(e.target.value)}
+                                                    className="w-full bg-white border border-amber-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-black placeholder-amber-600/60 focus:outline-none focus:border-amber-500"
+                                                />
+                                            </div>
+                                        )}
+
                                         {/* Add Product Images Grid */}
                                         <div className="space-y-3 pt-2">
                                             <label className="block text-xs font-semibold text-black font-sans">
-                                                Add Product Images
+                                                Add Clear Product Photos
                                             </label>
 
                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
@@ -782,7 +812,7 @@ export default function ReturnAndExchangePage() {
 
                                         <div className="space-y-3">
                                             <label className="block text-xs font-semibold text-black uppercase tracking-wider">
-                                                Select Payment mode
+                                                Select Refund Payout Mode (Initiated within 2 business days after inspection)
                                             </label>
 
                                             {/* Option 1: Original Payment Method */}
@@ -794,7 +824,7 @@ export default function ReturnAndExchangePage() {
                                                     }`}
                                             >
                                                 <span className="text-sm font-medium text-black">
-                                                    Original Payment Method
+                                                    Original Payment Method (Prepaid Orders)
                                                 </span>
                                                 <div
                                                     className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"
@@ -808,7 +838,93 @@ export default function ReturnAndExchangePage() {
                                                 </div>
                                             </div>
 
-                                            {/* Option 2: BacStory Wallet */}
+                                            {/* Option 2: Bank Transfer (COD Orders) */}
+                                            <div
+                                                onClick={() => setPaymentMode("bank")}
+                                                className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "bank"
+                                                    ? "border-black bg-white shadow-sm"
+                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between w-full">
+                                                    <span className="text-sm font-medium text-black">
+                                                        Bank Transfer (COD Refund)
+                                                    </span>
+                                                    <div
+                                                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "bank"
+                                                            ? "bg-[#101820] text-white"
+                                                            : "border-2 border-neutral-300"
+                                                            }`}
+                                                    >
+                                                        {paymentMode === "bank" && (
+                                                            <Check className="w-3 h-3 stroke-[3]" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {paymentMode === "bank" && (
+                                                    <div className="space-y-2 pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Account Holder Name"
+                                                            value={bankHolderName}
+                                                            onChange={(e) => setBankHolderName(e.target.value)}
+                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Account Number"
+                                                            value={accountNumber}
+                                                            onChange={(e) => setAccountNumber(e.target.value)}
+                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="IFSC Code"
+                                                            value={ifscCode}
+                                                            onChange={(e) => setIfscCode(e.target.value)}
+                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Option 3: UPI (COD Refund) */}
+                                            <div
+                                                onClick={() => setPaymentMode("upi")}
+                                                className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "upi"
+                                                    ? "border-black bg-white shadow-sm"
+                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between w-full">
+                                                    <span className="text-sm font-medium text-black">
+                                                        UPI ID (COD Refund)
+                                                    </span>
+                                                    <div
+                                                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "upi"
+                                                            ? "bg-[#101820] text-white"
+                                                            : "border-2 border-neutral-300"
+                                                            }`}
+                                                    >
+                                                        {paymentMode === "upi" && (
+                                                            <Check className="w-3 h-3 stroke-[3]" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {paymentMode === "upi" && (
+                                                    <div className="pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Enter UPI ID (e.g. name@upi)"
+                                                            value={upiId}
+                                                            onChange={(e) => setUpiId(e.target.value)}
+                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Option 4: BacStory Wallet */}
                                             <div
                                                 onClick={() => setPaymentMode("wallet")}
                                                 className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "wallet"
@@ -817,7 +933,7 @@ export default function ReturnAndExchangePage() {
                                                     }`}
                                             >
                                                 <span className="text-sm font-medium text-black">
-                                                    BacStory Wallet
+                                                    BacStory Wallet / Store Credit
                                                 </span>
                                                 <div
                                                     className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "wallet"
@@ -833,7 +949,7 @@ export default function ReturnAndExchangePage() {
                                         </div>
 
                                         <p className="text-xs text-neutral-400 text-center font-light pt-1">
-                                            We will send your refund after item inspection, within 5–7 business days.
+                                            Refunds are initiated within 2 business days after quality inspection, credited in 5–7 business days.
                                         </p>
                                     </div>
 

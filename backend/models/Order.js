@@ -93,6 +93,48 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "Order Confirmed",
     },
+    cancellation: {
+      isCancelled: { type: Boolean, default: false },
+      cancelledAt: { type: Date },
+      cancellationReason: { type: String, default: "" },
+      cancellationFee: { type: Number, default: 0 },
+      refundAmount: { type: Number, default: 0 }
+    },
+    returnExchange: {
+      isRequested: { type: Boolean, default: false },
+      requestType: { type: String, enum: ["return", "exchange", "none"], default: "none" },
+      reason: { type: String, default: "" },
+      additionalNotes: { type: String, default: "" },
+      requestedSize: { type: String, default: "" },
+      requestedColor: { type: String, default: "" },
+      proofPhotos: [{ type: String }],
+      unboxingVideo: { type: String, default: "" },
+      reportedWithin48Hours: { type: Boolean, default: false },
+      requestedAt: { type: Date },
+      status: {
+        type: String,
+        enum: ["None", "Pending Verification", "Approved", "Pickup Arranged", "Inspected", "Refunded", "Exchanged", "Rejected"],
+        default: "None"
+      }
+    },
+    refundDetails: {
+      refundMethod: {
+        type: String,
+        enum: ["Original Payment Method", "Bacstory Wallet", "Bank Transfer", "UPI", "None"],
+        default: "None"
+      },
+      bankHolderName: { type: String, default: "" },
+      accountNumber: { type: String, default: "" },
+      ifscCode: { type: String, default: "" },
+      upiId: { type: String, default: "" },
+      refundStatus: {
+        type: String,
+        enum: ["Not Applicable", "Pending Inspection", "Initiated", "Credited"],
+        default: "Not Applicable"
+      },
+      initiatedAt: { type: Date },
+      estimatedCreditWindow: { type: String, default: "5-7 Business Days" }
+    }
   },
   {
     timestamps: true,

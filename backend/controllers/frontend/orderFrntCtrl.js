@@ -185,6 +185,9 @@ const getTrackOrderStatus = async (req, res) => {
         updatedAt: order.updatedAt,
         items: order.items,
         shippingAddress: order.shippingAddress,
+        cancellation: order.cancellation,
+        returnExchange: order.returnExchange,
+        refundDetails: order.refundDetails,
       },
     });
   } catch (error) {
@@ -196,8 +199,185 @@ const getTrackOrderStatus = async (req, res) => {
   }
 };
 
+// Cancel order before packing (Free of charge before dispatch)
+const cancelUserOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Order ID is required" });
+    }
+
+    const isMongoId = orderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(orderId);
+    const order = await Order.findOne({
+      $or: [{ _id: isMongoId ? orderId : null }, { orderId: orderId.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Check packing/dispatch status policy rule:
+    // "Customers may cancel their order free of charge before it has been packed for dispatch. Once packed or shipped, orders cannot be cancelled."
+    const nonCancellableStatuses = [
+      "Ready to Pack & Ship",
+      "Dispatched & In Transit",
+      "Out for Delivery",
+      "Delivered",
+      "Cancelled",
+      "Returned"
+    ];
+
+    if (nonCancellableStatuses.includes(order.orderStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be cancelled. Status is '${order.orderStatus}'. Orders can only be cancelled before being packed for dispatch.`
+      });
+    }
+
+    // Free cancellation before dispatch -> 100% refund for prepaid orders, 0 fee
+    const isPrepaid = order.paymentStatus === "Confirmed";
+    const fullRefundAmount = isPrepaid ? order.totalAmount : 0;
+
+    order.orderStatus = "Cancelled";
+    if (order.items && Array.isArray(order.items)) {
+      order.items.forEach((item) => {
+        item.orderStatus = "Cancelled";
+      });
+    }
+
+    order.cancellation = {
+      isCancelled: true,
+      cancelledAt: new Date(),
+      cancellationReason: reason || "Cancelled by customer before dispatch",
+      cancellationFee: 0, // No cancellation fee charged
+      refundAmount: fullRefundAmount
+    };
+
+    if (isPrepaid) {
+      order.refundDetails = {
+        refundMethod: "Original Payment Method",
+        refundStatus: "Initiated",
+        initiatedAt: new Date(),
+        estimatedCreditWindow: "5-7 Business Days"
+      };
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully. 100% refund initiated for prepaid orders (no cancellation fee).",
+      data: order
+    });
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to cancel order"
+    });
+  }
+};
+
+// Submit Return or Exchange Request
+const submitReturnExchange = async (req, res) => {
+  try {
+    const {
+      orderId,
+      requestType, // "return" | "exchange"
+      reason,
+      additionalNotes,
+      requestedSize,
+      requestedColor,
+      proofPhotos,
+      unboxingVideo,
+      reportedWithin48Hours,
+      refundMethod, // "Original Payment Method" | "Bacstory Wallet" | "Bank Transfer" | "UPI"
+      bankHolderName,
+      accountNumber,
+      ifscCode,
+      upiId
+    } = req.body;
+
+    if (!orderId || !requestType || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID, request type, and reason are required."
+      });
+    }
+
+    const isMongoId = orderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(orderId);
+    const order = await Order.findOne({
+      $or: [{ _id: isMongoId ? orderId : null }, { orderId: orderId.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Damaged or Wrong Product Policy Verification Check:
+    // Must report within 48 hours and provide clear photos + complete unboxing video
+    const isDamagedOrWrong = ["Damaged product", "Incorrect product", "Item defective or damaged", "Received wrong item"].some(r =>
+      reason.toLowerCase().includes(r.toLowerCase())
+    );
+
+    if (isDamagedOrWrong) {
+      if (!unboxingVideo || !unboxingVideo.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "A complete unboxing video is required for damaged or incorrect product reports."
+        });
+      }
+    }
+
+    order.returnExchange = {
+      isRequested: true,
+      requestType,
+      reason,
+      additionalNotes: additionalNotes || "",
+      requestedSize: requestedSize || "",
+      requestedColor: requestedColor || "",
+      proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
+      unboxingVideo: unboxingVideo || "",
+      reportedWithin48Hours: !!reportedWithin48Hours,
+      requestedAt: new Date(),
+      status: "Pending Verification"
+    };
+
+    if (requestType === "return") {
+      order.refundDetails = {
+        refundMethod: refundMethod || "Original Payment Method",
+        bankHolderName: bankHolderName || "",
+        accountNumber: accountNumber || "",
+        ifscCode: ifscCode || "",
+        upiId: upiId || "",
+        refundStatus: "Pending Inspection",
+        estimatedCreditWindow: "5-7 Business Days"
+      };
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `${requestType === "return" ? "Return" : "Exchange"} request submitted successfully! Refunds/exchanges are processed after quality inspection within 2 business days.`,
+      data: order
+    });
+  } catch (error) {
+    console.error("Error submitting return/exchange request:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to submit request"
+    });
+  }
+};
+
 module.exports = {
   createOrderRecord,
   getUserOrders,
   getTrackOrderStatus,
+  cancelUserOrder,
+  submitReturnExchange,
 };
+

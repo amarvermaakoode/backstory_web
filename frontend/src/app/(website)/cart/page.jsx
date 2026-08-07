@@ -188,10 +188,10 @@ export default function CartPage() {
         }
     };
 
-    // Calculate Summary based on selected items only
+    // Calculate Summary based on selected items only (Shipping: ₹99 below ₹999, Free ₹999+)
     const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
     const subtotal = selectedCartItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0);
-    const shipping = subtotal === 0 || subtotal >= 2000 ? 0 : 150;
+    const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
     const tax = Math.round(subtotal * 0.05);
     const total = subtotal + shipping + tax - discount;
 
