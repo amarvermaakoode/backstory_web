@@ -337,6 +337,11 @@ exports.verifyClaimOTP = async (req, res) => {
     qrDoc.orderId = orderDoc.orderId;
     qrDoc.linkedUser = user._id;
     qrDoc.linkedAt = new Date();
+    const inputLabel = (req.body.label || req.body.garmentLabel || req.body.title || "").trim();
+    if (inputLabel) {
+      qrDoc.profileData = qrDoc.profileData || {};
+      qrDoc.profileData.title = inputLabel;
+    }
 
     await qrDoc.save();
 

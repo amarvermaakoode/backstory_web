@@ -41,12 +41,12 @@ export async function sendClaimOTP(code, orderId, identifier) {
 }
 
 // Step 2: Verify OTP & Claim QR Code (Links to User Account and logs user in)
-export async function verifyClaimOTP(code, orderId, identifier, otp) {
+export async function verifyClaimOTP(code, orderId, identifier, otp, label = "") {
   try {
     const res = await fetch(`${API_BASE_URL}/frontend/qr/verify-claim-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, orderId, identifier, email: identifier, otp }),
+      body: JSON.stringify({ code, orderId, identifier, email: identifier, otp, label }),
     });
     const data = await res.json();
     return data;

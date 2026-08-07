@@ -7,6 +7,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
 import {
+  Tag,
   Award,
   ShieldCheck,
   Leaf,
@@ -15,6 +16,8 @@ import {
   Sparkles,
   KeyRound,
   Loader2,
+  Check,
+  Link2,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -54,6 +57,7 @@ export default function PublicQRCodePage() {
   // Claim & OTP Flow States
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
+  const [garmentLabel, setGarmentLabel] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [mockOtpHint, setMockOtpHint] = useState("");
@@ -87,12 +91,36 @@ export default function PublicQRCodePage() {
   // Step 1: Send OTP to Email or Phone Number
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!orderId.trim()) {
+    const cleanOrderId = orderId.trim();
+    if (!cleanOrderId) {
       showToast("Please enter your Order ID.", "error");
       return;
     }
-    if (!email.trim()) {
+    if (!cleanOrderId.startsWith("BAC-") || cleanOrderId.length !== 10) {
+      showToast("Order ID must follow format BAC-180019 (BAC- followed by 6 digits)", "error");
+      return;
+    }
+    const cleanContact = email.trim();
+    if (!cleanContact) {
       showToast("Please enter your registered email or mobile number.", "error");
+      return;
+    }
+    const isEmailInput = cleanContact.includes("@");
+    if (!isEmailInput) {
+      const phoneDigits = cleanContact.replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        showToast("Please enter a valid 10-digit mobile number.", "error");
+        return;
+      }
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanContact)) {
+        showToast("Please enter a valid email address.", "error");
+        return;
+      }
+    }
+    if (!garmentLabel.trim()) {
+      showToast("Please enter a label for your garment.", "error");
       return;
     }
 
@@ -120,7 +148,7 @@ export default function PublicQRCodePage() {
     }
 
     setVerifying(true);
-    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim());
+    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim(), garmentLabel.trim());
     setVerifying(false);
 
     if (res.success) {
@@ -211,7 +239,7 @@ export default function PublicQRCodePage() {
               </div>
 
               {/* Top Left Brand Logo Inside Hero Section */}
-              <div className="absolute top-6 left-6 sm:left-10 lg:left-16 z-30">
+              <div className="absolute top-4 left-6 sm:left-10 lg:left-16 z-30">
                 <Link href="/" className="inline-block cursor-pointer">
                   <img
                     src="/images/logo-dark.svg"
@@ -282,7 +310,7 @@ export default function PublicQRCodePage() {
 
                 {/* Right Column: Floating Claim Card positioned at mt-48 */}
                 <div className="lg:col-span-7 w-full max-w-[100%] mx-auto mt-12 lg:mt-68">
-                  <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 lg:p-9 border border-neutral-200/10 shadow-xl space-y-5">
+                  <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-neutral-200/10 shadow-xl space-y-5">
                     {/* Header with Icon & Two-Line Title */}
                     <div className="space-y-3">
                       <div className="flex items-start gap-4">
@@ -307,47 +335,89 @@ export default function PublicQRCodePage() {
                     <div className="border-b border-neutral-200/70 my-4" />
 
                     {!otpSent ? (
-                      /* Step 1 Form: Horizontal 3-column layout on Desktop */
-                      <form onSubmit={handleSendOtp} className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
-                        <div className="md:col-span-4 space-y-1.5">
-                          <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
-                            ORDER ID
-                          </label>
+                      /* Step 1 Form: Single Horizontal Row Layout */
+                      <form onSubmit={handleSendOtp} className="grid grid-cols-1 lg:grid-cols-12 gap-1 items-center pt-1">
+                        {/* Order ID */}
+                        <div className="lg:col-span-3">
                           <div className="relative">
-                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
                             <input
                               type="text"
                               required
-                              placeholder="e.g. ORD-109283"
+                              maxLength={10}
+                              placeholder="BAC-180019*"
                               value={orderId}
-                              onChange={(e) => setOrderId(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-2xl pl-10 pr-3.5 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono transition-colors"
+                              onChange={(e) => {
+                                const raw = e.target.value.toUpperCase();
+                                if (!raw) {
+                                  setOrderId("");
+                                  return;
+                                }
+                                let digitsAndLetters = raw.replace(/[^A-Z0-9]/g, "");
+                                if (digitsAndLetters.startsWith("BAC")) {
+                                  digitsAndLetters = digitsAndLetters.slice(3);
+                                }
+                                setOrderId(digitsAndLetters ? `BAC-${digitsAndLetters.slice(0, 6)}` : "BAC-");
+                              }}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
                             />
                           </div>
                         </div>
 
-                        <div className="md:col-span-5 space-y-1.5">
-                          <label className="block text-[11px] font-bold text-neutral-800 uppercase tracking-wider">
-                            EMAIL OR MOBILE NUMBER
-                          </label>
+                        {/* Email or Mobile */}
+                        <div className="lg:col-span-4">
                           <div className="relative">
-                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
+                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
                             <input
                               type="text"
                               required
-                              placeholder="email@example.com or 9876543210"
+                              maxLength={50}
+                              placeholder="Email or Mobile*"
                               value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-2xl pl-10 pr-3.5 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) {
+                                  setEmail("");
+                                  return;
+                                }
+                                if (val.includes("@")) {
+                                  setEmail(val.toLowerCase().replace(/\s/g, "").slice(0, 50));
+                                } else {
+                                  const hasPlus = val.startsWith("+");
+                                  const digits = val.replace(/\D/g, "");
+                                  if (hasPlus) {
+                                    setEmail(`+${digits.slice(0, 12)}`);
+                                  } else {
+                                    setEmail(digits.slice(0, 10));
+                                  }
+                                }
+                              }}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
                             />
                           </div>
                         </div>
 
-                        <div className="md:col-span-3">
+                        {/* Label */}
+                        <div className="lg:col-span-3">
+                          <div className="relative">
+                            <Tag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
+                            <input
+                              type="text"
+                              required
+                              placeholder="Garment Label*"
+                              value={garmentLabel}
+                              onChange={(e) => setGarmentLabel(e.target.value)}
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Verify Button */}
+                        <div className="lg:col-span-2">
                           <button
                             type="submit"
                             disabled={sendingOtp}
-                            className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-12 px-4 rounded-2xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
+                            className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[42px] px-3 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
                           >
                             {sendingOtp ? (
                               <>
@@ -356,8 +426,8 @@ export default function PublicQRCodePage() {
                               </>
                             ) : (
                               <>
-                                <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-                                <span>Verify Code</span>
+                                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                <span>Verify</span>
                               </>
                             )}
                           </button>
@@ -419,8 +489,8 @@ export default function PublicQRCodePage() {
                               </>
                             ) : (
                               <>
-                                <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                                Verify & Link Code
+                                <ShieldCheck className="w-4 h-4 text-yellow" />
+                                Verify Code
                               </>
                             )}
                           </button>
@@ -501,51 +571,83 @@ export default function PublicQRCodePage() {
           </div>
         )}
 
-        {/* CLAIM SUCCESS STATE */}
-        {claimSuccess && (
-          <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 pt-6">
-            <Link href="/" className="inline-block cursor-pointer mb-8">
-              <img
-                src="/images/logo-dark.svg"
-                alt="BACSTORY"
-                className="h-6 sm:h-7 lg:h-8 w-auto object-contain"
-              />
-            </Link>
-            <div className="max-w-lg mx-auto w-full my-12 bg-white border border-neutral-200/90 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-sm animate-in fade-in duration-300">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8" />
+        {/* CLAIM SUCCESS STATE / QR LINKED BUT NOT ACTIVATED */}
+        {(claimSuccess || (!loading && !errorMsg && qrData?.status !== "unlinked" && !qrData?.profileData?.customText && !qrData?.profileData?.bio)) && (
+          <div className="min-h-screen w-full bg-[#FAF9F5] relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
+            {/* Background Decorative Rings & Effects */}
+
+            {/* Top Brand Logo */}
+            <div className="w-full max-w-[1600px] mx-auto z-20">
+              <Link href="/" className="inline-block cursor-pointer">
+                <img
+                  src="/images/logo-dark.svg"
+                  alt="BACSTORY"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </Link>
+            </div>
+
+            {/* Main Center Card */}
+            <div className="w-full max-w-lg mx-auto my-auto bg-white rounded-3xl p-8 sm:p-11 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 relative z-10 my-10">
+              {/* Green Circle Badge with Sparkles */}
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-pulse" />
+                <div className="absolute inset-2 rounded-full bg-emerald-500/15" />
+                <div className="relative w-12 h-12 rounded-full border-[2.5px] border-emerald-500 text-emerald-500 flex items-center justify-center bg-white shadow-2xs">
+                  <Check className="w-6 h-6 stroke-[3] text-emerald-500" />
+                </div>
+                <Sparkles className="w-4 h-4 text-emerald-400 absolute top-1 left-2" />
+                <Sparkles className="w-3 h-3 text-emerald-300 absolute bottom-2 right-2" />
+                <Sparkles className="w-2.5 h-2.5 text-emerald-400 absolute top-4 right-1" />
+                <Sparkles className="w-3 h-3 text-emerald-300 absolute bottom-3 left-3" />
               </div>
 
+              {/* Pill Badge */}
+              <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#FEF3C7] border border-[#FDE68A] text-[#D97706] text-[11px] font-bold tracking-wider uppercase">
+                <Link2 className="w-3.5 h-3.5 text-[#D97706]" />
+                <span>QR CLAIMED • STORY NOT ACTIVATED</span>
+              </div>
+
+              {/* Main Title Header */}
               <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold uppercase tracking-wider">
-                  QR Claimed • Story Not Activated
-                </span>
-                <h2 className="text-2xl font-semibold font-clashDisplay text-neutral-900">
-                  Your QR Code is Linked!
+                <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 tracking-tight font-sans">
+                  Your QR Code is <span className="text-[#22C55E] font-bold">Linked!</span>
                 </h2>
-                <p className="text-sm text-neutral-600 leading-relaxed">
-                  Your QR code <span className="font-mono text-neutral-900 font-semibold">{codeParam}</span> has been successfully linked to your account. Your digital story is currently unactivated.
-                </p>
-                <p className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-left leading-relaxed">
-                  ✨ Now you can add your custom story message, bio, avatar, and social links from your <strong>QR Identity</strong> section in your profile!
+                <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal px-2">
+                  Your QR code <span className="font-mono text-[#22C55E] font-bold">{codeParam}</span> has been successfully linked to your account. Your digital story is currently unactivated.
                 </p>
               </div>
 
+              {/* Callout Box */}
+              <div className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-4 text-xs sm:text-sm text-neutral-700 font-normal leading-relaxed text-left flex items-start gap-3">
+                <span className="text-base select-none shrink-0">🪄</span>
+                <p>
+                  Now you can add your custom story message, bio, avatar, and social links from your <strong className="text-[#22C55E] font-bold">QR Identity</strong> section in your profile!
+                </p>
+              </div>
+
+              {/* Dark CTA Button */}
               <div className="pt-2">
                 <Link
                   href="/account/qr-identity"
-                  className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold py-3.5 px-6 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  className="w-full bg-[#111827] hover:bg-black text-white font-bold py-3.5 px-6 rounded-2xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer shadow-md group"
                 >
-                  Go to Profile Section to Add Story
-                  <ArrowRight className="w-4 h-4" />
+                  <span className="w-6 h-6 rounded-lg border-[1.5px] border-[#22C55E] flex items-center justify-center text-[#22C55E] shrink-0">
+                    <User className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </span>
+                  <span>Go to Profile Section to Add Story</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
             </div>
+
+            {/* Bottom Spacer */}
+            <div className="h-4" />
           </div>
         )}
 
         {/* LINKED / ACTIVATED STATE: Display Public Story Profile */}
-        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (
+        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (qrData?.profileData?.customText || qrData?.profileData?.bio || qrData?.profileData?.title) && (
           <div className="w-full max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16 pt-6 pb-12 space-y-8 animate-in fade-in duration-300">
             <Link href="/" className="inline-block cursor-pointer mb-2">
               <img

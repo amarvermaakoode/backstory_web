@@ -489,8 +489,8 @@ export default function CheckoutPage() {
             const token = localStorage.getItem("userToken");
             if (token && formData.streetAddress && formData.city && formData.state && formData.pinCode) {
                 const recipient = `${formData.firstName || ""} ${formData.lastName || ""}`.trim() || (user?.name || "Customer");
-                const cityStatePinStr = formData.pinCode 
-                    ? `${formData.city}, ${formData.state} - ${formData.pinCode}` 
+                const cityStatePinStr = formData.pinCode
+                    ? `${formData.city}, ${formData.state} - ${formData.pinCode}`
                     : `${formData.city}, ${formData.state}`;
 
                 const res = await fetch(`${API_BASE_URL}/frontend/auth/addresses`, {
@@ -1155,86 +1155,86 @@ export default function CheckoutPage() {
                                 )}
                             </div>
 
-                                {/* Shipping Method Selection */}
-                                <div className="mt-10">
-                                    <label className="text-[11px] font-bold text-neutral-400 tracking-wider mb-4 block">
-                                        SHIPPING METHOD
+                            {/* Shipping Method Selection */}
+                            <div className="mt-10">
+                                <label className="text-[11px] font-bold text-neutral-400 tracking-wider mb-4 block">
+                                    SHIPPING METHOD
+                                </label>
+
+                                <div className="space-y-3">
+                                    {/* Standard Delivery Option */}
+                                    <label
+                                        className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "standard"
+                                            ? "border-black bg-neutral-50/50 shadow-xs"
+                                            : "border-neutral-200 hover:border-neutral-300"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="shipping"
+                                                value="standard"
+                                                checked={shippingMethod === "standard"}
+                                                onChange={() => setShippingMethod("standard")}
+                                                className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-bold text-black">Standard Delivery</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">3–5 business days</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-black">Free</span>
                                     </label>
 
-                                    <div className="space-y-3">
-                                        {/* Standard Delivery Option */}
-                                        <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "standard"
-                                                ? "border-black bg-neutral-50/50 shadow-xs"
-                                                : "border-neutral-200 hover:border-neutral-300"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="radio"
-                                                    name="shipping"
-                                                    value="standard"
-                                                    checked={shippingMethod === "standard"}
-                                                    onChange={() => setShippingMethod("standard")}
-                                                    className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
-                                                />
-                                                <div>
-                                                    <p className="text-sm font-bold text-black">Standard Delivery</p>
-                                                    <p className="text-xs text-neutral-400 mt-0.5">3–5 business days</p>
-                                                </div>
+                                    {/* Express Delivery Option */}
+                                    <label
+                                        className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "express"
+                                            ? "border-black bg-neutral-50/50 shadow-xs"
+                                            : "border-neutral-200 hover:border-neutral-300"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="shipping"
+                                                value="express"
+                                                checked={shippingMethod === "express"}
+                                                onChange={() => setShippingMethod("express")}
+                                                className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-bold text-black">Express Delivery</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">1–2 business days</p>
                                             </div>
-                                            <span className="text-sm font-bold text-black">Free</span>
-                                        </label>
+                                        </div>
+                                        <span className="text-sm font-bold text-black">Rs 150</span>
+                                    </label>
 
-                                        {/* Express Delivery Option */}
-                                        <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "express"
-                                                ? "border-black bg-neutral-50/50 shadow-xs"
-                                                : "border-neutral-200 hover:border-neutral-300"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="radio"
-                                                    name="shipping"
-                                                    value="express"
-                                                    checked={shippingMethod === "express"}
-                                                    onChange={() => setShippingMethod("express")}
-                                                    className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
-                                                />
-                                                <div>
-                                                    <p className="text-sm font-bold text-black">Express Delivery</p>
-                                                    <p className="text-xs text-neutral-400 mt-0.5">1–2 business days</p>
-                                                </div>
+                                    {/* International Shipping Option */}
+                                    <label
+                                        className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "international"
+                                            ? "border-black bg-neutral-50/50 shadow-xs"
+                                            : "border-neutral-200 hover:border-neutral-300"
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="shipping"
+                                                value="international"
+                                                checked={shippingMethod === "international"}
+                                                onChange={() => setShippingMethod("international")}
+                                                className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-bold text-black">International Shipping</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">7–14 business days</p>
                                             </div>
-                                            <span className="text-sm font-bold text-black">Rs 150</span>
-                                        </label>
-
-                                        {/* International Shipping Option */}
-                                        <label
-                                            className={`flex items-center justify-between border rounded-xl p-4 cursor-pointer select-none transition-all ${shippingMethod === "international"
-                                                ? "border-black bg-neutral-50/50 shadow-xs"
-                                                : "border-neutral-200 hover:border-neutral-300"
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <input
-                                                    type="radio"
-                                                    name="shipping"
-                                                    value="international"
-                                                    checked={shippingMethod === "international"}
-                                                    onChange={() => setShippingMethod("international")}
-                                                    className="w-4 h-4 border-neutral-300 focus:ring-black accent-black cursor-pointer"
-                                                />
-                                                <div>
-                                                    <p className="text-sm font-bold text-black">International Shipping</p>
-                                                    <p className="text-xs text-neutral-400 mt-0.5">7–14 business days</p>
-                                                </div>
-                                            </div>
-                                            <span className="text-sm font-bold text-black">Rs 638</span>
-                                        </label>
-                                    </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-black">Rs 638</span>
+                                    </label>
                                 </div>
+                            </div>
 
                             {/* Payment Error Banner */}
                             {paymentError && (
@@ -1250,15 +1250,15 @@ export default function CheckoutPage() {
                                 variant="dark"
                                 hasArrow={!isProcessingPayment}
                                 disabled={isProcessingPayment}
-                                className="w-full mt-10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+                                className="w-full mt-10 !py-4 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                             >
                                 {isProcessingPayment ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                    <span className="flex items-center justify-center gap-2.5">
+                                        <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
                                         <span>Opening Razorpay Checkout...</span>
-                                    </>
+                                    </span>
                                 ) : (
-                                    <span>Continue to Payment</span>
+                                    "Continue to Payment"
                                 )}
                             </Button>
                         </div>
@@ -1422,7 +1422,7 @@ export default function CheckoutPage() {
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Payment Status:</span>
-                                <span className="font-bold text-green-600">Paid (Razorpay Verified)</span>
+                                <span className="font-bold text-green-600">Paid</span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Method:</span>
@@ -1432,7 +1432,7 @@ export default function CheckoutPage() {
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-2">
                                 <span className="text-neutral-400 font-bold">Paid Total:</span>
-                                <span className="font-bold text-black font-clashDisplay">Rs {totalAmount.toLocaleString()}</span>
+                                <span className="font-semibold text-black font-clashDisplay">Rs {totalAmount.toLocaleString()}</span>
                             </div>
                         </div>
 
@@ -1511,11 +1511,10 @@ export default function CheckoutPage() {
                                             <div
                                                 key={addr._id || addr.id}
                                                 onClick={() => handleSelectAddress(addr)}
-                                                className={`border rounded-xl p-4 transition-all cursor-pointer ${
-                                                    isSelected
-                                                        ? "border-black bg-neutral-50/80 shadow-xs"
-                                                        : "border-neutral-200 hover:border-neutral-300 bg-white"
-                                                }`}
+                                                className={`border rounded-xl p-4 transition-all cursor-pointer ${isSelected
+                                                    ? "border-black bg-neutral-50/80 shadow-xs"
+                                                    : "border-neutral-200 hover:border-neutral-300 bg-white"
+                                                    }`}
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <div className="pt-0.5">
@@ -1706,9 +1705,8 @@ export default function CheckoutPage() {
                                                         }
                                                     }}
                                                     placeholder="Mobile No*"
-                                                    className={`w-full h-11 border rounded-xl ${countryObj.dialCode ? "pl-14" : "px-4"} pr-4 text-sm font-normal focus:outline-none ${
-                                                        modalPhoneError ? "border-red-500 focus:border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"
-                                                    }`}
+                                                    className={`w-full h-11 border rounded-xl ${countryObj.dialCode ? "pl-14" : "px-4"} pr-4 text-sm font-normal focus:outline-none ${modalPhoneError ? "border-red-500 focus:border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"
+                                                        }`}
                                                 />
                                             </div>
                                         );
@@ -1795,11 +1793,10 @@ export default function CheckoutPage() {
                                             key={type}
                                             type="button"
                                             onClick={() => setModalAddressForm({ ...modalAddressForm, addressType: type })}
-                                            className={`px-4 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer ${
-                                                modalAddressForm.addressType === type
-                                                    ? "border-black bg-black text-white shadow-xs"
-                                                    : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
-                                            }`}
+                                            className={`px-4 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer ${modalAddressForm.addressType === type
+                                                ? "border-black bg-black text-white shadow-xs"
+                                                : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
+                                                }`}
                                         >
                                             {type}
                                         </button>

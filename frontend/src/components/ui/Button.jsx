@@ -59,7 +59,7 @@ export default function Button({
 
     const buttonContent = (
         <>
-            <span>{content}</span>
+            {typeof content === "string" || typeof content === "number" ? <span>{content}</span> : content}
             {hasArrow && arrowIcon}
         </>
     );
