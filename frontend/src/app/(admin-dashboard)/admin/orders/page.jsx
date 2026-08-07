@@ -15,6 +15,7 @@ import {
   MapPin,
   Loader2,
   X,
+  Check,
   User,
   Phone,
   Mail,
@@ -57,8 +58,70 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Custom Popup Modal State & Promise Helpers
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
+
+  const customAlert = (message, title = "Notification") => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "alert",
+        title,
+        message,
+        confirmText: "OK",
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        }
+      });
+    });
+  };
+
+  const customPrompt = (message, defaultValue = "", title = "Input Required", placeholder = "Enter details...") => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "prompt",
+        title,
+        message,
+        inputValue: defaultValue,
+        placeholder,
+        confirmText: "Submit",
+        cancelText: "Cancel",
+        onConfirm: (val) => {
+          setPopupModal(null);
+          resolve(val);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(null);
+        }
+      });
+    });
+  };
+
   const handleApproveReturn = async (orderDbId) => {
-    if (!confirm("Are you sure you want to approve this return request?")) {
+    const confirmed = await customConfirm("Are you sure you want to approve this return request?", "Approve Return Request");
+    if (!confirmed) {
       return;
     }
     setActionLoading(true);
@@ -70,7 +133,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert(data.message || "Return request approved successfully!");
+        await customAlert(data.message || "Return request approved successfully!", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -78,18 +141,19 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        alert(data.message || "Failed to approve return request.");
+        await customAlert(data.message || "Failed to approve return request.", "Error");
       }
     } catch (error) {
       console.error("Error approving return request:", error);
-      alert("Failed to approve return request.");
+      await customAlert("Failed to approve return request.", "Error");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleMarkProductReceived = async (orderDbId) => {
-    if (!confirm("Confirm that the returned product has been picked up and received by seller?")) {
+    const confirmed = await customConfirm("Confirm that the returned product has been picked up and received by seller?", "Mark Product Received");
+    if (!confirmed) {
       return;
     }
     setActionLoading(true);
@@ -101,7 +165,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert(data.message || "Product marked as received! You can now process the refund.");
+        await customAlert(data.message || "Product marked as received! You can now process the refund.", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -109,11 +173,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        alert(data.message || "Failed to mark product received.");
+        await customAlert(data.message || "Failed to mark product received.", "Error");
       }
     } catch (error) {
       console.error("Error marking product received:", error);
-      alert("Failed to mark product received.");
+      await customAlert("Failed to mark product received.", "Error");
     } finally {
       setActionLoading(false);
     }
@@ -124,15 +188,16 @@ export default function AdminOrdersPage() {
     let paymentIdToSend = existingPaymentId;
 
     if (!paymentIdToSend) {
-      const inputId = prompt("Enter Razorpay Payment ID for this order (e.g. pay_TMzlj6hvnzLzle):");
+      const inputId = await customPrompt("Enter Razorpay Payment ID for this order:", "", "Razorpay Payment ID Required", "e.g. pay_TMzlj6hvnzLzle");
       if (!inputId || !inputId.trim()) {
-        alert("Razorpay Payment ID is required to process refund.");
+        await customAlert("Razorpay Payment ID is required to process refund.", "Payment ID Required");
         return;
       }
       paymentIdToSend = inputId.trim();
     }
 
-    if (!confirm(`Are you sure you want to process and initiate the Razorpay refund (Payment ID: ${paymentIdToSend})?`)) {
+    const confirmed = await customConfirm(`Are you sure you want to process and initiate the Razorpay refund (Payment ID: ${paymentIdToSend})?`, "Process Refund");
+    if (!confirmed) {
       return;
     }
     setActionLoading(true);
@@ -145,7 +210,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert(data.message || "Razorpay refund processed and completed successfully!");
+        await customAlert(data.message || "Razorpay refund processed and completed successfully!", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -153,18 +218,19 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        alert(data.message || "Failed to process refund.");
+        await customAlert(data.message || "Failed to process refund.", "Error");
       }
     } catch (error) {
       console.error("Error processing return refund:", error);
-      alert("Failed to process return refund.");
+      await customAlert("Failed to process return refund.", "Error");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleCompleteRefund = async (orderDbId) => {
-    if (!confirm("Confirm that the refund has been credited to customer's bank account (Stage 7)?")) {
+    const confirmed = await customConfirm("Confirm that the refund has been credited to customer's bank account?", "Complete Refund");
+    if (!confirmed) {
       return;
     }
     setActionLoading(true);
@@ -177,7 +243,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert("Refund marked as completed & credited successfully!");
+        await customAlert("Refund marked as completed & credited successfully!", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -185,18 +251,18 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        alert(data.message || "Failed to update refund status.");
+        await customAlert(data.message || "Failed to update refund status.", "Error");
       }
     } catch (error) {
       console.error("Error completing refund status:", error);
-      alert("Failed to update refund status.");
+      await customAlert("Failed to update refund status.", "Error");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRejectReturn = async (orderDbId) => {
-    const reason = prompt("Enter rejection reason (optional):", "Request does not meet return policy criteria.");
+    const reason = await customPrompt("Enter rejection reason for customer (optional):", "Request does not meet return policy criteria.", "Reject Return Request", "Rejection reason...");
     if (reason === null) return;
 
     setActionLoading(true);
@@ -209,7 +275,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        alert("Return request rejected successfully.");
+        await customAlert("Return request rejected successfully.", "Success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -217,18 +283,19 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        alert(data.message || "Failed to reject return request.");
+        await customAlert(data.message || "Failed to reject return request.", "Error");
       }
     } catch (error) {
       console.error("Error rejecting return request:", error);
-      alert("Failed to reject return request.");
+      await customAlert("Failed to reject return request.", "Error");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDeleteOrder = async (orderDbId) => {
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+    const confirmed = await customConfirm("Are you sure you want to delete this order? This action cannot be undone.", "Delete Order", "Delete", true);
+    if (!confirmed) {
       return;
     }
     try {
@@ -242,11 +309,11 @@ export default function AdminOrdersPage() {
           setSelectedOrder(null);
         }
       } else {
-        alert(data.message || "Failed to delete order.");
+        await customAlert(data.message || "Failed to delete order.", "Error");
       }
     } catch (err) {
       console.error("Delete order error:", err);
-      alert("Failed to delete order. Please try again.");
+      await customAlert("Failed to delete order. Please try again.", "Error");
     }
   };
 
@@ -320,7 +387,7 @@ export default function AdminOrdersPage() {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-2xs">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-clashDisplay text-neutral-900 tracking-tight flex items-center gap-2.5">
+          <h1 className="text-xl sm:text-2xl font-semibold font-clashDisplay text-neutral-900 tracking-tight flex items-center gap-2.5">
             <Package className="w-6 h-6 text-black" />
             <span>Orders Management</span>
           </h1>
@@ -407,7 +474,7 @@ export default function AdminOrdersPage() {
                     <tr key={order._id} className="hover:bg-neutral-50/60 transition-colors">
                       {/* Order ID & Date */}
                       <td className="py-4 px-4 sm:px-6 align-top">
-                        <span className="font-bold text-neutral-900 block font-mono text-sm">
+                        <span className="font-semibold text-neutral-900 block font-mono text-sm">
                           {order.orderId}
                         </span>
                         <span className="text-[11px] text-neutral-400 flex items-center gap-1 mt-1 font-medium">
@@ -519,7 +586,7 @@ export default function AdminOrdersPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold font-clashDisplay text-neutral-900">
+                <h3 className="text-lg sm:text-xl font-semibold font-clashDisplay text-neutral-900">
                   Order Details: {selectedOrder.orderId}
                 </h3>
                 <p className="text-xs text-neutral-400 mt-0.5">
@@ -539,10 +606,10 @@ export default function AdminOrdersPage() {
             {/* Change Order Status Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
+                <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
                   Order Status
                 </span>
-                <span className="text-xs font-bold text-neutral-900 mt-0.5 block">
+                <span className="text-xs font-semibold text-neutral-900 mt-0.5 block">
                   Current: <span className="text-purple-700">{selectedOrder.orderStatus || "Placed"}</span>
                 </span>
               </div>
@@ -568,7 +635,7 @@ export default function AdminOrdersPage() {
 
             {/* Shipping Address Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2">
-              <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
+              <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
                 Shipping Address
               </span>
               <p className="text-sm font-semibold text-neutral-900">
@@ -587,7 +654,7 @@ export default function AdminOrdersPage() {
 
             {/* Items List */}
             <div className="space-y-3">
-              <span className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
+              <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
                 Ordered Items ({selectedOrder.items?.length})
               </span>
               <div className="divide-y divide-neutral-100 border border-neutral-200/60 rounded-2xl overflow-hidden">
@@ -616,7 +683,7 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs sm:text-sm font-bold text-neutral-900">{item.price}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-neutral-900">{item.price}</p>
                       <p className="text-[11px] text-neutral-400 font-medium">Qty: {item.quantity}</p>
                     </div>
                   </div>
@@ -627,7 +694,7 @@ export default function AdminOrdersPage() {
             {/* Cancellation Info (if cancelled) */}
             {selectedOrder.cancellation?.isCancelled && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1.5 text-xs text-red-900">
-                <span className="font-bold text-sm uppercase tracking-wider text-red-950 block">Order Cancelled</span>
+                <span className="font-semibold text-sm uppercase tracking-wider text-red-950 block">Order Cancelled</span>
                 <p><strong>Reason:</strong> {selectedOrder.cancellation.cancellationReason}</p>
                 <p><strong>Fee Charged:</strong> Rs {selectedOrder.cancellation.cancellationFee || 0} (Zero Cancellation Fee)</p>
                 <p><strong>Refund Amount:</strong> Rs {selectedOrder.cancellation.refundAmount || selectedOrder.totalAmount} (100% Refund)</p>
@@ -653,40 +720,64 @@ export default function AdminOrdersPage() {
               const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
               const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
 
+              const isPendingAction = selectedOrder.returnExchange.status === "Pending Verification" || selectedOrder.returnExchange.status === "Return Requested" || selectedOrder.returnExchange.status === "Exchange Requested";
+
               return (
-                <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 space-y-3 text-xs text-purple-950">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm uppercase tracking-wider text-purple-950">
+                <div className={`${isPendingAction ? "bg-purple-50/30 border border-purple-200/50" : "bg-neutral-50 border border-neutral-200/60"} p-4 rounded-2xl space-y-3 transition-colors`}>
+                  <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
+                    <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
                       {selectedOrder.returnExchange.requestType === "return" ? "Return Request" : "Exchange Request"}
                     </span>
-                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${selectedOrder.returnExchange.status === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                      : selectedOrder.returnExchange.status === "Rejected"
-                        ? "bg-red-100 text-red-800 border border-red-200"
-                        : "bg-amber-100 text-amber-900 border border-amber-200"
-                      }`}>
-                      {selectedOrder.returnExchange.status}
-                    </span>
+
+                    {(selectedOrder.returnExchange.status === "Pending Verification" || selectedOrder.returnExchange.status === "Return Requested" || selectedOrder.returnExchange.status === "Exchange Requested") ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
+                          disabled={actionLoading}
+                          title="Approve Request"
+                          className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
+                        >
+                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[3] text-emerald-600" />}
+                        </button>
+                        <button
+                          onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
+                          disabled={actionLoading}
+                          title="Reject Request"
+                          className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
+                        >
+                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4 stroke-[3] text-red-600" />}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${selectedOrder.returnExchange.status === "Approved" || selectedOrder.returnExchange.status === "Return Approved"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : selectedOrder.returnExchange.status === "Rejected"
+                          ? "bg-red-100 text-red-800 border border-red-200"
+                          : "bg-neutral-200 text-neutral-800 border border-neutral-300"
+                        }`}>
+                        {selectedOrder.returnExchange.status}
+                      </span>
+                    )}
                   </div>
-                  <p><strong>Reason:</strong> {selectedOrder.returnExchange.reason}</p>
+                  <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Reason:</strong> {selectedOrder.returnExchange.reason}</p>
                   {selectedOrder.returnExchange.additionalNotes && (
-                    <p><strong>Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
+                    <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
                   )}
 
                   {/* Requested Return Items */}
                   {selectedOrder.returnExchange.requestedItems?.length > 0 && (
-                    <div className="space-y-1.5 pt-1 border-t border-purple-200/60">
-                      <span className="font-semibold text-purple-900 block text-xs uppercase tracking-wider">
+                    <div className="space-y-2 pt-2 border-t border-neutral-200/60">
+                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
                         Requested {selectedOrder.returnExchange.requestType === "exchange" ? "Exchange" : "Return"} Items:
                       </span>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {selectedOrder.returnExchange.requestedItems.map((ritem, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs bg-white p-2 rounded-xl border border-purple-100 font-medium">
-                            <div className="flex items-center gap-2">
+                          <div key={idx} className="flex items-center justify-between text-xs bg-white p-3 rounded-xl border border-neutral-200/80 font-medium">
+                            <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-neutral-900">{ritem.name}</span>
                               <span className="text-neutral-500">({ritem.size} / {ritem.color})</span>
                             </div>
-                            <span className="font-bold text-purple-950 bg-purple-100 px-2 py-0.5 rounded-md">
+                            <span className="font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-0.5 rounded-md text-xs border border-neutral-200/60">
                               Qty: {ritem.returnQuantity || 1}
                             </span>
                           </div>
@@ -697,8 +788,8 @@ export default function AdminOrdersPage() {
 
                   {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
                   {selectedOrder.returnExchange.unboxingVideo && (
-                    <div className="bg-white p-2.5 rounded-xl border border-purple-200 space-y-1">
-                      <span className="font-semibold text-purple-900 block">Unboxing Video Proof:</span>
+                    <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-1">
+                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Unboxing Video Proof:</span>
                       <a
                         href={getImageUrl(selectedOrder.returnExchange.unboxingVideo)}
                         target="_blank"
@@ -712,12 +803,12 @@ export default function AdminOrdersPage() {
 
                   {/* Proof Photos */}
                   {selectedOrder.returnExchange.proofPhotos?.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <span className="font-semibold text-purple-900 block">Uploaded Proof Photos:</span>
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Uploaded Proof Photos:</span>
                       <div className="flex items-center gap-2 overflow-x-auto">
                         {selectedOrder.returnExchange.proofPhotos.map((img, idx) => (
                           <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
-                            <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-lg border border-purple-200" />
+                            <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80" />
                           </a>
                         ))}
                       </div>
@@ -728,37 +819,14 @@ export default function AdminOrdersPage() {
                   {(() => {
                     const retStatus = selectedOrder.returnExchange.status;
 
-                    if (retStatus === "Pending Verification" || retStatus === "Return Requested") {
-                      return (
-                        <div className="pt-3 border-t border-purple-200/80 flex flex-wrap items-center gap-3">
-                          <button
-                            onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
-                            disabled={actionLoading}
-                            className="flex-1 min-w-[200px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                          >
-                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                            <span>Approve Return Request</span>
-                          </button>
-
-                          <button
-                            onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
-                            disabled={actionLoading}
-                            className="bg-red-100 hover:bg-red-200 disabled:opacity-50 text-red-800 border border-red-200 px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors cursor-pointer"
-                          >
-                            Reject Request
-                          </button>
-                        </div>
-                      );
-                    }
-
                     if (retStatus === "Return Approved" || retStatus === "Approved") {
                       return (
-                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between gap-3">
-                          <span className="text-xs text-purple-950 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
+                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
+                          <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
                           <button
                             onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId)}
                             disabled={actionLoading}
-                            className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                            className="bg-neutral-900 hover:bg-black disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
                             <span>Mark Product Received by Seller</span>
@@ -769,12 +837,12 @@ export default function AdminOrdersPage() {
 
                     if (retStatus === "Product Received") {
                       return (
-                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between gap-3">
-                          <span className="text-xs text-purple-950 font-medium">Next Action: <strong>Refund Processing</strong></span>
+                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
+                          <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Refund Processing</strong></span>
                           <button
                             onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId)}
                             disabled={actionLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
                             <span>Initiate & Process Refund via Razorpay (Rs {netRefundAmount.toLocaleString()})</span>
@@ -785,22 +853,22 @@ export default function AdminOrdersPage() {
 
                     if (retStatus === "Refund Initiated") {
                       return (
-                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
                           <span className="font-semibold text-amber-800 flex items-center gap-1.5">
                             <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)
                           </span>
-                          <span className="bg-amber-100 text-amber-900 font-bold px-3 py-1 rounded-full uppercase">Refund Processing</span>
+                          <span className="bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase">Refund Processing</span>
                         </div>
                       );
                     }
 
                     if (retStatus === "Refunded") {
                       return (
-                        <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
                           <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Razorpay Refund Processed & Credited to Customer
                           </span>
-                          <span className="bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full uppercase">Refunded</span>
+                          <span className="bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-full uppercase">Refunded</span>
                         </div>
                       );
                     }
@@ -851,16 +919,15 @@ export default function AdminOrdersPage() {
                 : Math.max(0, refundBaseSubtotal - returnShippingFee);
 
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-3.5 text-xs text-blue-950">
-                  <div className="flex items-center justify-between border-b border-blue-200/80 pb-2.5">
-                    <span className="font-bold text-sm uppercase tracking-wider text-blue-950 block">Refund Details & Calculation</span>
-                    <span className="bg-blue-200 text-blue-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase">
-                      {selectedOrder.refundDetails.refundMethod}
+                <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-3">
+                  <div className="border-b border-neutral-200/60 pb-2">
+                    <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                      Refund Details
                     </span>
                   </div>
 
                   {/* Calculation Breakdown Box */}
-                  <div className="bg-[#FFFFFF] p-3.5 rounded-xl border border-blue-200/80 space-y-2 text-xs">
+                  <div className="bg-white p-3.5 rounded-xl border border-neutral-200/80 space-y-2 text-xs">
                     <div className="flex items-center justify-between text-neutral-600 font-medium">
                       <span>{isCancelled ? "Order Total Paid" : "Returned Items Subtotal"}</span>
                       <span className="font-semibold text-neutral-900">
@@ -870,43 +937,36 @@ export default function AdminOrdersPage() {
 
                     <div className="flex items-center justify-between text-neutral-600 font-medium">
                       <span>Return Shipping Fee</span>
-                      <span className={returnShippingFee === 0 ? "font-bold text-emerald-600" : "font-semibold text-amber-700"}>
+                      <span className="font-semibold text-neutral-900">
                         {returnShippingFee === 0 ? "Rs 0" : `- Rs ${returnShippingFee}`}
                       </span>
                     </div>
 
-                    <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-bold text-neutral-900 text-sm">
-                      <span>Net Refund Amount</span>
-                      <span className="text-emerald-700 text-base font-mono">
+                    <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-semibold text-neutral-900 text-xs sm:text-sm">
+                      <span className="font-semibold text-neutral-900">Net Refund Amount</span>
+                      <span className="font-semibold text-neutral-900 text-sm sm:text-base font-mono">
                         Rs {netRefundAmount.toLocaleString()}
                       </span>
                     </div>
                   </div>
 
                   {/* Payout Credentials */}
-                  <div className="space-y-1.5 pt-1">
-                    <p><strong>Payout Method:</strong> {selectedOrder.refundDetails.refundMethod}</p>
+                  <div className="text-xs text-neutral-600 pt-0.5">
+                    <p><strong className="font-semibold text-neutral-900">Payout Method:</strong> <span className="text-neutral-700">{selectedOrder.refundDetails.refundMethod || "Original Payment Method"}</span></p>
                     {selectedOrder.refundDetails.refundMethod === "Bank Transfer" && (
-                      <>
+                      <div className="mt-2 space-y-1 pl-1 border-l-2 border-neutral-200 text-neutral-700">
                         <p><strong>Account Holder:</strong> {selectedOrder.refundDetails.bankHolderName || "N/A"}</p>
                         <p><strong>Account Number:</strong> {selectedOrder.refundDetails.accountNumber || "N/A"}</p>
                         <p><strong>IFSC Code:</strong> {selectedOrder.refundDetails.ifscCode || "N/A"}</p>
-                      </>
+                      </div>
                     )}
                     {selectedOrder.refundDetails.refundMethod === "UPI" && (
-                      <p><strong>UPI ID:</strong> {selectedOrder.refundDetails.upiId || "N/A"}</p>
+                      <p className="mt-1"><strong>UPI ID:</strong> {selectedOrder.refundDetails.upiId || "N/A"}</p>
                     )}
-                    <p>
-                      <strong>Status:</strong>{" "}
-                      <span className="font-semibold text-blue-900">{selectedOrder.refundDetails.refundStatus}</span>{" "}
-                      (Window: {selectedOrder.refundDetails.estimatedCreditWindow || "5-7 Business Days"})
-                    </p>
                   </div>
                 </div>
               );
             })()}
-
-
 
             {/* Footer Buttons */}
             <div className="flex justify-end">
@@ -915,6 +975,63 @@ export default function AdminOrdersPage() {
                 className="bg-neutral-900 text-white rounded-xl px-6 py-2.5 text-xs font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
               >
                 Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation / Prompt / Alert Popup Modal */}
+      {popupModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative space-y-4 animate-fade-in border border-neutral-100 text-neutral-900">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <h4 className="font-semibold text-base text-neutral-900 font-clashDisplay">
+                {popupModal.title}
+              </h4>
+              <button
+                onClick={() => popupModal.onCancel ? popupModal.onCancel() : popupModal.onConfirm()}
+                className="p-1 rounded-full text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-neutral-600 leading-relaxed font-medium">
+              {popupModal.message}
+            </p>
+
+            {popupModal.type === "prompt" && (
+              <input
+                type="text"
+                autoFocus
+                value={popupModal.inputValue || ""}
+                onChange={(e) => setPopupModal({ ...popupModal, inputValue: e.target.value })}
+                placeholder={popupModal.placeholder}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-black font-medium"
+              />
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-neutral-100">
+              {popupModal.type !== "alert" && (
+                <button
+                  onClick={() => popupModal.onCancel && popupModal.onCancel()}
+                  className="px-4 py-2 rounded-full border border-neutral-200 hover:bg-neutral-100 text-xs font-semibold text-neutral-700 transition-colors cursor-pointer"
+                >
+                  {popupModal.cancelText || "Cancel"}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (popupModal.type === "prompt") {
+                    popupModal.onConfirm(popupModal.inputValue);
+                  } else {
+                    popupModal.onConfirm();
+                  }
+                }}
+                className={`px-5 py-2 rounded-full text-xs font-semibold text-white transition-all cursor-pointer shadow-xs ${popupModal.isDanger ? "bg-red-600 hover:bg-red-700" : "bg-[#101820] hover:bg-black"}`}
+              >
+                {popupModal.confirmText || "OK"}
               </button>
             </div>
           </div>

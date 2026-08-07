@@ -170,29 +170,48 @@ export default function ReturnAndExchangePage() {
 
                 // Map items from fetched database order
                 if (data.data.items && Array.isArray(data.data.items) && data.data.items.length > 0) {
-                    const mappedItems = data.data.items.map((i, idx) => ({
-                        id: i._id || `item-${idx + 1}`,
-                        title: i.name || "Product",
-                        subtitle: i.category || "Collection",
-                        size: i.size || "M",
-                        color: i.color || "Standard",
-                        colorDot: i.colorHex || "#000000",
-                        price: i.priceNum || 0,
-                        quantity: i.quantity || 1,
-                        orderId: data.data.orderId,
-                        image: i.image || "/images/landing-page/coding-tshirt.png",
-                        availableSizes: Array.isArray(i.availableSizes) && i.availableSizes.length > 0 ? i.availableSizes : ["XS", "S", "M", "L", "XL", "XXL"],
-                        availableColors: Array.isArray(i.availableColors) && i.availableColors.length > 0 ? i.availableColors : (i.color ? [i.color] : ["Standard"])
-                    }));
+                    const requestedItems = data.data.returnExchange?.requestedItems || [];
+
+                    const mappedItems = data.data.items.map((i, idx) => {
+                        const itemIdStr = i._id?.toString() || `item-${idx + 1}`;
+                        const matchedReq = requestedItems.find(ritem =>
+                            ritem.itemId === itemIdStr ||
+                            ritem.itemId === i.id ||
+                            (ritem.name === i.name && ritem.size === i.size && ritem.color === i.color)
+                        );
+                        const returnedQty = matchedReq ? (matchedReq.returnQuantity || 0) : 0;
+                        const totalQty = i.quantity || 1;
+                        const remainingQty = Math.max(0, totalQty - returnedQty);
+
+                        return {
+                            id: itemIdStr,
+                            title: i.name || "Product",
+                            subtitle: i.category || "Collection",
+                            size: i.size || "M",
+                            color: i.color || "Standard",
+                            colorDot: i.colorHex || "#000000",
+                            price: i.priceNum || 0,
+                            quantity: remainingQty > 0 ? remainingQty : (returnedQty > 0 ? 0 : totalQty),
+                            totalOrderedQuantity: totalQty,
+                            returnedQuantity: returnedQty,
+                            orderId: data.data.orderId,
+                            image: i.image || "/images/landing-page/coding-tshirt.png",
+                            availableSizes: Array.isArray(i.availableSizes) && i.availableSizes.length > 0 ? i.availableSizes : ["XS", "S", "M", "L", "XL", "XXL"],
+                            availableColors: Array.isArray(i.availableColors) && i.availableColors.length > 0 ? i.availableColors : (i.color ? [i.color] : ["Standard"])
+                        };
+                    });
+
                     setOrderItems(mappedItems);
-                    setSelectedItemIds([mappedItems[0].id]);
+                    const firstSelectable = mappedItems.find(i => i.quantity > 0) || mappedItems[0];
+                    setSelectedItemIds([firstSelectable.id]);
+
                     const initialQuantities = {};
                     mappedItems.forEach((i) => {
-                        initialQuantities[i.id] = i.quantity || 1;
+                        initialQuantities[i.id] = i.quantity > 0 ? i.quantity : 1;
                     });
                     setSelectedQuantities(initialQuantities);
-                    if (mappedItems[0]?.availableSizes?.length > 0) setRequestedSize(mappedItems[0].availableSizes[0]);
-                    if (mappedItems[0]?.availableColors?.length > 0) setRequestedColor(mappedItems[0].availableColors[0]);
+                    if (firstSelectable?.availableSizes?.length > 0) setRequestedSize(firstSelectable.availableSizes[0]);
+                    if (firstSelectable?.availableColors?.length > 0) setRequestedColor(firstSelectable.availableColors[0]);
                 } else {
                     setOrderItems([]);
                     setSelectedItemIds([]);
@@ -614,38 +633,7 @@ export default function ReturnAndExchangePage() {
                                                 Order Number: <strong className="text-neutral-900">{foundOrder.orderId}</strong>
                                             </p>
                                         )}
-                                        {foundOrder?.returnExchange?.isRequested && (
-                                            <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs text-purple-950 space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="font-bold text-sm text-purple-950 uppercase tracking-wider">
-                                                        {foundOrder.returnExchange.status === "Approved"
-                                                            ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Approved & Refund Initiated" : "Exchange Request Approved")
-                                                            : foundOrder.returnExchange.status === "Rejected"
-                                                                ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Rejected" : "Exchange Request Rejected")
-                                                                : (foundOrder.returnExchange.requestType === "return" ? "Return Request Already Submitted" : "Exchange Request Already Submitted")
-                                                        }
-                                                    </p>
-                                                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${foundOrder.returnExchange.status === "Approved"
-                                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                                        : foundOrder.returnExchange.status === "Rejected"
-                                                            ? "bg-red-100 text-red-800 border border-red-200"
-                                                            : "bg-amber-100 text-amber-900 border border-amber-200"
-                                                        }`}>
-                                                        {foundOrder.returnExchange.status === "Pending Verification" ? "Under Review" : foundOrder.returnExchange.status}
-                                                    </span>
-                                                </div>
-                                                <p><strong>Reason:</strong> {foundOrder.returnExchange.reason}</p>
-                                                {foundOrder.returnExchange.status === "Approved" && foundOrder.refundDetails && foundOrder.refundDetails.refundMethod !== "None" && (
-                                                    <div className="pt-1.5 border-t border-purple-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-900 font-medium">
-                                                        <span>Payout: <strong>{foundOrder.refundDetails.refundMethod}</strong></span>
-                                                        <span>Refund Status: <strong className="text-emerald-700 font-bold">{foundOrder.refundDetails.refundStatus || "Pending Inspection"}</strong></span>
-                                                        {foundOrder.refundDetails.refundAmount > 0 && (
-                                                            <span>Net Refund: <strong className="text-purple-950 font-bold">Rs {foundOrder.refundDetails.refundAmount.toLocaleString()}</strong></span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
+
 
                                         {orderEligibility && !orderEligibility.isWithin7Days && (
                                             <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-1">
