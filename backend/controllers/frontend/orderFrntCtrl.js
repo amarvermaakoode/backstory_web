@@ -237,7 +237,7 @@ const cancelUserOrder = async (req, res) => {
     }
 
     // Free cancellation before dispatch -> 100% refund for prepaid orders, 0 fee
-    const isPrepaid = order.paymentStatus === "Confirmed";
+    const isPrepaid = order.paymentStatus === "Confirmed" || order.paymentStatus === "Paid" || order.paymentMethod === "Prepaid" || (order.paymentStatus !== "COD" && order.paymentStatus !== "Cancelled (Unpaid)" && order.paymentStatus !== "Failed");
     const fullRefundAmount = isPrepaid ? order.totalAmount : 0;
 
     order.orderStatus = "Cancelled";
@@ -256,12 +256,49 @@ const cancelUserOrder = async (req, res) => {
     };
 
     if (isPrepaid) {
+      order.paymentStatus = "Refund Pending";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.paymentStatus = "Refund Pending";
+        });
+      }
+      let razorpayRefundId = "";
+      if (order.razorpayPaymentId && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+        try {
+          const Razorpay = require("razorpay");
+          const razorpay = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET,
+          });
+          const refundRes = await razorpay.payments.refund(order.razorpayPaymentId, {
+            amount: Math.round(order.totalAmount * 100),
+            notes: { orderId: order.orderId, reason: reason || "Customer Order Cancellation" }
+          });
+          if (refundRes && refundRes.id) {
+            razorpayRefundId = refundRes.id;
+          }
+        } catch (rzpErr) {
+          console.error("Razorpay API refund call notice:", rzpErr.message || rzpErr);
+        }
+      }
+
       order.refundDetails = {
         refundMethod: "Original Payment Method",
-        refundStatus: "Initiated",
+        refundStatus: "Refund Pending",
+        refundAmount: fullRefundAmount,
+        refundId: razorpayRefundId,
+        razorpayRefundId,
         initiatedAt: new Date(),
+        updatedAt: new Date(),
         estimatedCreditWindow: "5-7 Business Days"
       };
+    } else {
+      order.paymentStatus = "Cancelled (Unpaid)";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.paymentStatus = "Cancelled (Unpaid)";
+        });
+      }
     }
 
     await order.save();
@@ -277,6 +314,55 @@ const cancelUserOrder = async (req, res) => {
       success: false,
       message: error.message || "Failed to cancel order"
     });
+  }
+};
+
+// Find order details for return/exchange lookup step
+const findOrderForReturn = async (req, res) => {
+  try {
+    const { orderId, email } = req.query;
+    if (!orderId && !email) {
+      return res.status(400).json({ success: false, message: "Order number or email address is required" });
+    }
+
+    let queryConditions = [];
+    if (orderId) {
+      const isMongoId = orderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(orderId);
+      queryConditions.push({ $or: [{ orderId: orderId.trim() }, { _id: isMongoId ? orderId : null }] });
+    }
+    if (email) {
+      queryConditions.push({ "shippingAddress.email": email.trim().toLowerCase() });
+    }
+
+    const order = await Order.findOne({ $and: queryConditions }).sort({ createdAt: -1 });
+    if (!order) {
+      return res.status(404).json({ success: false, message: "No matching order found. Please check your order number and email." });
+    }
+
+    // Eligibility check according to Bacstory policy
+    const isDelivered = order.orderStatus === "Delivered";
+    const deliveryDateMs = order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime();
+    const daysSinceDelivery = Math.floor((Date.now() - deliveryDateMs) / (1000 * 60 * 60 * 24));
+    const isWithin7Days = daysSinceDelivery <= 7;
+    const isWithin48Hours = (Date.now() - deliveryDateMs) <= (48 * 60 * 60 * 1000);
+    const hasAlreadyExchanged = order.returnExchange?.isRequested && order.returnExchange?.requestType === "exchange";
+
+    return res.status(200).json({
+      success: true,
+      data: order,
+      eligibility: {
+        isDelivered,
+        daysSinceDelivery,
+        isWithin7Days,
+        isWithin48Hours,
+        hasAlreadyExchanged,
+        canReturn: isWithin7Days,
+        canExchange: isWithin7Days && !hasAlreadyExchanged
+      }
+    });
+  } catch (error) {
+    console.error("Error finding order for return:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to find order" });
   }
 };
 
@@ -316,20 +402,49 @@ const submitReturnExchange = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Damaged or Wrong Product Policy Verification Check:
-    // Must report within 48 hours and provide clear photos + complete unboxing video
-    const isDamagedOrWrong = ["Damaged product", "Incorrect product", "Item defective or damaged", "Received wrong item"].some(r =>
+    // Policy Check 1: One exchange allowed per order
+    if (requestType === "exchange" && order.returnExchange?.isRequested && order.returnExchange?.requestType === "exchange") {
+      return res.status(400).json({
+        success: false,
+        message: "Only one exchange is allowed per order."
+      });
+    }
+
+    // Policy Check 2: 7-day return & exchange window
+    const deliveryDateMs = order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime();
+    const daysSinceDelivery = Math.floor((Date.now() - deliveryDateMs) / (1000 * 60 * 60 * 24));
+    if (order.orderStatus === "Delivered" && daysSinceDelivery > 7) {
+      return res.status(400).json({
+        success: false,
+        message: "The 7-day return and exchange policy window has expired for this order."
+      });
+    }
+
+    // Policy Check 3: Damaged or Wrong Product Policy Verification Check
+    // Unboxing video is mandatory ONLY for "Item defective or damaged" and "Received wrong item" reports
+    const isDamagedOrWrong = ["Item defective or damaged", "Received wrong item", "Damaged product", "Incorrect product"].some(r =>
       reason.toLowerCase().includes(r.toLowerCase())
     );
 
+    const isWithin48Hours = (Date.now() - deliveryDateMs) <= (48 * 60 * 60 * 1000);
+
     if (isDamagedOrWrong) {
+      if (!isWithin48Hours) {
+        return res.status(400).json({
+          success: false,
+          message: "Damaged, defective, or wrong products must be reported within 48 hours of delivery. The 48-hour reporting deadline has passed."
+        });
+      }
       if (!unboxingVideo || !unboxingVideo.trim()) {
         return res.status(400).json({
           success: false,
-          message: "A complete unboxing video is required for damaged or incorrect product reports."
+          message: "A complete unboxing video is mandatory for damaged or incorrect product reports."
         });
       }
     }
+
+    // Calculate Return Shipping Fee: Bacstory pays for our fault, customer pays ₹99 for change of mind
+    const returnShippingFee = isDamagedOrWrong ? 0 : 99;
 
     order.returnExchange = {
       isRequested: true,
@@ -341,13 +456,28 @@ const submitReturnExchange = async (req, res) => {
       proofPhotos: Array.isArray(proofPhotos) ? proofPhotos : [],
       unboxingVideo: unboxingVideo || "",
       reportedWithin48Hours: !!reportedWithin48Hours,
+      returnShippingFee,
       requestedAt: new Date(),
       status: "Pending Verification"
     };
 
     if (requestType === "return") {
+      const isCodOrder = order.paymentMethod === "COD" || order.paymentStatus === "COD";
+      let finalRefundMethod = refundMethod || (isCodOrder ? "Bank Transfer" : "Original Payment Method");
+
+      if (isCodOrder && finalRefundMethod === "Original Payment Method") {
+        return res.status(400).json({
+          success: false,
+          message: "Original payment method is not applicable for Cash on Delivery orders. Please select Bank Transfer, UPI, or Bacstory Wallet."
+        });
+      }
+
+      const refundAmount = Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnShippingFee);
+
       order.refundDetails = {
-        refundMethod: refundMethod || "Original Payment Method",
+        refundMethod: finalRefundMethod,
+        refundAmount,
+        returnShippingFee,
         bankHolderName: bankHolderName || "",
         accountNumber: accountNumber || "",
         ifscCode: ifscCode || "",
@@ -379,5 +509,6 @@ module.exports = {
   getTrackOrderStatus,
   cancelUserOrder,
   submitReturnExchange,
+  findOrderForReturn,
 };
 

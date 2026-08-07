@@ -120,7 +120,107 @@ const verifyPayment = async (req, res) => {
   }
 };
 
+// Process Refund via Razorpay API (POST /api/payment/refund)
+const processRefund = async (req, res) => {
+  try {
+    const { paymentId, amount, notes } = req.body;
+
+    if (!paymentId) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment ID (razorpay_payment_id) is required to process refund.",
+      });
+    }
+
+    const instance = getRazorpayInstance();
+    const refundOptions = {};
+    if (amount && !isNaN(amount)) {
+      // Amount in paise
+      refundOptions.amount = Math.round(Number(amount) * 100);
+    }
+    if (notes) {
+      refundOptions.notes = notes;
+    }
+
+    const refund = await instance.payments.refund(paymentId, refundOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "Razorpay refund initiated successfully",
+      refund,
+    });
+  } catch (error) {
+    console.error("Error processing Razorpay refund:", error);
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.description || error.message || "Failed to process Razorpay refund",
+    });
+  }
+};
+
+// Razorpay Webhook Listener (POST /api/payment/webhook)
+// Automatically receives real-time events from Razorpay (refund.processed, refund.failed)
+const handleRazorpayWebhook = async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+    const signature = req.headers["x-razorpay-signature"];
+
+    if (signature && webhookSecret) {
+      const expectedSignature = crypto
+        .createHmac("sha256", webhookSecret)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+
+      if (signature !== expectedSignature) {
+        console.warn("Razorpay Webhook signature mismatch notification");
+      }
+    }
+
+    const { event, payload } = req.body;
+
+    if (event === "refund.processed" || event === "payment.refunded") {
+      const paymentId = payload?.refund?.entity?.payment_id || payload?.payment?.entity?.id;
+      if (paymentId) {
+        const Order = require("../models/Order");
+        const order = await Order.findOne({ razorpayPaymentId: paymentId });
+        if (order) {
+          if (!order.refundDetails) order.refundDetails = {};
+          order.refundDetails.refundStatus = "Processed / Credited";
+          order.refundDetails.updatedAt = new Date();
+          order.paymentStatus = "Refunded";
+          if (order.items && Array.isArray(order.items)) {
+            order.items.forEach((item) => {
+              item.paymentStatus = "Refunded";
+            });
+          }
+          await order.save();
+          console.log(`Razorpay Webhook: Automatically updated order ${order.orderId} refund status to 'Processed / Credited'`);
+        }
+      }
+    } else if (event === "refund.failed") {
+      const paymentId = payload?.refund?.entity?.payment_id;
+      if (paymentId) {
+        const Order = require("../models/Order");
+        const order = await Order.findOne({ razorpayPaymentId: paymentId });
+        if (order) {
+          if (!order.refundDetails) order.refundDetails = {};
+          order.refundDetails.refundStatus = "Failed";
+          await order.save();
+          console.log(`Razorpay Webhook: Order ${order.orderId} refund failed notification`);
+        }
+      }
+    }
+
+    return res.status(200).json({ success: true, message: "Webhook received" });
+  } catch (error) {
+    console.error("Error handling Razorpay webhook:", error);
+    return res.status(500).json({ success: false, message: "Webhook processing error" });
+  }
+};
+
 module.exports = {
   createOrder,
   verifyPayment,
+  processRefund,
+  handleRazorpayWebhook,
 };

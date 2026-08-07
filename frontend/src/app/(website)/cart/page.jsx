@@ -192,8 +192,8 @@ export default function CartPage() {
     const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
     const subtotal = selectedCartItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0);
     const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
-    const tax = Math.round(subtotal * 0.05);
-    const total = subtotal + shipping + tax - discount;
+    const tax = 0;
+    const total = subtotal + shipping - discount;
 
     const allSelected = cartItems.length > 0 && cartItems.every(item => selectedItems.includes(item.id));
 
@@ -465,10 +465,6 @@ export default function CartPage() {
                                         <span className="font-semibold text-black">
                                             {shipping === 0 ? "Free" : `Rs ${shipping}`}
                                         </span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-neutral-600">
-                                        <span>Tax (GST 5%)</span>
-                                        <span className="font-semibold text-black">Rs {tax.toLocaleString()}</span>
                                     </div>
                                     {discount > 0 && (
                                         <div className="flex justify-between items-center text-green-600">

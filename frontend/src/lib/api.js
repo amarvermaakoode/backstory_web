@@ -19,9 +19,18 @@ export const getImageUrl = (path) => {
     return "/images/landing-page/coding-tshirt.png";
   }
   const cleanPath = path.trim();
-  if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://") || cleanPath.startsWith("data:")) return cleanPath;
+  if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://") || cleanPath.startsWith("data:") || cleanPath.startsWith("blob:")) return cleanPath;
   if (cleanPath.startsWith("/images/")) return cleanPath;
   if (cleanPath.startsWith("images/")) return `/${cleanPath}`;
+
+  const isVideoOrUpload = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(cleanPath) || cleanPath.includes("ScreenRecording") || cleanPath.startsWith("uploads") || cleanPath.startsWith("/uploads");
+  if (isVideoOrUpload) {
+    if (cleanPath.startsWith("/uploads") || cleanPath.startsWith("uploads")) {
+      return `${API_URL}${cleanPath.startsWith("/") ? "" : "/"}${cleanPath}`;
+    }
+    return `${API_URL}/uploads/returns/${cleanPath.replace(/^\//, "")}`;
+  }
+
   if (cleanPath.includes("tshirt") || cleanPath.includes("coding") || cleanPath.includes("biker") || cleanPath.includes("wonderlust") || cleanPath.includes("first") || cleanPath.includes("pants") || cleanPath.includes("featured")) {
     return `/images/landing-page/${cleanPath.replace(/^\//, "")}`;
   }

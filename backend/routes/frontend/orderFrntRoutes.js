@@ -5,7 +5,8 @@ const {
   getUserOrders,
   getTrackOrderStatus,
   cancelUserOrder,
-  submitReturnExchange
+  submitReturnExchange,
+  findOrderForReturn
 } = require("../../controllers/frontend/orderFrntCtrl");
 const { protect } = require("../../middlewares/auth");
 
@@ -19,6 +20,7 @@ const optionalAuth = (req, res, next) => {
 
 router.post("/", optionalAuth, createOrderRecord);
 router.get("/my-orders", optionalAuth, getUserOrders);
+router.get("/find-order", findOrderForReturn);
 router.get("/track/:orderId", getTrackOrderStatus);
 router.post("/:orderId/cancel", optionalAuth, cancelUserOrder);
 router.post("/return-exchange", optionalAuth, submitReturnExchange);

@@ -15,11 +15,13 @@ import {
     Edit2,
     CheckCircle2,
     ChevronDown,
+    Loader2,
+    Video,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { getImageUrl } from "@/lib/api";
+import { API_BASE_URL, getImageUrl } from "@/lib/api";
 
 // Policy summary data for landing state
 const policyItems = [
@@ -122,12 +124,21 @@ const mockOrderItems = [
     },
 ];
 
-const reasonOptions = [
+const returnReasonOptions = [
+    "Fabric or print quality issue",
+    "Product doesn't match description / image",
+    "Item defective or damaged",
+    "Received wrong item",
+    "Changed my mind",
+    "Other",
+];
+
+const exchangeReasonOptions = [
     "Product is too small/large (Size Change)",
     "Color change (subject to stock)",
     "Item defective or damaged",
     "Received wrong item",
-    "Changed my mind",
+    "Other",
 ];
 
 export default function ReturnAndExchangePage() {
@@ -138,19 +149,25 @@ export default function ReturnAndExchangePage() {
     const [orderNumber, setOrderNumber] = useState("");
     const [emailAddress, setEmailAddress] = useState("");
 
+    // Dynamic fetched order data & items
+    const [foundOrder, setFoundOrder] = useState(null);
+    const [orderItems, setOrderItems] = useState(mockOrderItems);
+    const [orderEligibility, setOrderEligibility] = useState(null);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState("");
+
     // Step 2: Selected items IDs
     const [selectedItemIds, setSelectedItemIds] = useState(["item-1"]);
 
     // Step 3: Reason & Request details
     const [requestType, setRequestType] = useState("return"); // "return" | "exchange"
-    const [selectedReason, setSelectedReason] = useState("Product is too small/large (Size Change)");
+    const [selectedReason, setSelectedReason] = useState("Fabric or print quality issue");
+    const [requestedSize, setRequestedSize] = useState("L");
+    const [requestedColor, setRequestedColor] = useState("Black");
     const [additionalNotes, setAdditionalNotes] = useState("");
-    const [unboxingVideoUrl, setUnboxingVideoUrl] = useState("");
-    const [uploadedImages, setUploadedImages] = useState([
-        "/images/landing-page/biker-tshirt.png",
-        "/images/landing-page/coding-tshirt.png",
-        "/images/landing-page/ai-and-tech.png",
-    ]);
+    const [unboxingVideoFile, setUnboxingVideoFile] = useState(null);
+    const [stepError, setStepError] = useState("");
+    const [uploadedImages, setUploadedImages] = useState([]);
 
     // Step 4: Payment mode & COD Bank/UPI refund details
     const [paymentMode, setPaymentMode] = useState("original"); // "original" | "wallet" | "bank" | "upi"
@@ -159,19 +176,135 @@ export default function ReturnAndExchangePage() {
     const [ifscCode, setIfscCode] = useState("");
     const [upiId, setUpiId] = useState("");
 
-    // Generated Return ID
+    // Generated Return ID & Submit states
     const [returnRequestId, setReturnRequestId] = useState("RET-84920");
+    const [submitLoading, setSubmitLoading] = useState(false);
+    const [submitError, setSubmitError] = useState("");
+
+    // Look up real order from MongoDB backend
+    const handleFindOrder = async () => {
+        setSearchError("");
+        if (!orderNumber.trim() && !emailAddress.trim()) {
+            setSearchError("Please enter your Order Number or Email Address.");
+            return;
+        }
+
+        setSearchLoading(true);
+        try {
+            const queryParams = new URLSearchParams();
+            if (orderNumber.trim()) queryParams.append("orderId", orderNumber.trim());
+            if (emailAddress.trim()) queryParams.append("email", emailAddress.trim());
+
+            const res = await fetch(`${API_BASE_URL}/frontend/orders/find-order?${queryParams.toString()}`);
+            const data = await res.json();
+
+            if (res.ok && data.success && data.data) {
+                setFoundOrder(data.data);
+                setOrderEligibility(data.eligibility);
+
+                // Map items from fetched database order
+                if (data.data.items && Array.isArray(data.data.items) && data.data.items.length > 0) {
+                    const mappedItems = data.data.items.map((i, idx) => ({
+                        id: i._id || `item-${idx + 1}`,
+                        title: i.name || "Product",
+                        subtitle: i.category || "Collection",
+                        size: i.size || "M",
+                        color: i.color || "Standard",
+                        colorDot: i.colorHex || "#000000",
+                        price: i.priceNum || 0,
+                        orderId: data.data.orderId,
+                        image: i.image || "/images/landing-page/coding-tshirt.png"
+                    }));
+                    setOrderItems(mappedItems);
+                    setSelectedItemIds([mappedItems[0].id]);
+                } else {
+                    setOrderItems(mockOrderItems);
+                    setSelectedItemIds([mockOrderItems[0].id]);
+                }
+
+                setCurrentStep(2);
+            } else {
+                setSearchError(data.message || "No matching order found. Please check order details.");
+            }
+        } catch (err) {
+            console.error("Error looking up order:", err);
+            setSearchError("Failed to lookup order. Please try again.");
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
+    // Submit Return or Exchange request to Backend API
+    const handleSubmitReturnExchange = async () => {
+        setSubmitError("");
+        setSubmitLoading(true);
+
+        // Step 4 Validation for COD refund details
+        if (requestType === "return" && (foundOrder?.paymentStatus === "COD" || foundOrder?.paymentMethod === "COD")) {
+            if (paymentMode === "bank") {
+                if (!bankHolderName.trim() || !accountNumber.trim() || !ifscCode.trim()) {
+                    setSubmitError("Please fill in all required bank details marked with an asterisk (*).");
+                    setSubmitLoading(false);
+                    return;
+                }
+            } else if (paymentMode === "upi") {
+                if (!upiId.trim()) {
+                    setSubmitError("Please enter your UPI ID * for refund payout.");
+                    setSubmitLoading(false);
+                    return;
+                }
+            }
+        }
+
+        try {
+            const targetOrderId = foundOrder ? foundOrder.orderId : (orderNumber || "BS-0421");
+            const payload = {
+                orderId: targetOrderId,
+                requestType,
+                reason: selectedReason,
+                additionalNotes,
+                requestedSize: requestType === "exchange" ? requestedSize : "",
+                requestedColor: requestType === "exchange" ? requestedColor : "",
+                unboxingVideo: unboxingVideoFile ? (unboxingVideoFile.name || "unboxing_video.mp4") : "",
+                proofPhotos: uploadedImages,
+                refundMethod: paymentMode === "bank" ? "Bank Transfer" : (paymentMode === "upi" ? "UPI" : (paymentMode === "wallet" ? "Bacstory Wallet" : "Original Payment Method")),
+                bankHolderName,
+                accountNumber,
+                ifscCode,
+                upiId,
+                reportedWithin48Hours: orderEligibility?.isWithin48Hours || true
+            };
+
+            const res = await fetch(`${API_BASE_URL}/frontend/orders/return-exchange`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                const reqId = data.data?.orderId ? `RET-${data.data.orderId}` : `RET-${Math.floor(10000 + Math.random() * 90000)}`;
+                setReturnRequestId(reqId);
+                setCurrentStep("submitted");
+            } else {
+                setSubmitError(data.message || "Failed to submit return/exchange request.");
+            }
+        } catch (err) {
+            console.error("Error submitting return/exchange request:", err);
+            setSubmitError("Failed to submit request. Please try again.");
+        } finally {
+            setSubmitLoading(false);
+        }
+    };
 
     // Stepper navigation helpers
     const nextStep = () => {
         if (currentStep === "landing") setCurrentStep(1);
-        else if (currentStep === 1) setCurrentStep(2);
+        else if (currentStep === 1) handleFindOrder();
         else if (currentStep === 2) setCurrentStep(3);
         else if (currentStep === 3) setCurrentStep(4);
-        else if (currentStep === 4) {
-            setReturnRequestId(`RET-${Math.floor(10000 + Math.random() * 90000)}`);
-            setCurrentStep("submitted");
-        }
+        else if (currentStep === 4) handleSubmitReturnExchange();
     };
 
     const prevStep = () => {
@@ -205,11 +338,21 @@ export default function ReturnAndExchangePage() {
     };
 
     // Calculate selected item details
-    const selectedItem = mockOrderItems.find((i) => selectedItemIds.includes(i.id)) || mockOrderItems[0];
-    const totalRefund = selectedItemIds.reduce((sum, id) => {
-        const item = mockOrderItems.find((i) => i.id === id);
+    const activeItemsList = orderItems.length > 0 ? orderItems : mockOrderItems;
+    const selectedItem = activeItemsList.find((i) => selectedItemIds.includes(i.id)) || activeItemsList[0];
+    const itemSubtotal = selectedItemIds.reduce((sum, id) => {
+        const item = activeItemsList.find((i) => i.id === id);
         return sum + (item ? item.price : 0);
     }, 0);
+
+    // Shipping cost rule for returns:
+    // Bacstory bears shipping costs for defective, damaged, or incorrect items.
+    // Customer bears ₹99 return shipping fee for change of mind.
+    const isBacstoryFault = ["Damaged product", "Incorrect product", "Item defective or damaged", "Received wrong item"].some(r =>
+        selectedReason.toLowerCase().includes(r.toLowerCase())
+    );
+    const returnShippingFee = isBacstoryFault ? 0 : 99;
+    const totalRefund = Math.max(0, itemSubtotal - (requestType === "return" ? returnShippingFee : 0));
 
     return (
         <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col font-sans">
@@ -417,10 +560,16 @@ export default function ReturnAndExchangePage() {
                                         </h2>
                                     </div>
 
+                                    {searchError && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm p-4 rounded-2xl">
+                                            {searchError}
+                                        </div>
+                                    )}
+
                                     <div className="space-y-4">
                                         <input
                                             type="text"
-                                            placeholder="Order Number"
+                                            placeholder="Order Number (e.g. BS-10024)"
                                             value={orderNumber}
                                             onChange={(e) => setOrderNumber(e.target.value)}
                                             className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl px-6 py-4 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all"
@@ -435,15 +584,21 @@ export default function ReturnAndExchangePage() {
                                         />
 
                                         <button
-                                            onClick={nextStep}
-                                            disabled={!orderNumber.trim() && !emailAddress.trim()}
+                                            onClick={handleFindOrder}
+                                            disabled={searchLoading || (!orderNumber.trim() && !emailAddress.trim())}
                                             className={`w-full py-4 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm ${orderNumber.trim() || emailAddress.trim()
                                                 ? "bg-[#101820] text-white hover:bg-black cursor-pointer"
                                                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
                                                 }`}
                                         >
-                                            <span>Find my order</span>
-                                            <ArrowRight className="w-4 h-4" />
+                                            {searchLoading ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <span>Find my order</span>
+                                                    <ArrowRight className="w-4 h-4" />
+                                                </>
+                                            )}
                                         </button>
                                     </div>
 
@@ -464,12 +619,57 @@ export default function ReturnAndExchangePage() {
                                 <div className="space-y-8 pt-2">
                                     <div className="space-y-2">
                                         <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-black tracking-tight">
-                                            Select items to return
+                                            Select items to return or exchange
                                         </h2>
+                                        {foundOrder && (
+                                            <p className="text-xs text-neutral-500">
+                                                Order Number: <strong className="text-neutral-900">{foundOrder.orderId}</strong> • Status: <span className="text-emerald-700 font-semibold">{foundOrder.orderStatus}</span>
+                                            </p>
+                                        )}
+                                        {foundOrder?.returnExchange?.isRequested && (
+                                         <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs text-purple-950 space-y-2">
+                                             <div className="flex items-center justify-between">
+                                                 <p className="font-bold text-sm text-purple-950 uppercase tracking-wider">
+                                                      {foundOrder.returnExchange.status === "Approved"
+                                                          ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Approved & Refund Initiated" : "Exchange Request Approved")
+                                                          : foundOrder.returnExchange.status === "Rejected"
+                                                          ? (foundOrder.returnExchange.requestType === "return" ? "Return Request Rejected" : "Exchange Request Rejected")
+                                                          : (foundOrder.returnExchange.requestType === "return" ? "Return Request Already Submitted" : "Exchange Request Already Submitted")
+                                                      }
+                                                  </p>
+                                                 <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
+                                                     foundOrder.returnExchange.status === "Approved"
+                                                         ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                                         : foundOrder.returnExchange.status === "Rejected"
+                                                         ? "bg-red-100 text-red-800 border border-red-200"
+                                                         : "bg-amber-100 text-amber-900 border border-amber-200"
+                                                 }`}>
+                                                     {foundOrder.returnExchange.status === "Pending Verification" ? "Under Review" : foundOrder.returnExchange.status}
+                                                 </span>
+                                             </div>
+                                             <p><strong>Reason:</strong> {foundOrder.returnExchange.reason}</p>
+                                             {foundOrder.returnExchange.status === "Approved" && foundOrder.refundDetails && foundOrder.refundDetails.refundMethod !== "None" && (
+                                                  <div className="pt-1.5 border-t border-purple-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-purple-900 font-medium">
+                                                      <span>Payout: <strong>{foundOrder.refundDetails.refundMethod}</strong></span>
+                                                      <span>Refund Status: <strong className="text-emerald-700 font-bold">{foundOrder.refundDetails.refundStatus || "Pending Inspection"}</strong></span>
+                                                      {foundOrder.refundDetails.refundAmount > 0 && (
+                                                          <span>Net Refund: <strong className="text-purple-950 font-bold">Rs {foundOrder.refundDetails.refundAmount.toLocaleString()}</strong></span>
+                                                      )}
+                                                  </div>
+                                              )}
+                                         </div>
+                                     )}
+
+                                     {orderEligibility && !orderEligibility.isWithin7Days && (
+                                         <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-1">
+                                             <p className="font-bold text-sm text-amber-950">Notice: 7-Day Window Expired</p>
+                                             <p>Returns and exchanges are accepted within 7 days of delivery according to Bacstory policy.</p>
+                                         </div>
+                                     )}
                                     </div>
 
                                     <div className="space-y-4">
-                                        {mockOrderItems.map((item) => {
+                                        {orderItems.map((item) => {
                                             const isSelected = selectedItemIds.includes(item.id);
                                             return (
                                                 <div
@@ -487,6 +687,7 @@ export default function ReturnAndExchangePage() {
                                                                 alt={item.title}
                                                                 fill
                                                                 className="object-cover object-center"
+                                                                unoptimized
                                                             />
                                                         </div>
 
@@ -514,7 +715,7 @@ export default function ReturnAndExchangePage() {
 
                                                     <div className="text-right space-y-2 shrink-0">
                                                         <p className="font-semibold text-base sm:text-lg text-black">
-                                                            Rs {item.price.toLocaleString()}
+                                                            Rs {item.price?.toLocaleString()}
                                                         </p>
                                                         <p className="text-[11px] text-neutral-400">
                                                             Order {item.orderId}
@@ -541,16 +742,6 @@ export default function ReturnAndExchangePage() {
                                     >
                                         Continue with {selectedItemIds.length} item{selectedItemIds.length > 1 ? "s" : ""}
                                     </button>
-
-                                    <p className="text-center text-xs text-neutral-400 pt-2">
-                                        Need help? Email{" "}
-                                        <a
-                                            href="mailto:support@bacstory.com"
-                                            className="text-neutral-700 underline underline-offset-2 font-medium hover:text-black"
-                                        >
-                                            support@bacstory.com
-                                        </a>
-                                    </p>
                                 </div>
                             )}
 
@@ -568,10 +759,11 @@ export default function ReturnAndExchangePage() {
                                         <div className="flex items-center gap-4">
                                             <div className="relative w-14 h-16 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
                                                 <Image
-                                                    src={selectedItem.image}
+                                                    src={getImageUrl(selectedItem.image)}
                                                     alt={selectedItem.title}
                                                     fill
                                                     className="object-cover object-center"
+                                                    unoptimized
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -602,7 +794,12 @@ export default function ReturnAndExchangePage() {
                                         <div className="grid grid-cols-2 gap-3 bg-[#F5F5F5] p-1.5 rounded-full border border-neutral-200/70">
                                             <button
                                                 type="button"
-                                                onClick={() => setRequestType("return")}
+                                                onClick={() => {
+                                                    setRequestType("return");
+                                                    if (!returnReasonOptions.includes(selectedReason)) {
+                                                        setSelectedReason(returnReasonOptions[0]);
+                                                    }
+                                                }}
                                                 className={`py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${requestType === "return"
                                                     ? "bg-[#101820] text-white shadow-sm"
                                                     : "bg-transparent text-neutral-600 hover:text-black"
@@ -613,60 +810,179 @@ export default function ReturnAndExchangePage() {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setRequestType("exchange")}
+                                                onClick={() => {
+                                                    if (orderEligibility?.hasAlreadyExchanged) {
+                                                        alert("Only one exchange is allowed per order according to Bacstory policy.");
+                                                        return;
+                                                    }
+                                                    setRequestType("exchange");
+                                                    if (!exchangeReasonOptions.includes(selectedReason)) {
+                                                        setSelectedReason(exchangeReasonOptions[0]);
+                                                    }
+                                                }}
                                                 className={`py-3 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${requestType === "exchange"
                                                     ? "bg-[#101820] text-white shadow-sm"
-                                                    : "bg-transparent text-neutral-600 hover:text-black"
+                                                    : orderEligibility?.hasAlreadyExchanged
+                                                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                        : "bg-transparent text-neutral-600 hover:text-black"
                                                     }`}
                                             >
                                                 <RotateCcw className="w-4 h-4" />
-                                                <span>Exchange</span>
+                                                <span>Exchange {orderEligibility?.hasAlreadyExchanged && "(Limit Reached)"}</span>
                                             </button>
                                         </div>
 
+                                        {orderEligibility?.hasAlreadyExchanged && (
+                                            <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-xs text-red-800 font-medium">
+                                                Notice: An exchange has already been processed for this order. Only 1 exchange per order is allowed.
+                                            </div>
+                                        )}
+
+                                        {/* Exchange Options (New Size & Color) */}
+                                        {requestType === "exchange" && (
+                                            <div className="bg-purple-50/70 border border-purple-200 p-4 rounded-2xl space-y-3 text-xs text-purple-950">
+                                                <p className="font-semibold text-sm text-purple-900">Exchange Replacement Preferences</p>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-purple-800 mb-1">
+                                                            Requested Size
+                                                        </label>
+                                                        <select
+                                                            value={requestedSize}
+                                                            onChange={(e) => setRequestedSize(e.target.value)}
+                                                            className="w-full bg-white border border-purple-200 rounded-xl p-2.5 text-xs text-black"
+                                                        >
+                                                            {["XS", "S", "M", "L", "XL", "XXL"].map((sz) => (
+                                                                <option key={sz} value={sz}>{sz}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-purple-800 mb-1">
+                                                            Requested Color
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={requestedColor}
+                                                            onChange={(e) => setRequestedColor(e.target.value)}
+                                                            placeholder="Color preference"
+                                                            className="w-full bg-white border border-purple-200 rounded-xl p-2.5 text-xs text-black"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Reason Select Dropdown */}
-                                        <CustomSelect
-                                            options={reasonOptions}
-                                            value={selectedReason}
-                                            placeholder="Select a reason"
-                                            showPlaceholderInMenu={false}
-                                            onChange={(e) => setSelectedReason(e.target.value)}
-                                            className="!bg-[#F4F4F4] !border-transparent !rounded-2xl !py-4 !px-6 !text-sm !font-normal text-black hover:!border-neutral-300"
-                                        />
+                                        <div>
+                                            <label className="block text-xs font-semibold text-black mb-1.5 font-sans">
+                                                Reason for {requestType === "return" ? "Return" : "Exchange"} <span className="text-red-500">*</span>
+                                            </label>
+                                            <CustomSelect
+                                                options={requestType === "return" ? returnReasonOptions : exchangeReasonOptions}
+                                                value={selectedReason}
+                                                placeholder="Select a reason"
+                                                showPlaceholderInMenu={false}
+                                                onChange={(e) => {
+                                                    setSelectedReason(e.target.value);
+                                                    setStepError("");
+                                                }}
+                                                className="!bg-[#F4F4F4] !border-transparent !rounded-2xl !py-4 !px-6 !text-sm !font-normal text-black hover:!border-neutral-300"
+                                            />
+                                        </div>
 
                                         {/* Additional Notes Textarea */}
-                                        <textarea
-                                            rows={3}
-                                            placeholder="Tell us more about the issue..."
-                                            value={additionalNotes}
-                                            onChange={(e) => setAdditionalNotes(e.target.value)}
-                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl p-5 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all resize-none"
-                                        />
+                                        <div>
+                                            <label className="block text-xs font-semibold text-black mb-1.5 font-sans">
+                                                Additional Notes {selectedReason === "Other" && <span className="text-red-500">*</span>}
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                placeholder={selectedReason === "Other" ? "Please specify your reason in detail..." : "Tell us more about the issue..."}
+                                                value={additionalNotes}
+                                                onChange={(e) => {
+                                                    setAdditionalNotes(e.target.value);
+                                                    setStepError("");
+                                                }}
+                                                className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl p-5 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all resize-none"
+                                            />
+                                        </div>
 
-                                        {/* Mandatory Unboxing Video Notice & Input for Damaged / Wrong Items */}
-                                        {(selectedReason.includes("damaged") || selectedReason.includes("wrong")) && (
-                                            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 space-y-3">
-                                                <div className="flex items-start gap-2 text-amber-900 text-xs sm:text-sm font-semibold">
-                                                    <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">Mandatory Proof</span>
-                                                    <span>Reported within 48 hours of delivery</span>
-                                                </div>
-                                                <p className="text-xs text-amber-800 leading-relaxed">
-                                                    Damaged or wrong products must be reported within 48 hours with clear photos <strong>PLUS a complete unboxing video</strong>.
-                                                </p>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Link to complete unboxing video (Google Drive / Cloud / Youtube)"
-                                                    value={unboxingVideoUrl}
-                                                    onChange={(e) => setUnboxingVideoUrl(e.target.value)}
-                                                    className="w-full bg-white border border-amber-300 rounded-xl px-4 py-3 text-xs sm:text-sm text-black placeholder-amber-600/60 focus:outline-none focus:border-amber-500"
-                                                />
+                                        {/* Direct Unboxing Video Upload Field for Damaged / Defective / Wrong Items */}
+                                        {(selectedReason.toLowerCase().includes("damaged") || selectedReason.toLowerCase().includes("defective") || selectedReason.toLowerCase().includes("wrong")) && (
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-semibold text-black font-sans">
+                                                    Unboxing Video <span className="text-red-500">*</span>
+                                                </label>
+                                                <label className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                                                    unboxingVideoFile
+                                                        ? "border-emerald-300 bg-emerald-50/40"
+                                                        : "border-amber-300 bg-amber-50/50 hover:bg-amber-100/50"
+                                                } ${orderEligibility?.isWithin48Hours === false ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}>
+                                                    <input
+                                                        type="file"
+                                                        accept="video/*"
+                                                        className="hidden"
+                                                        disabled={orderEligibility?.isWithin48Hours === false}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                setUnboxingVideoFile({
+                                                                    name: file.name,
+                                                                    size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
+                                                                    url: URL.createObjectURL(file)
+                                                                });
+                                                                setStepError("");
+                                                            }
+                                                        }}
+                                                    />
+                                                    {unboxingVideoFile ? (
+                                                        <div className="flex items-center gap-3 w-full justify-between bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs">
+                                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                                                                    <Video className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="min-w-0 text-left">
+                                                                    <p className="text-xs font-semibold text-neutral-900 truncate">{unboxingVideoFile.name}</p>
+                                                                    <p className="text-[10px] text-neutral-400">{unboxingVideoFile.size}</p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setUnboxingVideoFile(null);
+                                                                }}
+                                                                className="p-1 hover:bg-neutral-100 rounded-full text-neutral-400 hover:text-red-600 transition-colors"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center text-center space-y-1 py-1">
+                                                            <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mb-1">
+                                                                <Video className="w-4 h-4" />
+                                                            </div>
+                                                            <p className="text-xs font-semibold text-amber-950">Upload Unboxing Video <span className="text-red-500">*</span></p>
+                                                            <p className="text-[11px] text-amber-700 font-normal">Click to select video file from your device (MP4, MOV, AVI)</p>
+                                                        </div>
+                                                    )}
+                                                </label>
+                                            </div>
+                                        )}
+
+                                        {/* Notice if 48h reporting limit passed for damaged / wrong item */}
+                                        {orderEligibility?.isWithin48Hours === false && (selectedReason.toLowerCase().includes("damaged") || selectedReason.toLowerCase().includes("defective") || selectedReason.toLowerCase().includes("wrong")) && (
+                                            <div className="bg-red-50 border border-red-200 p-4 rounded-2xl space-y-1 text-xs text-red-900">
+                                                <span className="font-bold text-red-950 uppercase tracking-wider block text-[11px]">48-Hour Deadline Passed</span>
+                                                <p>Damaged, defective, or incorrect products must be reported within 48 hours of delivery. The 48-hour reporting limit for this order has passed, so this request cannot be submitted.</p>
                                             </div>
                                         )}
 
                                         {/* Add Product Images Grid */}
                                         <div className="space-y-3 pt-2">
                                             <label className="block text-xs font-semibold text-black font-sans">
-                                                Add Clear Product Photos
+                                                Add Clear Product Photos <span className="text-red-500">*</span>
                                             </label>
 
                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
@@ -691,10 +1007,11 @@ export default function ReturnAndExchangePage() {
                                                         className="relative w-full aspect-square bg-neutral-100 rounded-xl overflow-hidden border border-neutral-200/80 group"
                                                     >
                                                         <Image
-                                                            src={imgSrc}
+                                                            src={getImageUrl(imgSrc)}
                                                             alt={`Product photo ${idx + 1}`}
                                                             fill
                                                             className="object-cover object-center"
+                                                            unoptimized
                                                         />
                                                         <button
                                                             onClick={() => removeImage(idx)}
@@ -708,22 +1025,51 @@ export default function ReturnAndExchangePage() {
                                         </div>
                                     </div>
 
-                                    <button
-                                        onClick={nextStep}
-                                        className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
-                                    >
-                                        Review Request
-                                    </button>
+                                    {stepError && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm p-4 rounded-2xl font-medium">
+                                            {stepError}
+                                        </div>
+                                    )}
 
-                                    <p className="text-center text-xs text-neutral-400 pt-2">
-                                        Need help? Email{" "}
-                                        <a
-                                            href="mailto:support@bacstory.com"
-                                            className="text-neutral-700 underline underline-offset-2 font-medium hover:text-black"
-                                        >
-                                            support@bacstory.com
-                                        </a>
-                                    </p>
+                                    {(() => {
+                                        const isDamagedSelected = selectedReason.toLowerCase().includes("damaged") || selectedReason.toLowerCase().includes("defective") || selectedReason.toLowerCase().includes("wrong");
+                                        const isBlockedBy48h = orderEligibility?.isWithin48Hours === false && isDamagedSelected;
+
+                                        const handleStep3Continue = () => {
+                                            setStepError("");
+                                            if (isBlockedBy48h) {
+                                                setStepError("Damaged, defective, or wrong items must be reported within 48 hours of delivery.");
+                                                return;
+                                            }
+                                            if (selectedReason === "Other" && !additionalNotes.trim()) {
+                                                setStepError("Please fill in the Additional Notes field to specify your reason.");
+                                                return;
+                                            }
+                                            if (isDamagedSelected && !unboxingVideoFile) {
+                                                setStepError("Please upload or record an unboxing video to proceed.");
+                                                return;
+                                            }
+                                            if (uploadedImages.length === 0) {
+                                                setStepError("Please upload at least 1 product photo.");
+                                                return;
+                                            }
+                                            nextStep();
+                                        };
+
+                                        return (
+                                            <button
+                                                onClick={handleStep3Continue}
+                                                disabled={isBlockedBy48h}
+                                                className={`w-full py-4 rounded-full font-medium text-sm transition-all shadow-sm ${
+                                                    isBlockedBy48h
+                                                        ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                                                        : "bg-[#101820] text-white hover:bg-black cursor-pointer"
+                                                }`}
+                                            >
+                                                {isBlockedBy48h ? "Reporting Window Expired (Past 48 Hours)" : "Review Request"}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -742,10 +1088,11 @@ export default function ReturnAndExchangePage() {
                                             <div className="flex items-center gap-4">
                                                 <div className="relative w-16 h-20 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
                                                     <Image
-                                                        src={selectedItem.image}
+                                                        src={getImageUrl(selectedItem.image)}
                                                         alt={selectedItem.title}
                                                         fill
                                                         className="object-cover object-center"
+                                                        unoptimized
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
@@ -800,164 +1147,200 @@ export default function ReturnAndExchangePage() {
 
                                     {/* Refund & Payment Mode Card */}
                                     <div className="border border-neutral-200/90 rounded-2xl p-6 bg-white space-y-6">
-                                        <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
-                                            <div>
-                                                <h4 className="font-semibold text-base text-black">You&apos;ll receive</h4>
-                                                <p className="text-xs text-neutral-400">Estimated refund</p>
+                                        <div className="space-y-2 pb-4 border-b border-neutral-100">
+                                            <div className="flex items-center justify-between text-xs text-neutral-500">
+                                                <span>Item Subtotal</span>
+                                                <span className="font-semibold text-neutral-800">Rs {itemSubtotal.toLocaleString()}</span>
                                             </div>
-                                            <span className="font-bold text-xl sm:text-2xl text-black">
-                                                Rs {totalRefund.toLocaleString()}
-                                            </span>
+                                            {requestType === "return" && (
+                                                <div className="flex items-center justify-between text-xs text-neutral-500">
+                                                    <span>Return Shipping Fee</span>
+                                                    <span className={returnShippingFee === 0 ? "font-bold text-emerald-600" : "font-semibold text-neutral-800"}>
+                                                        {returnShippingFee === 0 ? "FREE (Bacstory Cover)" : `- Rs ${returnShippingFee}`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                                                <div>
+                                                    <h4 className="font-semibold text-base text-black">You&apos;ll receive</h4>
+                                                    <p className="text-xs text-neutral-400">
+                                                        {requestType === "return" ? "Estimated Refund" : "Exchange Replacement Item"}
+                                                    </p>
+                                                </div>
+                                                <span className="font-bold text-xl sm:text-2xl text-black">
+                                                    {requestType === "return" ? `Rs ${totalRefund.toLocaleString()}` : `Size: ${requestedSize}`}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <div className="space-y-3">
-                                            <label className="block text-xs font-semibold text-black uppercase tracking-wider">
-                                                Select Refund Payout Mode (Initiated within 2 business days after inspection)
-                                            </label>
+                                        {requestType === "return" && (
+                                            <div className="space-y-3">
+                                                <label className="block text-xs font-semibold text-black uppercase tracking-wider">
+                                                    Select Refund Payout Mode (Initiated within 2 business days after inspection)
+                                                </label>
 
-                                            {/* Option 1: Original Payment Method */}
-                                            <div
-                                                onClick={() => setPaymentMode("original")}
-                                                className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "original"
-                                                    ? "border-black bg-white shadow-sm"
-                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
-                                                    }`}
-                                            >
-                                                <span className="text-sm font-medium text-black">
-                                                    Original Payment Method (Prepaid Orders)
-                                                </span>
+                                                {/* Option 1: Original Payment Method (Only for Prepaid Orders) */}
+                                                {!(foundOrder?.paymentMethod === "COD" || foundOrder?.paymentStatus === "COD") && (
+                                                    <div
+                                                        onClick={() => setPaymentMode("original")}
+                                                        className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "original"
+                                                            ? "border-black bg-white shadow-sm"
+                                                            : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
+                                                            }`}
+                                                    >
+                                                        <span className="text-sm font-medium text-black">
+                                                            Original Payment Method (Prepaid Orders)
+                                                        </span>
+                                                        <div
+                                                            className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"
+                                                                ? "bg-[#101820] text-white"
+                                                                : "border-2 border-neutral-300"
+                                                                }`}
+                                                        >
+                                                            {paymentMode === "original" && (
+                                                                <Check className="w-3 h-3 stroke-[3]" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Option 2 & 3: Bank Transfer & UPI (Only for COD Orders) */}
+                                                {(foundOrder?.paymentMethod === "COD" || foundOrder?.paymentStatus === "COD") && (
+                                                    <>
+                                                        {/* Option 2: Bank Transfer (COD Orders) */}
+                                                        <div
+                                                            onClick={() => setPaymentMode("bank")}
+                                                            className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "bank"
+                                                                ? "border-black bg-white shadow-sm"
+                                                                : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span className="text-sm font-medium text-black">
+                                                                    Bank Transfer (COD Refund)
+                                                                </span>
+                                                                <div
+                                                                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "bank"
+                                                                        ? "bg-[#101820] text-white"
+                                                                        : "border-2 border-neutral-300"
+                                                                        }`}
+                                                                >
+                                                                    {paymentMode === "bank" && (
+                                                                        <Check className="w-3 h-3 stroke-[3]" />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {paymentMode === "bank" && (
+                                                                <div className="space-y-2 pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Account Holder Name *"
+                                                                        value={bankHolderName}
+                                                                        onChange={(e) => setBankHolderName(e.target.value)}
+                                                                        className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Account Number *"
+                                                                        value={accountNumber}
+                                                                        onChange={(e) => setAccountNumber(e.target.value)}
+                                                                        className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                                    />
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="IFSC Code *"
+                                                                        value={ifscCode}
+                                                                        onChange={(e) => setIfscCode(e.target.value)}
+                                                                        className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Option 3: UPI (COD Refund) */}
+                                                        <div
+                                                            onClick={() => setPaymentMode("upi")}
+                                                            className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "upi"
+                                                                ? "border-black bg-white shadow-sm"
+                                                                : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span className="text-sm font-medium text-black">
+                                                                    UPI ID (COD Refund)
+                                                                </span>
+                                                                <div
+                                                                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "upi"
+                                                                        ? "bg-[#101820] text-white"
+                                                                        : "border-2 border-neutral-300"
+                                                                        }`}
+                                                                >
+                                                                    {paymentMode === "upi" && (
+                                                                        <Check className="w-3 h-3 stroke-[3]" />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            {paymentMode === "upi" && (
+                                                                <div className="pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Enter UPI ID (e.g. name@upi) *"
+                                                                        value={upiId}
+                                                                        onChange={(e) => setUpiId(e.target.value)}
+                                                                        className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* Option 4: BacStory Wallet */}
                                                 <div
-                                                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"
-                                                        ? "bg-[#101820] text-white"
-                                                        : "border-2 border-neutral-300"
+                                                    onClick={() => setPaymentMode("wallet")}
+                                                    className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "wallet"
+                                                        ? "border-black bg-white shadow-sm"
+                                                        : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
                                                         }`}
                                                 >
-                                                    {paymentMode === "original" && (
-                                                        <Check className="w-3 h-3 stroke-[3]" />
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Option 2: Bank Transfer (COD Orders) */}
-                                            <div
-                                                onClick={() => setPaymentMode("bank")}
-                                                className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "bank"
-                                                    ? "border-black bg-white shadow-sm"
-                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between w-full">
                                                     <span className="text-sm font-medium text-black">
-                                                        Bank Transfer (COD Refund)
+                                                        BacStory Wallet / Store Credit
                                                     </span>
                                                     <div
-                                                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "bank"
+                                                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "wallet"
                                                             ? "bg-[#101820] text-white"
                                                             : "border-2 border-neutral-300"
                                                             }`}
                                                     >
-                                                        {paymentMode === "bank" && (
+                                                        {paymentMode === "wallet" && (
                                                             <Check className="w-3 h-3 stroke-[3]" />
                                                         )}
                                                     </div>
                                                 </div>
-                                                {paymentMode === "bank" && (
-                                                    <div className="space-y-2 pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Account Holder Name"
-                                                            value={bankHolderName}
-                                                            onChange={(e) => setBankHolderName(e.target.value)}
-                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Account Number"
-                                                            value={accountNumber}
-                                                            onChange={(e) => setAccountNumber(e.target.value)}
-                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            placeholder="IFSC Code"
-                                                            value={ifscCode}
-                                                            onChange={(e) => setIfscCode(e.target.value)}
-                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
-                                                        />
-                                                    </div>
-                                                )}
                                             </div>
-
-                                            {/* Option 3: UPI (COD Refund) */}
-                                            <div
-                                                onClick={() => setPaymentMode("upi")}
-                                                className={`p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition-all ${paymentMode === "upi"
-                                                    ? "border-black bg-white shadow-sm"
-                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between w-full">
-                                                    <span className="text-sm font-medium text-black">
-                                                        UPI ID (COD Refund)
-                                                    </span>
-                                                    <div
-                                                        className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "upi"
-                                                            ? "bg-[#101820] text-white"
-                                                            : "border-2 border-neutral-300"
-                                                            }`}
-                                                    >
-                                                        {paymentMode === "upi" && (
-                                                            <Check className="w-3 h-3 stroke-[3]" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {paymentMode === "upi" && (
-                                                    <div className="pt-2 border-t border-neutral-100" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Enter UPI ID (e.g. name@upi)"
-                                                            value={upiId}
-                                                            onChange={(e) => setUpiId(e.target.value)}
-                                                            className="w-full bg-[#F4F4F4] border border-transparent rounded-xl px-4 py-2.5 text-xs text-black focus:bg-white focus:border-black"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Option 4: BacStory Wallet */}
-                                            <div
-                                                onClick={() => setPaymentMode("wallet")}
-                                                className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "wallet"
-                                                    ? "border-black bg-white shadow-sm"
-                                                    : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
-                                                    }`}
-                                            >
-                                                <span className="text-sm font-medium text-black">
-                                                    BacStory Wallet / Store Credit
-                                                </span>
-                                                <div
-                                                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "wallet"
-                                                        ? "bg-[#101820] text-white"
-                                                        : "border-2 border-neutral-300"
-                                                        }`}
-                                                >
-                                                    {paymentMode === "wallet" && (
-                                                        <Check className="w-3 h-3 stroke-[3]" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                                        )}
 
                                         <p className="text-xs text-neutral-400 text-center font-light pt-1">
                                             Refunds are initiated within 2 business days after quality inspection, credited in 5–7 business days.
                                         </p>
                                     </div>
 
+                                    {submitError && (
+                                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm p-4 rounded-2xl">
+                                            {submitError}
+                                        </div>
+                                    )}
+
                                     <button
-                                        onClick={nextStep}
-                                        className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
+                                        onClick={handleSubmitReturnExchange}
+                                        disabled={submitLoading}
+                                        className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm flex items-center justify-center gap-2"
                                     >
-                                        Review Request
+                                        {submitLoading ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <span>Submit {requestType === "return" ? "Return" : "Exchange"} Request</span>
+                                        )}
                                     </button>
 
                                     <p className="text-center text-xs text-neutral-400 pt-2">

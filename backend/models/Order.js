@@ -76,7 +76,6 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true, default: 0 },
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Confirmed", "Failed"],
       default: "Confirmed",
     },
     orderStatus: {
@@ -102,7 +101,7 @@ const orderSchema = new mongoose.Schema(
     },
     returnExchange: {
       isRequested: { type: Boolean, default: false },
-      requestType: { type: String, enum: ["return", "exchange", "none"], default: "none" },
+      requestType: { type: String, default: "none" },
       reason: { type: String, default: "" },
       additionalNotes: { type: String, default: "" },
       requestedSize: { type: String, default: "" },
@@ -113,14 +112,12 @@ const orderSchema = new mongoose.Schema(
       requestedAt: { type: Date },
       status: {
         type: String,
-        enum: ["None", "Pending Verification", "Approved", "Pickup Arranged", "Inspected", "Refunded", "Exchanged", "Rejected"],
         default: "None"
       }
     },
     refundDetails: {
       refundMethod: {
         type: String,
-        enum: ["Original Payment Method", "Bacstory Wallet", "Bank Transfer", "UPI", "None"],
         default: "None"
       },
       bankHolderName: { type: String, default: "" },
@@ -129,10 +126,13 @@ const orderSchema = new mongoose.Schema(
       upiId: { type: String, default: "" },
       refundStatus: {
         type: String,
-        enum: ["Not Applicable", "Pending Inspection", "Initiated", "Credited"],
         default: "Not Applicable"
       },
+      refundAmount: { type: Number, default: 0 },
+      refundId: { type: String, default: "" },
+      razorpayRefundId: { type: String, default: "" },
       initiatedAt: { type: Date },
+      updatedAt: { type: Date },
       estimatedCreditWindow: { type: String, default: "5-7 Business Days" }
     }
   },
