@@ -233,7 +233,7 @@ const updateProfile = async (req, res) => {
 // Add new address
 const addAddress = async (req, res) => {
   try {
-    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, isDefault } = req.body;
+    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, country, isDefault } = req.body;
     if ((!name && !label) || !addressLine1) {
       return res.status(400).json({ success: false, message: "Address label and address line 1 are required." });
     }
@@ -266,6 +266,7 @@ const addAddress = async (req, res) => {
       if (phone) user.addresses[existingIndex].phone = phone.trim();
       if (addressLine2) user.addresses[existingIndex].addressLine2 = addressLine2.trim();
       if (name || label) user.addresses[existingIndex].name = name || label;
+      if (country) user.addresses[existingIndex].country = country.trim();
 
       await user.save();
 
@@ -289,6 +290,7 @@ const addAddress = async (req, res) => {
       addressLine2: addressLine2 ? addressLine2.trim() : "",
       cityStatePin: cityStatePin ? cityStatePin.trim() : "",
       phone: phone ? phone.trim() : user.phoneNumber || "",
+      country: country ? country.trim() : "India",
       isDefault: setAsDefault,
     });
 
@@ -309,7 +311,7 @@ const addAddress = async (req, res) => {
 const updateAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
-    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, isDefault } = req.body;
+    const { name, label, recipientName, addressLine1, addressLine2, cityStatePin, phone, country, isDefault } = req.body;
 
     const user = await User.findById(req.user.id || req.user._id);
     if (!user) {
@@ -327,6 +329,7 @@ const updateAddress = async (req, res) => {
     if (addressLine2 !== undefined) target.addressLine2 = addressLine2;
     if (cityStatePin !== undefined) target.cityStatePin = cityStatePin;
     if (phone !== undefined) target.phone = phone;
+    if (country !== undefined) target.country = country;
 
     if (isDefault) {
       user.addresses.forEach((addr) => {

@@ -48,6 +48,7 @@ const userSchema = new mongoose.Schema(
         addressLine2: { type: String, default: "" },
         cityStatePin: { type: String, default: "" },
         phone: { type: String, default: "" },
+        country: { type: String, default: "India" },
         isDefault: { type: Boolean, default: false },
       },
     ],

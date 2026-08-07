@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
-import { Lock, Check, ShoppingBag, User, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Lock, Check, ShoppingBag, User, CheckCircle2, Loader2, AlertCircle, ArrowLeft, X, Trash2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
+import { COUNTRIES, getCountryByNameOrCode, validatePhoneNumber } from "@/lib/countryPhoneValidation";
 
 // Fallback items matching the mockup exactly
 const mockCheckoutItems = [
@@ -40,7 +41,32 @@ const mockCheckoutItems = [
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
-    const { user, userFetch } = useUserAuth();
+    const { user, userFetch, refreshUser } = useUserAuth();
+
+    const [phoneError, setPhoneError] = useState("");
+
+    // Delivery address selection & modal state
+    const [isWritingAddress, setIsWritingAddress] = useState(false);
+    const [isSelectAddressOpen, setIsSelectAddressOpen] = useState(false);
+    const [selectedAddressId, setSelectedAddressId] = useState(null);
+
+    // Modal for Add / Edit Address inside checkout
+    const modalFormRef = useRef(null);
+    const [isModalAddEditOpen, setIsModalAddEditOpen] = useState(false);
+    const [modalEditAddressId, setModalEditAddressId] = useState(null);
+    const [modalPhoneError, setModalPhoneError] = useState("");
+    const [isFetchingModalPincode, setIsFetchingModalPincode] = useState(false);
+    const [modalAddressForm, setModalAddressForm] = useState({
+        name: "",
+        phone: "",
+        pinCode: "",
+        streetAddress: "",
+        streetAddress2: "",
+        cityState: "",
+        country: "India",
+        addressType: "HOME",
+        isDefault: true
+    });
 
     // Check if the cart has items; if not, use mock items for visual exactness
     const isCartEmpty = cartItems.length === 0;
@@ -86,20 +112,32 @@ export default function CheckoutPage() {
             if (user.addresses && user.addresses.length > 0) {
                 const defaultAddr = user.addresses.find(a => a.isDefault) || user.addresses[0];
                 if (defaultAddr) {
-                    const cityStatePinMatch = defaultAddr.cityStatePin ? defaultAddr.cityStatePin.split("-") : [];
-                    const pin = cityStatePinMatch.length > 1 ? cityStatePinMatch[1].trim() : "";
-                    const cityStateParts = cityStatePinMatch[0] ? cityStatePinMatch[0].split(",") : [];
+                    setSelectedAddressId(defaultAddr._id || defaultAddr.id);
+                    setIsWritingAddress(false);
+
+                    const rawCityStatePin = defaultAddr.cityStatePin || "";
+                    const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+                    const pin = matchPin ? matchPin[0] : (defaultAddr.pincode || "");
+                    const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+                    const cityStateParts = cleanCityState.split(",");
                     const city = cityStateParts[0] ? cityStateParts[0].trim() : "";
                     const state = cityStateParts[1] ? cityStateParts[1].trim() : "";
 
+                    const recNameParts = (defaultAddr.recipientName || user.name || "").split(" ");
+
                     savedUserAddress = {
+                        firstName: recNameParts[0] || fName,
+                        lastName: recNameParts.slice(1).join(" ") || lName,
                         streetAddress: defaultAddr.addressLine1 || "",
                         city: city,
                         state: state,
                         pinCode: pin,
-                        phoneNumber: defaultAddr.phone || ""
+                        phoneNumber: defaultAddr.phone || "",
+                        country: defaultAddr.country || "India"
                     };
                 }
+            } else {
+                setIsWritingAddress(true);
             }
 
             setFormData(prev => ({
@@ -107,18 +145,208 @@ export default function CheckoutPage() {
                 ...localData,
                 contactEmail: user.email || localData.contactEmail || prev.contactEmail || "",
                 deliveryEmail: user.email || localData.deliveryEmail || prev.deliveryEmail || "",
-                phoneNumber: user.phoneNumber || savedUserAddress.phoneNumber || localData.phoneNumber || prev.phoneNumber || "",
-                firstName: localData.firstName || fName || prev.firstName,
-                lastName: localData.lastName || lName || prev.lastName,
-                streetAddress: localData.streetAddress || savedUserAddress.streetAddress || prev.streetAddress,
-                city: localData.city || savedUserAddress.city || prev.city,
-                state: localData.state || savedUserAddress.state || prev.state,
-                pinCode: localData.pinCode || savedUserAddress.pinCode || prev.pinCode,
+                phoneNumber: savedUserAddress.phoneNumber || user.phoneNumber || localData.phoneNumber || prev.phoneNumber || "",
+                firstName: savedUserAddress.firstName || localData.firstName || fName || prev.firstName,
+                lastName: savedUserAddress.lastName || localData.lastName || lName || prev.lastName,
+                streetAddress: savedUserAddress.streetAddress || localData.streetAddress || prev.streetAddress,
+                city: savedUserAddress.city || localData.city || prev.city,
+                state: savedUserAddress.state || localData.state || prev.state,
+                pinCode: savedUserAddress.pinCode || localData.pinCode || prev.pinCode,
+                country: savedUserAddress.country || localData.country || prev.country || "India",
             }));
         } else if (Object.keys(localData).length > 0) {
             setFormData(prev => ({ ...prev, ...localData }));
+            setIsWritingAddress(true);
+        } else {
+            setIsWritingAddress(true);
         }
     }, [user]);
+
+    const handleSelectAddress = (addr) => {
+        setSelectedAddressId(addr._id || addr.id);
+        const rawCityStatePin = addr.cityStatePin || "";
+        const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+        const pin = matchPin ? matchPin[0] : (addr.pincode || "");
+        const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+        const cityStateParts = cleanCityState.split(",");
+        const city = cityStateParts[0] ? cityStateParts[0].trim() : "";
+        const state = cityStateParts[1] ? cityStateParts[1].trim() : "";
+
+        const recipientName = addr.recipientName || addr.name || user?.name || "";
+        const nameParts = recipientName.split(" ");
+        const fName = nameParts[0] || "";
+        const lName = nameParts.slice(1).join(" ") || "";
+
+        setFormData(prev => ({
+            ...prev,
+            firstName: fName,
+            lastName: lName,
+            phoneNumber: addr.phone || "",
+            streetAddress: addr.addressLine1 || "",
+            city: city,
+            state: state,
+            pinCode: pin,
+            country: addr.country || "India"
+        }));
+        setIsWritingAddress(false);
+    };
+
+    const handleOpenEditAddressInModal = (addr) => {
+        setModalEditAddressId(addr._id || addr.id);
+        setModalPhoneError("");
+        const rawCityStatePin = addr.cityStatePin || "";
+        const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+        const pin = matchPin ? matchPin[0] : (addr.pincode || "");
+        const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+
+        const recName = addr.recipientName || (addr.name && !["HOME", "WORK", "OTHER"].includes(addr.name.toUpperCase()) ? addr.name : (user?.name || ""));
+        const rawPhone = addr.phone || user?.phoneNumber || "";
+        const cleanPhone = rawPhone.replace(/\D/g, "").slice(-10);
+
+        setModalAddressForm({
+            name: recName,
+            phone: cleanPhone,
+            pinCode: pin,
+            streetAddress: addr.addressLine1 || "",
+            streetAddress2: addr.addressLine2 || "",
+            cityState: cleanCityState,
+            country: addr.country || "India",
+            addressType: (addr.name || "HOME").toUpperCase(),
+            isDefault: Boolean(addr.isDefault)
+        });
+        setIsModalAddEditOpen(true);
+    };
+
+    const handleModalPincodeChange = async (pinVal) => {
+        const pin = pinVal.replace(/\D/g, "").slice(0, 6);
+        setModalAddressForm(prev => ({ ...prev, pinCode: pin }));
+
+        if (pin.length === 6) {
+            setIsFetchingModalPincode(true);
+            try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+                const data = await res.json();
+                if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    const fetchedCity = po.District || po.Block || po.Name || "";
+                    const fetchedState = po.State || "";
+                    setModalAddressForm(prev => ({
+                        ...prev,
+                        pinCode: pin,
+                        cityState: `${fetchedCity}, ${fetchedState}`
+                    }));
+                }
+            } catch (err) {
+                console.error("Error fetching pincode in modal:", err);
+            } finally {
+                setIsFetchingModalPincode(false);
+            }
+        }
+    };
+
+    const handleSaveModalAddress = async (e) => {
+        e.preventDefault();
+        const targetName = modalAddressForm.name.trim() || user?.name || "Customer";
+        const targetPhone = modalAddressForm.phone.replace(/\D/g, "") || (user?.phoneNumber ? user.phoneNumber.replace(/\D/g, "") : "");
+
+        if (!modalAddressForm.streetAddress || !modalAddressForm.pinCode) {
+            setModalPhoneError("Please fill in House Number, Pin Code, and Contact Details.");
+            if (modalFormRef.current) modalFormRef.current.scrollTop = 0;
+            return;
+        }
+
+        const phoneCheck = validatePhoneNumber(targetPhone, modalAddressForm.country);
+        if (!phoneCheck.isValid) {
+            setModalPhoneError(phoneCheck.error);
+            if (modalFormRef.current) modalFormRef.current.scrollTop = 0;
+            return;
+        }
+        setModalPhoneError("");
+
+        const token = localStorage.getItem("userToken");
+        const cityStatePinStr = modalAddressForm.pinCode
+            ? `${modalAddressForm.cityState} - ${modalAddressForm.pinCode}`
+            : modalAddressForm.cityState;
+
+        const payload = {
+            name: modalAddressForm.addressType || "HOME",
+            recipientName: targetName,
+            addressLine1: modalAddressForm.streetAddress,
+            addressLine2: modalAddressForm.streetAddress2 || "",
+            cityStatePin: cityStatePinStr,
+            phone: phoneCheck.cleanPhone || targetPhone,
+            country: modalAddressForm.country || "India",
+            isDefault: modalAddressForm.isDefault
+        };
+
+        try {
+            if (token) {
+                const isMongoId = modalEditAddressId && /^[0-9a-fA-F]{24}$/.test(String(modalEditAddressId));
+                const url = isMongoId
+                    ? `${API_BASE_URL}/frontend/auth/addresses/${modalEditAddressId}`
+                    : `${API_BASE_URL}/frontend/auth/addresses`;
+                const method = isMongoId ? "PUT" : "POST";
+
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success && refreshUser) {
+                    await refreshUser(token);
+                }
+            }
+        } catch (err) {
+            console.error("Error saving address modal:", err);
+        }
+
+        // Apply to current checkout form
+        const nameParts = targetName.split(" ");
+        const fName = nameParts[0] || "";
+        const lName = nameParts.slice(1).join(" ") || "";
+        const cityStateParts = (modalAddressForm.cityState || "").split(",");
+        const city = cityStateParts[0] ? cityStateParts[0].trim() : "";
+        const state = cityStateParts[1] ? cityStateParts[1].trim() : "";
+
+        setFormData(prev => ({
+            ...prev,
+            firstName: fName,
+            lastName: lName,
+            phoneNumber: phoneCheck.cleanPhone || targetPhone,
+            streetAddress: modalAddressForm.streetAddress,
+            city: city,
+            state: state,
+            pinCode: modalAddressForm.pinCode,
+            country: modalAddressForm.country || "India"
+        }));
+
+        setIsWritingAddress(false);
+        setIsModalAddEditOpen(false);
+        setIsSelectAddressOpen(false);
+    };
+
+    const handleDeleteAddressFromModal = async (addrId) => {
+        const token = localStorage.getItem("userToken");
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/frontend/auth/addresses/${addrId}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            const data = await res.json();
+            if (data.success && refreshUser) {
+                refreshUser(token);
+            }
+        } catch (err) {
+            console.error("Error deleting address:", err);
+        }
+    };
 
     const [shippingMethod, setShippingMethod] = useState("standard"); // standard, express, international
     const [promoInput, setPromoInput] = useState("");
@@ -170,6 +398,9 @@ export default function CheckoutPage() {
                             return updated;
                         });
                         setPinCodeError("");
+                        setTimeout(() => {
+                            saveShippingAddress();
+                        }, 200);
                     } else {
                         setPinCodeError("Invalid PIN code. Please enter a valid Indian PIN code.");
                         setFormData(prev => {
@@ -200,7 +431,24 @@ export default function CheckoutPage() {
     }, [formData.pinCode]);
 
     const handleInputChange = (field, value) => {
-        const valToSet = field === "pinCode" ? value.replace(/\D/g, "").slice(0, 6) : value;
+        let valToSet = value;
+        if (field === "pinCode") {
+            valToSet = value.replace(/\D/g, "").slice(0, 6);
+        } else if (field === "phoneNumber") {
+            const countryObj = getCountryByNameOrCode(formData.country);
+            valToSet = value.replace(/\D/g, "").slice(0, countryObj.maxLength);
+            if (valToSet) {
+                const check = validatePhoneNumber(valToSet, formData.country);
+                setPhoneError(check.error);
+            } else {
+                setPhoneError("");
+            }
+        } else if (field === "country") {
+            if (formData.phoneNumber) {
+                const check = validatePhoneNumber(formData.phoneNumber, value);
+                setPhoneError(check.error);
+            }
+        }
 
         setFormData(prev => {
             const updated = {
@@ -218,10 +466,10 @@ export default function CheckoutPage() {
         });
     };
 
-    // Save shipping address function (persists locally for checkout session)
+    // Save shipping address function (persists locally for checkout session & syncs to backend user profile)
     const saveShippingAddress = async () => {
         try {
-            localStorage.setItem("savedShippingAddress", JSON.stringify({
+            const addrObj = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 contactEmail: formData.contactEmail,
@@ -232,9 +480,44 @@ export default function CheckoutPage() {
                 state: formData.state,
                 pinCode: formData.pinCode,
                 country: formData.country
-            }));
+            };
+
+            // 1. Save to localStorage for session persistence
+            localStorage.setItem("savedShippingAddress", JSON.stringify(addrObj));
+
+            // 2. Sync to backend user profile if logged in & required fields exist
+            const token = localStorage.getItem("userToken");
+            if (token && formData.streetAddress && formData.city && formData.state && formData.pinCode) {
+                const recipient = `${formData.firstName || ""} ${formData.lastName || ""}`.trim() || (user?.name || "Customer");
+                const cityStatePinStr = formData.pinCode 
+                    ? `${formData.city}, ${formData.state} - ${formData.pinCode}` 
+                    : `${formData.city}, ${formData.state}`;
+
+                const res = await fetch(`${API_BASE_URL}/frontend/auth/addresses`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name: "Home",
+                        recipientName: recipient,
+                        addressLine1: formData.streetAddress,
+                        addressLine2: "",
+                        cityStatePin: cityStatePinStr,
+                        phone: formData.phoneNumber || user?.phoneNumber || "",
+                        country: formData.country || "India",
+                        isDefault: true
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success && refreshUser) {
+                    refreshUser(token);
+                }
+            }
         } catch (e) {
-            console.error("Error saving address to local storage:", e);
+            console.error("Error saving address:", e);
         }
     };
 
@@ -248,38 +531,44 @@ export default function CheckoutPage() {
 
     const shippingCost = getShippingCost();
 
-    // Promo code handler
+    // Handle Promo Code application
     const handleApplyPromo = async (e) => {
         e.preventDefault();
         setPromoError("");
         setPromoSuccess("");
 
-        const code = promoInput.trim().toUpperCase();
-        if (code === "") {
+        if (!promoInput.trim()) {
             setPromoError("Please enter a promo code.");
             return;
         }
 
         try {
-            const res = await fetch(`${API_BASE_URL}/frontend/promo-codes/validate`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    code,
-                    orderAmount: activeSubtotal
-                })
-            });
+            const res = await fetch(`${API_BASE_URL}/admin/coupons`);
             const data = await res.json();
+            const coupons = Array.isArray(data) ? data : data.data || [];
+            const codeToMatch = promoInput.trim().toUpperCase();
+            const found = coupons.find(c => (c.code || "").toUpperCase() === codeToMatch);
 
-            if (data.success && data.data) {
-                setActivePromo(data.data);
-                setPromoSuccess(data.message || "Promo code applied successfully!");
-            } else {
-                setPromoError(data.message || "Invalid promo code.");
+            if (!found) {
+                setPromoError("Invalid promo code. Please check and try again.");
                 setActivePromo(null);
+                return;
             }
+
+            if (!found.status) {
+                setPromoError("This promo code is currently inactive.");
+                setActivePromo(null);
+                return;
+            }
+
+            if (activeSubtotal < (found.minOrderAmount || 0)) {
+                setPromoError(`This promo code requires a minimum spend of Rs ${found.minOrderAmount}`);
+                setActivePromo(null);
+                return;
+            }
+
+            setActivePromo(found);
+            setPromoSuccess(`Promo code "${found.code}" applied!`);
         } catch (error) {
             console.error("Error applying promo code:", error);
             setPromoError("Failed to apply promo code. Please try again.");
@@ -314,6 +603,14 @@ export default function CheckoutPage() {
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
         setPaymentError("");
+
+        // Validate Phone Number according to Country
+        const phoneCheck = validatePhoneNumber(formData.phoneNumber, formData.country);
+        if (!phoneCheck.isValid) {
+            setPhoneError(phoneCheck.error);
+            return;
+        }
+        setPhoneError("");
 
         // Validate PIN code
         if (!/^\d{6}$/.test(formData.pinCode)) {
@@ -575,9 +872,13 @@ export default function CheckoutPage() {
                                 </span>
                             )}
                         </button>
-                        <button className="hover:text-black transition-colors cursor-pointer" aria-label="Account">
+                        <Link
+                            href={user ? "/account" : "/login"}
+                            className="hover:text-black transition-colors cursor-pointer flex items-center justify-center"
+                            aria-label="Account Profile"
+                        >
                             <User className="h-5.5 w-5.5 stroke-[1.25]" />
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </header>
@@ -624,162 +925,235 @@ export default function CheckoutPage() {
 
                             {/* Delivery Details Section */}
                             <div className="pt-8">
-                                <h2 className="heading-sub text-black mb-1">
-                                    Delivery Details
-                                </h2>
-                                <p className="text-xs sm:text-sm text-neutral-400 font-normal mb-8">
-                                    Where should we send your order? Your address will be saved upon continuing to payment.
-                                </p>
-
-                                <div className="space-y-6">
-                                    {/* Name Row */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                FIRST NAME
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.firstName}
-                                                onChange={(e) => handleInputChange("firstName", e.target.value)}
-                                                placeholder="Enter first name"
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                LAST NAME
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.lastName}
-                                                onChange={(e) => handleInputChange("lastName", e.target.value)}
-                                                placeholder="Enter last name"
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Email Address */}
+                                <div className="flex items-center justify-between mb-4">
                                     <div>
-                                        <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                            EMAIL ADDRESS
-                                        </label>
-                                        <input
-                                            type="email"
-                                            required
-                                            value={formData.deliveryEmail}
-                                            onChange={(e) => handleInputChange("deliveryEmail", e.target.value)}
-                                            placeholder="Enter email address"
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                        />
+                                        <h2 className="heading-sub text-black mb-1">
+                                            Delivery Details
+                                        </h2>
+                                        <p className="text-xs sm:text-sm text-neutral-400 font-normal">
+                                            Where should we send your order?
+                                        </p>
                                     </div>
+                                    {user && user.addresses && user.addresses.length > 0 && isWritingAddress && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsWritingAddress(false)}
+                                            className="text-xs font-bold text-neutral-900 hover:underline cursor-pointer"
+                                        >
+                                            Use Saved Address
+                                        </button>
+                                    )}
+                                </div>
 
-                                    {/* Phone Number */}
-                                    <div>
-                                        <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                            PHONE NUMBER
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            required
-                                            value={formData.phoneNumber}
-                                            onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                                            placeholder="Enter phone number"
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                        />
-                                    </div>
-
-                                    {/* Street Address */}
-                                    <div>
-                                        <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                            STREET ADDRESS
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.streetAddress}
-                                            onChange={(e) => handleInputChange("streetAddress", e.target.value)}
-                                            placeholder="House No, Building, Street, Area"
-                                            className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                        />
-                                    </div>
-
-                                    {/* City & State Row */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                CITY
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.city}
-                                                onChange={(e) => handleInputChange("city", e.target.value)}
-                                                placeholder="Enter city"
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                STATE
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.state}
-                                                onChange={(e) => handleInputChange("state", e.target.value)}
-                                                placeholder="Enter state"
-                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Pin Code & Country Row */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                PIN CODE
-                                            </label>
-                                            <input
-                                                type="text"
-                                                required
-                                                value={formData.pinCode}
-                                                onChange={(e) => handleInputChange("pinCode", e.target.value)}
-                                                placeholder="Enter 6-digit PIN code"
-                                                maxLength={6}
-                                                className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${pinCodeError
-                                                    ? "border-red-500 focus:border-red-500 bg-red-50/20"
-                                                    : "border-neutral-200 focus:border-black"
-                                                    }`}
-                                            />
-                                            {isFetchingPincode && (
-                                                <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1.5 select-none">
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
-                                                    Fetching city & state...
+                                {user && user.addresses && user.addresses.length > 0 && !isWritingAddress ? (
+                                    /* Deliver to Card (Matching Screenshot 1) */
+                                    <div className="bg-neutral-50/80 border border-neutral-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-semibold text-neutral-800">
+                                                Deliver to: <span className="font-bold text-neutral-900">{formData.firstName} {formData.lastName}</span>, <span className="font-bold font-mono text-neutral-900">{formData.pinCode}</span>
+                                            </p>
+                                            <p className="text-xs sm:text-sm text-neutral-600 font-normal leading-relaxed">
+                                                {formData.streetAddress}, {formData.city}, {formData.state} - {formData.pinCode}
+                                            </p>
+                                            {formData.phoneNumber && (
+                                                <p className="text-xs text-neutral-500 font-medium pt-0.5">
+                                                    Mobile: <span className="font-semibold text-neutral-800">{formData.phoneNumber}</span>
                                                 </p>
                                             )}
-                                            {pinCodeError && !isFetchingPincode && (
-                                                <p className="text-xs text-red-500 font-semibold mt-1.5">{pinCodeError}</p>
-                                            )}
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsSelectAddressOpen(true)}
+                                            className="self-start sm:self-center px-4 py-2 text-xs font-bold tracking-wider text-neutral-900 border border-neutral-300 rounded-lg hover:bg-black hover:text-white transition-colors uppercase cursor-pointer whitespace-nowrap"
+                                        >
+                                            CHANGE ADDRESS
+                                        </button>
+                                    </div>
+                                ) : (
+                                    /* Form Inputs (Full address write form) */
+                                    <div className="space-y-6 pt-2">
+                                        {/* Name Row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    FIRST NAME
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.firstName}
+                                                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    placeholder="Enter first name"
+                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    LAST NAME
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.lastName}
+                                                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    placeholder="Enter last name"
+                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Email Address */}
                                         <div>
                                             <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                COUNTRY
+                                                EMAIL ADDRESS
+                                            </label>
+                                            <input
+                                                type="email"
+                                                required
+                                                value={formData.deliveryEmail}
+                                                onChange={(e) => handleInputChange("deliveryEmail", e.target.value)}
+                                                onBlur={saveShippingAddress}
+                                                placeholder="Enter email address"
+                                                className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
+                                            />
+                                        </div>
+
+                                        {/* Phone Number */}
+                                        <div>
+                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                PHONE NUMBER
+                                            </label>
+                                            {(() => {
+                                                const countryObj = getCountryByNameOrCode(formData.country);
+                                                return (
+                                                    <div>
+                                                        <div className="relative flex items-center">
+                                                            {countryObj.dialCode && (
+                                                                <span className="absolute left-4 text-sm font-bold text-neutral-500 select-none pointer-events-none">
+                                                                    {countryObj.dialCode}
+                                                                </span>
+                                                            )}
+                                                            <input
+                                                                type="tel"
+                                                                required
+                                                                value={formData.phoneNumber}
+                                                                onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                                                                onBlur={saveShippingAddress}
+                                                                placeholder={countryObj.placeholder}
+                                                                className={`w-full h-12 border rounded-lg ${countryObj.dialCode ? "pl-14" : "px-4"} pr-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${phoneError
+                                                                    ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                                    : "border-neutral-200 focus:border-black"
+                                                                    }`}
+                                                            />
+                                                        </div>
+                                                        {phoneError && (
+                                                            <p className="text-xs text-red-500 font-semibold mt-1.5">{phoneError}</p>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* Street Address */}
+                                        <div>
+                                            <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                STREET ADDRESS
                                             </label>
                                             <input
                                                 type="text"
                                                 required
-                                                value={formData.country}
-                                                onChange={(e) => handleInputChange("country", e.target.value)}
-                                                placeholder="Enter country"
+                                                value={formData.streetAddress}
+                                                onChange={(e) => handleInputChange("streetAddress", e.target.value)}
+                                                onBlur={saveShippingAddress}
+                                                placeholder="House No, Building, Street, Area"
                                                 className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
                                             />
                                         </div>
+
+                                        {/* City & State Row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    CITY
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.city}
+                                                    onChange={(e) => handleInputChange("city", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    placeholder="Enter city"
+                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    STATE
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.state}
+                                                    onChange={(e) => handleInputChange("state", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    placeholder="Enter state"
+                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Pin Code & Country Row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    PIN CODE
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={formData.pinCode}
+                                                    onChange={(e) => handleInputChange("pinCode", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    placeholder="Enter 6-digit PIN code"
+                                                    maxLength={6}
+                                                    className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${pinCodeError
+                                                        ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                        : "border-neutral-200 focus:border-black"
+                                                        }`}
+                                                />
+                                                {isFetchingPincode && (
+                                                    <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1.5 select-none">
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                                                        Fetching city & state...
+                                                    </p>
+                                                )}
+                                                {pinCodeError && !isFetchingPincode && (
+                                                    <p className="text-xs text-red-500 font-semibold mt-1.5">{pinCodeError}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
+                                                    COUNTRY
+                                                </label>
+                                                <select
+                                                    value={formData.country}
+                                                    onChange={(e) => handleInputChange("country", e.target.value)}
+                                                    onBlur={saveShippingAddress}
+                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors bg-white cursor-pointer"
+                                                >
+                                                    {COUNTRIES.map((c) => (
+                                                        <option key={c.code} value={c.name}>
+                                                            {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
 
                                 {/* Shipping Method Selection */}
                                 <div className="mt-10">
@@ -861,7 +1235,6 @@ export default function CheckoutPage() {
                                         </label>
                                     </div>
                                 </div>
-                            </div>
 
                             {/* Payment Error Banner */}
                             {paymentError && (
@@ -1074,6 +1447,394 @@ export default function CheckoutPage() {
                         >
                             <span>Back to Homepage</span>
                         </Link>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal 1: Select Delivery Address Modal (Screenshots 2 & 3) */}
+            {isSelectAddressOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fade-in">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                            <h3 className="text-base font-bold text-neutral-900 font-clashDisplay">Select Delivery Address</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsSelectAddressOpen(false)}
+                                className="text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                            {/* Saved Address Sub-Header */}
+                            <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                                <span className="text-xs font-bold tracking-wider text-neutral-500 uppercase">SAVED ADDRESS</span>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setModalEditAddressId(null);
+                                        setModalPhoneError("");
+                                        setModalAddressForm({
+                                            name: "",
+                                            phone: "",
+                                            pinCode: "",
+                                            streetAddress: "",
+                                            streetAddress2: "",
+                                            cityState: "",
+                                            country: "India",
+                                            addressType: "HOME",
+                                            isDefault: true
+                                        });
+                                        setIsModalAddEditOpen(true);
+                                    }}
+                                    className="text-xs font-bold text-neutral-900 hover:underline transition-colors cursor-pointer"
+                                >
+                                    + Add New Address
+                                </button>
+                            </div>
+
+                            {/* Saved Addresses List */}
+                            <div className="space-y-4">
+                                {user?.addresses && user.addresses.length > 0 ? (
+                                    user.addresses.map((addr) => {
+                                        const rawCityStatePin = addr.cityStatePin || "";
+                                        const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+                                        const pin = matchPin ? matchPin[0] : (addr.pincode || "");
+                                        const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+
+                                        const isSelected = selectedAddressId === (addr._id || addr.id);
+
+                                        return (
+                                            <div
+                                                key={addr._id || addr.id}
+                                                onClick={() => handleSelectAddress(addr)}
+                                                className={`border rounded-xl p-4 transition-all cursor-pointer ${
+                                                    isSelected
+                                                        ? "border-black bg-neutral-50/80 shadow-xs"
+                                                        : "border-neutral-200 hover:border-neutral-300 bg-white"
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    <div className="pt-0.5">
+                                                        <input
+                                                            type="radio"
+                                                            name="selectedAddress"
+                                                            checked={isSelected}
+                                                            onChange={() => handleSelectAddress(addr)}
+                                                            className="w-4 h-4 text-black focus:ring-black accent-black cursor-pointer"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-bold text-sm text-neutral-900">
+                                                                {addr.recipientName || addr.name || "Customer"}
+                                                            </span>
+                                                            {addr.isDefault && (
+                                                                <span className="text-xs text-neutral-400 font-medium">(Default)</span>
+                                                            )}
+                                                            <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider text-emerald-600 border border-emerald-300 rounded-md uppercase">
+                                                                {addr.name || "HOME"}
+                                                            </span>
+                                                        </div>
+
+                                                        <p className="text-xs text-neutral-600 leading-relaxed">
+                                                            {addr.addressLine1}
+                                                            {addr.addressLine2 ? `, ${addr.addressLine2}` : ""}
+                                                            {cleanCityState ? `, ${cleanCityState}` : ""}
+                                                            {pin ? ` - ${pin}` : ""}
+                                                        </p>
+
+                                                        {addr.phone && (
+                                                            <p className="text-xs text-neutral-700 font-medium pt-0.5">
+                                                                Mobile: <span className="font-bold text-neutral-900">{addr.phone}</span>
+                                                            </p>
+                                                        )}
+
+                                                        {/* Action buttons */}
+                                                        <div className="flex items-center gap-2 pt-2.5">
+                                                            {isSelected ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleSelectAddress(addr);
+                                                                        setIsSelectAddressOpen(false);
+                                                                    }}
+                                                                    className="px-4 py-2 text-xs font-bold tracking-wider bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors uppercase cursor-pointer"
+                                                                >
+                                                                    DELIVERING HERE
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleSelectAddress(addr);
+                                                                    }}
+                                                                    className="px-4 py-2 text-xs font-bold tracking-wider border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors uppercase cursor-pointer"
+                                                                >
+                                                                    DELIVER HERE
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenEditAddressInModal(addr);
+                                                                }}
+                                                                className="px-4 py-2 text-xs font-bold tracking-wider border border-neutral-300 text-neutral-700 rounded-lg hover:bg-neutral-100 transition-colors uppercase cursor-pointer"
+                                                            >
+                                                                EDIT
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteAddressFromModal(addr._id || addr.id);
+                                                                }}
+                                                                className="p-2 border border-neutral-200 text-neutral-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                                                                title="Delete Address"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="text-xs text-neutral-400 italic">No saved addresses found.</p>
+                                )}
+                            </div>
+
+                            {/* Big ADD NEW ADDRESS button at bottom */}
+                            <div className="pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setModalEditAddressId(null);
+                                        setModalPhoneError("");
+                                        setModalAddressForm({
+                                            name: "",
+                                            phone: "",
+                                            pinCode: "",
+                                            streetAddress: "",
+                                            streetAddress2: "",
+                                            cityState: "",
+                                            country: "India",
+                                            addressType: "HOME",
+                                            isDefault: true
+                                        });
+                                        setIsModalAddEditOpen(true);
+                                    }}
+                                    className="w-full py-3 border-2 border-neutral-800 rounded-xl text-xs font-bold tracking-wider text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors uppercase cursor-pointer"
+                                >
+                                    ADD NEW ADDRESS
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal 2: Add / Edit Address Modal (Screenshot 4) */}
+            {isModalAddEditOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-fade-in">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalAddEditOpen(false)}
+                                    className="text-neutral-500 hover:text-neutral-900 cursor-pointer"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                                <h3 className="text-base font-bold text-neutral-900 uppercase tracking-wider font-clashDisplay">
+                                    {modalEditAddressId ? "EDIT ADDRESS" : "ADD NEW ADDRESS"}
+                                </h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsModalAddEditOpen(false)}
+                                className="text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content Form Body */}
+                        <form ref={modalFormRef} onSubmit={handleSaveModalAddress} className="p-6 overflow-y-auto space-y-4 flex-1">
+                            {/* Contact Details Section */}
+                            <div className="space-y-3">
+                                <p className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">CONTACT DETAILS</p>
+                                <input
+                                    type="text"
+                                    required
+                                    value={modalAddressForm.name}
+                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, name: e.target.value })}
+                                    placeholder="Name*"
+                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
+                                />
+                                <div>
+                                    {(() => {
+                                        const countryObj = getCountryByNameOrCode(modalAddressForm.country);
+                                        return (
+                                            <div className="relative flex items-center">
+                                                {countryObj.dialCode && (
+                                                    <span className="absolute left-4 text-sm font-bold text-neutral-500 select-none pointer-events-none">
+                                                        {countryObj.dialCode}
+                                                    </span>
+                                                )}
+                                                <input
+                                                    type="tel"
+                                                    required
+                                                    value={modalAddressForm.phone}
+                                                    onChange={(e) => {
+                                                        const rawDigits = e.target.value.replace(/\D/g, "").slice(0, countryObj.maxLength);
+                                                        setModalAddressForm({ ...modalAddressForm, phone: rawDigits });
+                                                        if (rawDigits) {
+                                                            const check = validatePhoneNumber(rawDigits, modalAddressForm.country);
+                                                            setModalPhoneError(check.error);
+                                                        } else {
+                                                            setModalPhoneError("");
+                                                        }
+                                                    }}
+                                                    placeholder="Mobile No*"
+                                                    className={`w-full h-11 border rounded-xl ${countryObj.dialCode ? "pl-14" : "px-4"} pr-4 text-sm font-normal focus:outline-none ${
+                                                        modalPhoneError ? "border-red-500 focus:border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"
+                                                    }`}
+                                                />
+                                            </div>
+                                        );
+                                    })()}
+                                    {modalPhoneError && (
+                                        <p className="text-xs text-red-500 font-semibold mt-1">{modalPhoneError}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Address Section */}
+                            <div className="space-y-3 pt-2">
+                                <p className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">ADDRESS</p>
+
+                                {/* Country Selector */}
+                                <div>
+                                    <select
+                                        value={modalAddressForm.country || "India"}
+                                        onChange={(e) => setModalAddressForm({ ...modalAddressForm, country: e.target.value })}
+                                        className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black bg-white cursor-pointer"
+                                    >
+                                        {COUNTRIES.map((c) => (
+                                            <option key={c.code} value={c.name}>
+                                                {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Pin Code */}
+                                <div>
+                                    <input
+                                        type="text"
+                                        required
+                                        maxLength={6}
+                                        value={modalAddressForm.pinCode}
+                                        onChange={(e) => handleModalPincodeChange(e.target.value)}
+                                        placeholder="Pin Code*"
+                                        className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
+                                    />
+                                    {isFetchingModalPincode && (
+                                        <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1 select-none">
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+                                            Fetching city & state...
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* House Number / Tower / Block */}
+                                <input
+                                    type="text"
+                                    required
+                                    value={modalAddressForm.streetAddress}
+                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, streetAddress: e.target.value })}
+                                    placeholder="House Number/Tower/Block*"
+                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
+                                />
+
+                                {/* Street / Area / Landmark */}
+                                <input
+                                    type="text"
+                                    value={modalAddressForm.streetAddress2}
+                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, streetAddress2: e.target.value })}
+                                    placeholder="Street/Area/Landmark"
+                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
+                                />
+
+                                {/* City & State (Auto-filled) */}
+                                <input
+                                    type="text"
+                                    value={modalAddressForm.cityState}
+                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, cityState: e.target.value })}
+                                    placeholder="City & State (Auto-filled)"
+                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black bg-neutral-50/50"
+                                />
+                            </div>
+
+                            {/* Save Address As Selection */}
+                            <div className="space-y-2 pt-1">
+                                <p className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">SAVE ADDRESS AS</p>
+                                <div className="flex items-center gap-3">
+                                    {["HOME", "WORK", "OTHER"].map((type) => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setModalAddressForm({ ...modalAddressForm, addressType: type })}
+                                            className={`px-4 py-2 text-xs font-bold rounded-full border transition-all cursor-pointer ${
+                                                modalAddressForm.addressType === type
+                                                    ? "border-black bg-black text-white shadow-xs"
+                                                    : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
+                                            }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Make Default Checkbox */}
+                            <label className="flex items-center gap-2 pt-1 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={modalAddressForm.isDefault}
+                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, isDefault: e.target.checked })}
+                                    className="w-4 h-4 text-black focus:ring-black accent-black rounded cursor-pointer"
+                                />
+                                <span className="text-xs text-neutral-600 font-medium">Make this my default address</span>
+                            </label>
+
+                            {/* Bottom Action Buttons (Screenshot 4) */}
+                            <div className="pt-3 flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalAddEditOpen(false)}
+                                    className="flex-1 py-3 border border-neutral-300 rounded-xl text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-3 bg-black hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-md uppercase tracking-wider"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

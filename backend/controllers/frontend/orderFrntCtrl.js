@@ -57,6 +57,48 @@ const createOrderRecord = async (req, res) => {
       orderStatus: "Order Confirmed",
     });
 
+    // Auto-save/update shipping address in user's saved addresses in database
+    if (userId && shippingAddress && shippingAddress.streetAddress) {
+      try {
+        const User = require("../../models/user");
+        const userObj = await User.findById(userId);
+        if (userObj) {
+          const recipient = `${shippingAddress.firstName || ""} ${shippingAddress.lastName || ""}`.trim() || userObj.name || "Customer";
+          const cityStatePinStr = `${shippingAddress.city || ""}, ${shippingAddress.state || ""} - ${shippingAddress.pinCode || ""}`.trim();
+          const targetLine1 = (shippingAddress.streetAddress || "").trim().toLowerCase();
+          const targetCityStatePin = cityStatePinStr.toLowerCase();
+
+          const existingIndex = userObj.addresses.findIndex((addr) => {
+            const matchLine1 = (addr.addressLine1 || "").trim().toLowerCase() === targetLine1;
+            const matchCityStatePin = (addr.cityStatePin || "").trim().toLowerCase() === targetCityStatePin;
+            return matchLine1 && matchCityStatePin;
+          });
+
+          if (existingIndex !== -1) {
+            userObj.addresses[existingIndex].recipientName = recipient;
+            if (shippingAddress.phoneNumber) userObj.addresses[existingIndex].phone = shippingAddress.phoneNumber;
+          } else {
+            const isFirst = userObj.addresses.length === 0;
+            if (isFirst) {
+              userObj.addresses.forEach(a => a.isDefault = false);
+            }
+            userObj.addresses.push({
+              name: "Home",
+              recipientName: recipient,
+              addressLine1: shippingAddress.streetAddress.trim(),
+              addressLine2: "",
+              cityStatePin: cityStatePinStr,
+              phone: shippingAddress.phoneNumber || userObj.phoneNumber || "",
+              isDefault: isFirst || userObj.addresses.length === 0,
+            });
+          }
+          await userObj.save();
+        }
+      } catch (addrErr) {
+        console.error("Error auto-saving order address to user profile:", addrErr);
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: "Order recorded successfully in database",

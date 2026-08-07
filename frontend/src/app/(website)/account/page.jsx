@@ -5,6 +5,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { COUNTRIES, getCountryByNameOrCode, validatePhoneNumber } from "@/lib/countryPhoneValidation";
 import {
     Pencil,
     Trash2,
@@ -77,18 +78,27 @@ export default function AccountProfilePage() {
                             setSavedProfile(updated);
 
                             if (Array.isArray(u.addresses) && u.addresses.length > 0) {
-                                setAddresses(u.addresses.map((a, idx) => ({
-                                    _id: a._id || String(idx + 1),
-                                    id: a._id || idx + 1,
-                                    name: a.name || "Home",
-                                    label: a.name || "Home",
-                                    recipientName: a.recipientName || "",
-                                    addressLine1: a.addressLine1 || "",
-                                    addressLine2: a.addressLine2 || "",
-                                    cityStatePin: a.cityStatePin || "",
-                                    phone: a.phone || "",
-                                    isDefault: Boolean(a.isDefault),
-                                })));
+                                setAddresses(u.addresses.map((a, idx) => {
+                                    const rawCityStatePin = a.cityStatePin || "";
+                                    const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+                                    const extractedPin = matchPin ? matchPin[0] : (a.pincode || "");
+                                    const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+
+                                    return {
+                                        _id: a._id || String(idx + 1),
+                                        id: a._id || idx + 1,
+                                        name: a.name || "Home",
+                                        label: a.name || "Home",
+                                        recipientName: a.recipientName || "",
+                                        addressLine1: a.addressLine1 || "",
+                                        addressLine2: a.addressLine2 || "",
+                                        cityStatePin: cleanCityState ? (extractedPin ? `${cleanCityState} - ${extractedPin}` : cleanCityState) : "",
+                                        pincode: extractedPin,
+                                        phone: a.phone || "",
+                                        country: a.country || "India",
+                                        isDefault: Boolean(a.isDefault),
+                                    };
+                                }));
                             }
                         }
                     }
@@ -110,6 +120,7 @@ export default function AccountProfilePage() {
     const [editingAddressId, setEditingAddressId] = useState(null);
     const [pincodeLoading, setPincodeLoading] = useState(false);
     const [pincodeError, setPincodeError] = useState("");
+    const [phoneError, setPhoneError] = useState("");
     const [newAddress, setNewAddress] = useState({
         name: "",
         label: "Home",
@@ -118,6 +129,7 @@ export default function AccountProfilePage() {
         pincode: "",
         cityStatePin: "",
         phone: "",
+        country: "India",
     });
 
     const handleProfileChange = (e) => {
@@ -166,7 +178,7 @@ export default function AccountProfilePage() {
         setNewAddress((prev) => ({
             ...prev,
             pincode: pin,
-            cityStatePin: pin.length < 6 ? "" : prev.cityStatePin,
+            cityStatePin: pin.length < 6 ? prev.cityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim() : prev.cityStatePin,
         }));
 
         if (pin.length === 6) {
@@ -177,7 +189,7 @@ export default function AccountProfilePage() {
                     const data = await res.json();
                     if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
                         const po = data[0].PostOffice[0];
-                        const locationStr = `${po.District || po.Name}, ${po.State} - ${pin}`;
+                        const locationStr = `${po.District || po.Name}, ${po.State}`;
                         setNewAddress((prev) => ({
                             ...prev,
                             pincode: pin,
@@ -186,16 +198,13 @@ export default function AccountProfilePage() {
                         setPincodeError("");
                         showToast(`Location fetched: ${po.District || po.Name}, ${po.State}`, "success");
                     } else {
-                        setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
                         setPincodeError("Please provide a valid pincode.");
                     }
                 } else {
-                    setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
                     setPincodeError("Please provide a valid pincode.");
                 }
             } catch (err) {
                 console.log("Pincode lookup error:", err);
-                setNewAddress((prev) => ({ ...prev, cityStatePin: "" }));
                 setPincodeError("Please provide a valid pincode.");
             } finally {
                 setPincodeLoading(false);
@@ -206,6 +215,7 @@ export default function AccountProfilePage() {
     const handleOpenAddAddress = () => {
         setEditingAddressId(null);
         setPincodeError("");
+        setPhoneError("");
         setNewAddress({
             name: "",
             label: "Home",
@@ -213,7 +223,8 @@ export default function AccountProfilePage() {
             addressLine2: "",
             pincode: "",
             cityStatePin: "",
-            phone: profile.phone || "",
+            phone: profile.phone ? profile.phone.replace(/\D/g, "").slice(0, 10) : "",
+            country: "India",
         });
         setIsAddAddressOpen(true);
     };
@@ -221,14 +232,21 @@ export default function AccountProfilePage() {
     const handleOpenEditAddress = (addr) => {
         setEditingAddressId(addr._id || addr.id);
         setPincodeError("");
+        setPhoneError("");
+        const rawCityStatePin = addr.cityStatePin || "";
+        const matchPin = rawCityStatePin.match(/\b\d{6}\b/);
+        const extractedPin = matchPin ? matchPin[0] : (addr.pincode || "");
+        const cleanCityState = rawCityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+
         setNewAddress({
             name: addr.name || addr.label || "",
             label: addr.label || addr.name || "Home",
             addressLine1: addr.addressLine1 || "",
             addressLine2: addr.addressLine2 || "",
-            pincode: "",
-            cityStatePin: addr.cityStatePin || "",
+            pincode: extractedPin,
+            cityStatePin: cleanCityState,
             phone: addr.phone || "",
+            country: addr.country || "India",
         });
         setIsAddAddressOpen(true);
     };
@@ -237,13 +255,28 @@ export default function AccountProfilePage() {
         e.preventDefault();
         if (!newAddress.name || !newAddress.addressLine1) return;
 
+        // Validate phone number according to country
+        const phoneCheck = validatePhoneNumber(newAddress.phone, newAddress.country);
+        if (!phoneCheck.isValid) {
+            setPhoneError(phoneCheck.error);
+            showToast(phoneCheck.error, "error");
+            return;
+        }
+        setPhoneError("");
+
+        const cleanCityState = (newAddress.cityStatePin || "").replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim();
+        const formattedCityStatePin = newAddress.pincode 
+            ? `${cleanCityState} - ${newAddress.pincode}` 
+            : cleanCityState;
+
         const payload = {
             name: newAddress.name,
             label: newAddress.name,
             addressLine1: newAddress.addressLine1,
             addressLine2: newAddress.addressLine2,
-            cityStatePin: newAddress.cityStatePin,
-            phone: newAddress.phone || profile.phone,
+            cityStatePin: formattedCityStatePin,
+            phone: phoneCheck.cleanPhone || newAddress.phone,
+            country: newAddress.country || "India",
             isDefault: addresses.length === 0,
         };
 
@@ -717,6 +750,32 @@ export default function AccountProfilePage() {
                                 )}
                             </div>
 
+                            {/* Country Selector */}
+                            <div>
+                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">Country</label>
+                                <select
+                                    value={newAddress.country || "India"}
+                                    onChange={(e) => {
+                                        const selectedCountry = e.target.value;
+                                        setNewAddress((prev) => {
+                                            const updated = { ...prev, country: selectedCountry };
+                                            if (prev.phone) {
+                                                const check = validatePhoneNumber(prev.phone, selectedCountry);
+                                                setPhoneError(check.error);
+                                            }
+                                            return updated;
+                                        });
+                                    }}
+                                    className="w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white cursor-pointer"
+                                >
+                                    {COUNTRIES.map((c) => (
+                                        <option key={c.code} value={c.name}>
+                                            {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="text-xs font-semibold text-neutral-500 mb-1 block">City & State (Auto-filled)</label>
@@ -730,15 +789,51 @@ export default function AccountProfilePage() {
                                 </div>
                                 <div>
                                     <label className="text-xs font-semibold text-neutral-500 mb-1 block">Phone Number</label>
-                                    <input
-                                        type="text"
-                                        value={newAddress.phone}
-                                        onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
-                                        className="w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400"
-                                        placeholder="+91 98765 43210"
-                                    />
+                                    {(() => {
+                                        const countryObj = getCountryByNameOrCode(newAddress.country);
+                                        return (
+                                            <div className="relative flex items-center">
+                                                {countryObj.dialCode && (
+                                                    <span className="absolute left-3 text-xs font-bold text-neutral-500 select-none pointer-events-none">
+                                                        {countryObj.dialCode}
+                                                    </span>
+                                                )}
+                                                <input
+                                                    type="tel"
+                                                    value={newAddress.phone}
+                                                    onChange={(e) => {
+                                                        const rawDigits = e.target.value.replace(/\D/g, "").slice(0, countryObj.maxLength);
+                                                        setNewAddress((prev) => ({ ...prev, phone: rawDigits }));
+                                                        if (rawDigits) {
+                                                            const check = validatePhoneNumber(rawDigits, newAddress.country);
+                                                            setPhoneError(check.error);
+                                                        } else {
+                                                            setPhoneError("");
+                                                        }
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (newAddress.phone) {
+                                                            const check = validatePhoneNumber(newAddress.phone, newAddress.country);
+                                                            setPhoneError(check.error);
+                                                        }
+                                                    }}
+                                                    className={`w-full border rounded-xl ${countryObj.dialCode ? "pl-12" : "px-3.5"} pr-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none transition-colors ${
+                                                        phoneError
+                                                            ? "border-red-400 focus:border-red-500 bg-red-50/20"
+                                                            : "border-neutral-200 focus:border-neutral-400"
+                                                    }`}
+                                                    placeholder={countryObj.placeholder}
+                                                />
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
+                            {phoneError && (
+                                <p className="text-[11px] font-semibold text-red-500 mt-0.5 flex items-center gap-1">
+                                    ⚠ {phoneError}
+                                </p>
+                            )}
 
                             <div className="pt-3 flex gap-3">
                                 <button
