@@ -180,7 +180,9 @@ export default function ReturnAndExchangePage() {
                         price: i.priceNum || 0,
                         quantity: i.quantity || 1,
                         orderId: data.data.orderId,
-                        image: i.image || "/images/landing-page/coding-tshirt.png"
+                        image: i.image || "/images/landing-page/coding-tshirt.png",
+                        availableSizes: Array.isArray(i.availableSizes) && i.availableSizes.length > 0 ? i.availableSizes : ["XS", "S", "M", "L", "XL", "XXL"],
+                        availableColors: Array.isArray(i.availableColors) && i.availableColors.length > 0 ? i.availableColors : (i.color ? [i.color] : ["Standard"])
                     }));
                     setOrderItems(mappedItems);
                     setSelectedItemIds([mappedItems[0].id]);
@@ -189,6 +191,8 @@ export default function ReturnAndExchangePage() {
                         initialQuantities[i.id] = i.quantity || 1;
                     });
                     setSelectedQuantities(initialQuantities);
+                    if (mappedItems[0]?.availableSizes?.length > 0) setRequestedSize(mappedItems[0].availableSizes[0]);
+                    if (mappedItems[0]?.availableColors?.length > 0) setRequestedColor(mappedItems[0].availableColors[0]);
                 } else {
                     setOrderItems([]);
                     setSelectedItemIds([]);
@@ -867,39 +871,55 @@ export default function ReturnAndExchangePage() {
                                         )}
 
                                         {/* Exchange Options (New Size & Color) */}
-                                        {requestType === "exchange" && (
-                                            <div className="bg-purple-50/70 border border-purple-200 p-4 rounded-2xl space-y-3 text-xs text-purple-950">
-                                                <p className="font-semibold text-sm text-purple-900">Exchange Replacement Preferences</p>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="block text-[11px] font-semibold text-purple-800 mb-1">
-                                                            Requested Size
-                                                        </label>
-                                                        <select
-                                                            value={requestedSize}
-                                                            onChange={(e) => setRequestedSize(e.target.value)}
-                                                            className="w-full bg-white border border-purple-200 rounded-xl p-2.5 text-xs text-black"
-                                                        >
-                                                            {["XS", "S", "M", "L", "XL", "XXL"].map((sz) => (
-                                                                <option key={sz} value={sz}>{sz}</option>
-                                                            ))}
-                                                        </select>
+                                        {requestType === "exchange" && (() => {
+                                            const standardSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+                                            const rawSizes = (selectedItem?.availableSizes && selectedItem.availableSizes.length > 0)
+                                                ? selectedItem.availableSizes.filter((s) => standardSizes.includes(s.toUpperCase()))
+                                                : standardSizes;
+                                            const availSizes = rawSizes.length > 0 ? rawSizes : standardSizes;
+                                            const availColors = (selectedItem?.availableColors && selectedItem.availableColors.length > 0)
+                                                ? selectedItem.availableColors
+                                                : (selectedItem?.color ? [selectedItem.color] : ["Standard"]);
+
+                                            return (
+                                                <div className="bg-purple-50/70 border border-purple-200 p-4 sm:p-5 rounded-2xl space-y-3 text-xs text-purple-950">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-semibold text-sm text-purple-900">Exchange Replacement Preferences</p>
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-md">
+                                                            Available Options Only
+                                                        </span>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-[11px] font-semibold text-purple-800 mb-1">
-                                                            Requested Color
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={requestedColor}
-                                                            onChange={(e) => setRequestedColor(e.target.value)}
-                                                            placeholder="Color preference"
-                                                            className="w-full bg-white border border-purple-200 rounded-xl p-2.5 text-xs text-black"
-                                                        />
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-[11px] font-semibold text-purple-800 mb-1.5">
+                                                                Requested Size
+                                                            </label>
+                                                            <CustomSelect
+                                                                options={availSizes.map((sz) => ({ value: sz, label: sz }))}
+                                                                value={requestedSize && availSizes.includes(requestedSize) ? requestedSize : availSizes[0]}
+                                                                onChange={(e) => setRequestedSize(e.target.value)}
+                                                                placeholder="Select Size"
+                                                                showPlaceholderInMenu={false}
+                                                                className="!bg-white !border-purple-200 !rounded-xl !py-2.5 !px-3.5 !text-xs text-black hover:!border-purple-300 shadow-2xs"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[11px] font-semibold text-purple-800 mb-1.5">
+                                                                Requested Color
+                                                            </label>
+                                                            <CustomSelect
+                                                                options={availColors.map((col) => ({ value: col, label: col }))}
+                                                                value={requestedColor && availColors.includes(requestedColor) ? requestedColor : availColors[0]}
+                                                                onChange={(e) => setRequestedColor(e.target.value)}
+                                                                placeholder="Select Color"
+                                                                showPlaceholderInMenu={false}
+                                                                className="!bg-white !border-purple-200 !rounded-xl !py-2.5 !px-3.5 !text-xs text-black hover:!border-purple-300 shadow-2xs"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* Reason Select Dropdown */}
                                         <div>
