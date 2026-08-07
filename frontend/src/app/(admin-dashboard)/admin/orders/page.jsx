@@ -700,181 +700,194 @@ export default function AdminOrdersPage() {
                 <p><strong>Refund Amount:</strong> Rs {selectedOrder.cancellation.refundAmount || selectedOrder.totalAmount} (100% Refund)</p>
               </div>
             )}
+            
+            {/* Return / Exchange Requests Section */}
+            {(() => {
+              const returnRequestsList = (Array.isArray(selectedOrder.returnRequestsHistory) && selectedOrder.returnRequestsHistory.length > 0)
+                ? selectedOrder.returnRequestsHistory
+                : (selectedOrder.returnExchange?.isRequested ? [selectedOrder.returnExchange] : []);
 
-            {/* Return / Exchange Request Details (if requested) */}
-            {selectedOrder.returnExchange?.isRequested && (() => {
-              const reqReason = selectedOrder.returnExchange?.reason || "";
-              const isFreeShippingReason = [
-                "Defective or damaged product",
-                "Received wrong item",
-                "Parcel received with missing items",
-                "Item damaged during transit"
-              ].includes(reqReason);
-
-              const returnShippingFee = isFreeShippingReason
-                ? 0
-                : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
-                  ? selectedOrder.returnExchange.returnShippingFee
-                  : 99);
-
-              const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
-              const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
-
-              const isPendingAction = selectedOrder.returnExchange.status === "Pending Verification" || selectedOrder.returnExchange.status === "Return Requested" || selectedOrder.returnExchange.status === "Exchange Requested";
+              if (returnRequestsList.length === 0) return null;
 
               return (
-                <div className={`${isPendingAction ? "bg-purple-50/30 border border-purple-200/50" : "bg-neutral-50 border border-neutral-200/60"} p-4 rounded-2xl space-y-3 transition-colors`}>
-                  <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
-                    <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
-                      {selectedOrder.returnExchange.requestType === "return" ? "Return Request" : "Exchange Request"}
-                    </span>
+                <div className="space-y-4">
+                  <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                    Return & Exchange Requests ({returnRequestsList.length})
+                  </span>
 
-                    {(selectedOrder.returnExchange.status === "Pending Verification" || selectedOrder.returnExchange.status === "Return Requested" || selectedOrder.returnExchange.status === "Exchange Requested") ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
-                          disabled={actionLoading}
-                          title="Approve Request"
-                          className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
-                        >
-                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[3] text-emerald-600" />}
-                        </button>
-                        <button
-                          onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
-                          disabled={actionLoading}
-                          title="Reject Request"
-                          className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
-                        >
-                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4 stroke-[3] text-red-600" />}
-                        </button>
-                      </div>
-                    ) : (
-                      <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${selectedOrder.returnExchange.status === "Approved" || selectedOrder.returnExchange.status === "Return Approved"
-                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        : selectedOrder.returnExchange.status === "Rejected"
-                          ? "bg-red-100 text-red-800 border border-red-200"
-                          : "bg-neutral-200 text-neutral-800 border border-neutral-300"
-                        }`}>
-                        {selectedOrder.returnExchange.status}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Reason:</strong> {selectedOrder.returnExchange.reason}</p>
-                  {selectedOrder.returnExchange.additionalNotes && (
-                    <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Notes:</strong> {selectedOrder.returnExchange.additionalNotes}</p>
-                  )}
+                  {returnRequestsList.map((req, reqIndex) => {
+                    const isPendingAction = req.status === "Pending Verification" || req.status === "Return Requested" || req.status === "Exchange Requested";
+                    const isReturn = req.requestType === "return";
 
-                  {/* Requested Return Items */}
-                  {selectedOrder.returnExchange.requestedItems?.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-neutral-200/60">
-                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
-                        Requested {selectedOrder.returnExchange.requestType === "exchange" ? "Exchange" : "Return"} Items:
-                      </span>
-                      <div className="space-y-1.5">
-                        {selectedOrder.returnExchange.requestedItems.map((ritem, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs bg-white p-3 rounded-xl border border-neutral-200/80 font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-neutral-900">{ritem.name}</span>
-                              <span className="text-neutral-500">({ritem.size} / {ritem.color})</span>
+                    let reqItemsSubtotal = 0;
+                    if (req.requestedItems?.length > 0) {
+                      req.requestedItems.forEach(ritem => {
+                        const origItem = selectedOrder.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
+                        const rawPrice = origItem ? origItem.price : ((selectedOrder.totalAmount || 1100) / (selectedOrder.items?.length || 1));
+                        const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
+                        const qty = ritem.returnQuantity || 1;
+                        reqItemsSubtotal += (unitPrice * qty);
+                      });
+                    }
+                    const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : 99;
+                    const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
+
+                    return (
+                      <div key={req._id || req.requestId || reqIndex} className={`${isPendingAction ? "bg-purple-50/30 border border-purple-200/50" : "bg-neutral-50 border border-neutral-200/60"} p-4 rounded-2xl space-y-3 transition-colors`}>
+                        <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
+                          <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                            {isReturn ? `Return Request #${reqIndex + 1}` : `Exchange Request #${reqIndex + 1}`}
+                          </span>
+
+                          {isPendingAction ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
+                                disabled={actionLoading}
+                                title="Approve Request"
+                                className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
+                              >
+                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[3] text-emerald-600" />}
+                              </button>
+                              <button
+                                onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
+                                disabled={actionLoading}
+                                title="Reject Request"
+                                className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
+                              >
+                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4 stroke-[3] text-red-600" />}
+                              </button>
                             </div>
-                            <span className="font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-0.5 rounded-md text-xs border border-neutral-200/60">
-                              Qty: {ritem.returnQuantity || 1}
+                          ) : (
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${req.status === "Approved" || req.status === "Return Approved"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              : req.status === "Rejected"
+                                ? "bg-red-100 text-red-800 border border-red-200"
+                                : "bg-neutral-200 text-neutral-800 border border-neutral-300"
+                              }`}>
+                              {req.status}
                             </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Reason:</strong> {req.reason}</p>
+                        {req.additionalNotes && (
+                          <p className="text-xs text-neutral-600"><strong className="font-semibold text-neutral-900">Notes:</strong> {req.additionalNotes}</p>
+                        )}
+
+                        {/* Requested Return Items */}
+                        {req.requestedItems?.length > 0 && (
+                          <div className="space-y-2 pt-2 border-t border-neutral-200/60">
+                            <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                              Requested {isReturn ? "Return" : "Exchange"} Items:
+                            </span>
+                            <div className="space-y-1.5">
+                              {req.requestedItems.map((ritem, idx) => (
+                                <div key={idx} className="flex items-center justify-between text-xs bg-white p-3 rounded-xl border border-neutral-200/80 font-medium">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-neutral-900">{ritem.name}</span>
+                                    <span className="text-neutral-500">({ritem.size} / {ritem.color})</span>
+                                  </div>
+                                  <span className="font-semibold text-neutral-900 bg-neutral-100 px-2.5 py-0.5 rounded-md text-xs border border-neutral-200/60">
+                                    Qty: {ritem.returnQuantity || 1}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        ))}
+                        )}
+
+                        {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
+                        {req.unboxingVideo && (
+                          <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-1">
+                            <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Unboxing Video Proof:</span>
+                            <a
+                              href={getImageUrl(req.unboxingVideo)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 underline font-medium break-all text-xs hover:text-indigo-800"
+                            >
+                              {req.unboxingVideo}
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Proof Photos */}
+                        {req.proofPhotos?.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Uploaded Proof Photos:</span>
+                            <div className="flex items-center gap-2 overflow-x-auto">
+                              {req.proofPhotos.map((img, idx) => (
+                                <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
+                                  <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Admin Action Buttons matching exact 7-stage return table workflow */}
+                        {(() => {
+                          const retStatus = req.status;
+
+                          if (retStatus === "Return Approved" || retStatus === "Approved") {
+                            return (
+                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
+                                <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
+                                <button
+                                  onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId)}
+                                  disabled={actionLoading}
+                                  className="bg-neutral-900 hover:bg-black disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                                >
+                                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                                  <span>Mark Product Received by Seller</span>
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          if (retStatus === "Product Received") {
+                            return (
+                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
+                                <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Refund Processing</strong></span>
+                                <button
+                                  onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId)}
+                                  disabled={actionLoading}
+                                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                                >
+                                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                                  <span>Initiate & Process Refund via Razorpay (Rs {reqNetRefund.toLocaleString()})</span>
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          if (retStatus === "Refund Initiated") {
+                            return (
+                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
+                                <span className="font-semibold text-amber-800 flex items-center gap-1.5">
+                                  <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)
+                                </span>
+                                <span className="bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase">Refund Processing</span>
+                              </div>
+                            );
+                          }
+
+                          if (retStatus === "Refunded") {
+                            return (
+                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
+                                <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Razorpay Refund Processed & Credited to Customer
+                                </span>
+                                <span className="bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-full uppercase">Refunded</span>
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })()}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
-                  {selectedOrder.returnExchange.unboxingVideo && (
-                    <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-1">
-                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Unboxing Video Proof:</span>
-                      <a
-                        href={getImageUrl(selectedOrder.returnExchange.unboxingVideo)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 underline font-medium break-all text-xs hover:text-indigo-800"
-                      >
-                        {selectedOrder.returnExchange.unboxingVideo}
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Proof Photos */}
-                  {selectedOrder.returnExchange.proofPhotos?.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Uploaded Proof Photos:</span>
-                      <div className="flex items-center gap-2 overflow-x-auto">
-                        {selectedOrder.returnExchange.proofPhotos.map((img, idx) => (
-                          <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
-                            <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80" />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Admin Action Buttons matching exact 7-stage return table workflow */}
-                  {(() => {
-                    const retStatus = selectedOrder.returnExchange.status;
-
-                    if (retStatus === "Return Approved" || retStatus === "Approved") {
-                      return (
-                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
-                          <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
-                          <button
-                            onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId)}
-                            disabled={actionLoading}
-                            className="bg-neutral-900 hover:bg-black disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                          >
-                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
-                            <span>Mark Product Received by Seller</span>
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    if (retStatus === "Product Received") {
-                      return (
-                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
-                          <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Refund Processing</strong></span>
-                          <button
-                            onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId)}
-                            disabled={actionLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                          >
-                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                            <span>Initiate & Process Refund via Razorpay (Rs {netRefundAmount.toLocaleString()})</span>
-                          </button>
-                        </div>
-                      );
-                    }
-
-                    if (retStatus === "Refund Initiated") {
-                      return (
-                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-amber-800 flex items-center gap-1.5">
-                            <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)
-                          </span>
-                          <span className="bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase">Refund Processing</span>
-                        </div>
-                      );
-                    }
-
-                    if (retStatus === "Refunded") {
-                      return (
-                        <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Razorpay Refund Processed & Credited to Customer
-                          </span>
-                          <span className="bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-full uppercase">Refunded</span>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })()}
+                    );
+                  })}
                 </div>
               );
             })()}

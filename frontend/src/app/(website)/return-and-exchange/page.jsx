@@ -170,16 +170,23 @@ export default function ReturnAndExchangePage() {
 
                 // Map items from fetched database order
                 if (data.data.items && Array.isArray(data.data.items) && data.data.items.length > 0) {
-                    const requestedItems = data.data.returnExchange?.requestedItems || [];
+                    let allReturnedItems = [];
+                    if (Array.isArray(data.data.returnRequestsHistory) && data.data.returnRequestsHistory.length > 0) {
+                        data.data.returnRequestsHistory.forEach(req => {
+                            if (req.status !== "Rejected" && Array.isArray(req.requestedItems)) {
+                                allReturnedItems.push(...req.requestedItems);
+                            }
+                        });
+                    } else if (data.data.returnExchange?.requestedItems) {
+                        allReturnedItems = data.data.returnExchange.requestedItems;
+                    }
 
                     const mappedItems = data.data.items.map((i, idx) => {
                         const itemIdStr = i._id?.toString() || `item-${idx + 1}`;
-                        const matchedReq = requestedItems.find(ritem =>
-                            ritem.itemId === itemIdStr ||
-                            ritem.itemId === i.id ||
-                            (ritem.name === i.name && ritem.size === i.size && ritem.color === i.color)
-                        );
-                        const returnedQty = matchedReq ? (matchedReq.returnQuantity || 0) : 0;
+                        const returnedQty = allReturnedItems
+                            .filter(ritem => ritem.itemId === itemIdStr || ritem.itemId === i.id || (ritem.name === i.name && ritem.size === i.size && ritem.color === i.color))
+                            .reduce((sum, ritem) => sum + (ritem.returnQuantity || 1), 0);
+
                         const totalQty = i.quantity || 1;
                         const remainingQty = Math.max(0, totalQty - returnedQty);
 
@@ -191,7 +198,7 @@ export default function ReturnAndExchangePage() {
                             color: i.color || "Standard",
                             colorDot: i.colorHex || "#000000",
                             price: i.priceNum || 0,
-                            quantity: remainingQty > 0 ? remainingQty : (returnedQty > 0 ? 0 : totalQty),
+                            quantity: remainingQty,
                             totalOrderedQuantity: totalQty,
                             returnedQuantity: returnedQty,
                             orderId: data.data.orderId,

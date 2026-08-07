@@ -68,6 +68,21 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+// Helper to update active returnExchange and matching entry in returnRequestsHistory
+const updateReturnRequestStatus = (order, newStatus, additionalData = {}) => {
+  if (!order.returnExchange) order.returnExchange = {};
+  order.returnExchange.status = newStatus;
+  Object.assign(order.returnExchange, additionalData);
+
+  if (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+    const lastIdx = order.returnRequestsHistory.length - 1;
+    if (order.returnRequestsHistory[lastIdx]) {
+      order.returnRequestsHistory[lastIdx].status = newStatus;
+      Object.assign(order.returnRequestsHistory[lastIdx], additionalData);
+    }
+  }
+};
+
 // Helper to auto-sync Razorpay refund status with backend database
 const syncRazorpayRefundStatus = async (order) => {
   try {
@@ -82,22 +97,45 @@ const syncRazorpayRefundStatus = async (order) => {
     const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
     const rzpRefund = await rzp.refunds.fetch(refundId);
 
-    if (rzpRefund && rzpRefund.status === "processed") {
-      order.orderStatus = "Returned";
-      if (!order.returnExchange) order.returnExchange = {};
-      order.returnExchange.status = "Refunded";
-      order.paymentStatus = "Refunded";
-      if (!order.refundDetails) order.refundDetails = {};
-      order.refundDetails.refundStatus = "Refunded";
-      order.refundDetails.updatedAt = new Date();
+    if (rzpRefund) {
+      if (rzpRefund.status === "credited" || rzpRefund.speed_processed === "instant") {
+        // Stage 7: Bank credit confirmed -> Refunded & Returned
+        if (order.returnExchange?.status !== "Refunded") {
+          order.orderStatus = "Returned";
+          order.paymentStatus = "Refunded";
+          updateReturnRequestStatus(order, "Refunded");
+          if (!order.refundDetails) order.refundDetails = {};
+          order.refundDetails.refundStatus = "Refunded";
+          order.refundDetails.updatedAt = new Date();
 
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((item) => {
-          item.orderStatus = "Returned";
-          item.paymentStatus = "Refunded";
-        });
+          if (order.items && Array.isArray(order.items)) {
+            order.items.forEach((item) => {
+              item.orderStatus = "Returned";
+              item.paymentStatus = "Refunded";
+            });
+          }
+          await order.save();
+        }
+      } else if (rzpRefund.status === "processed" || rzpRefund.status === "pending") {
+        // Stage 6: Razorpay gateway processed -> Refund Initiated & Processing (5-7 working days for bank credit)
+        if (order.returnExchange?.status !== "Refunded") {
+          order.orderStatus = "Return In Progress";
+          order.paymentStatus = "Refund Processing";
+          updateReturnRequestStatus(order, "Refund Initiated");
+          if (!order.refundDetails) order.refundDetails = {};
+          order.refundDetails.refundStatus = "Refund Processing";
+          order.refundDetails.estimatedCreditWindow = "5-7 Business Days";
+          order.refundDetails.updatedAt = new Date();
+
+          if (order.items && Array.isArray(order.items)) {
+            order.items.forEach((item) => {
+              item.orderStatus = "Return In Progress";
+              item.paymentStatus = "Refund Processing";
+            });
+          }
+          await order.save();
+        }
       }
-      await order.save();
     }
   } catch (err) {
     console.error("Error auto-syncing Razorpay refund status:", err.message);
@@ -236,14 +274,12 @@ const updateRefundStatus = async (req, res) => {
     // Stage 7: Refund completed -> Order: Returned, Return: Refunded, Payment: Refunded
     if (refundStatus === "Refund Processing" || refundStatus === "Initiated / Refund Pending") {
       order.orderStatus = "Return In Progress";
-      if (!order.returnExchange) order.returnExchange = {};
-      order.returnExchange.status = "Refund Initiated";
       order.paymentStatus = "Refund Processing";
+      updateReturnRequestStatus(order, "Refund Initiated");
     } else if (refundStatus === "Refunded" || refundStatus === "Processed / Credited") {
       order.orderStatus = "Returned";
-      if (!order.returnExchange) order.returnExchange = {};
-      order.returnExchange.status = "Refunded";
       order.paymentStatus = "Refunded";
+      updateReturnRequestStatus(order, "Refunded");
     }
 
     order.refundDetails.updatedAt = new Date();
@@ -281,10 +317,10 @@ const approveReturnRequest = async (req, res) => {
     }
 
     const reqType = order.returnExchange.requestType || "return";
+    const appStatus = reqType === "return" ? "Return Approved" : "Exchange Approved";
 
     if (reqType === "return") {
       // Stage 4: Admin approves return -> Order: Delivered, Return: Return Approved, Payment: Paid
-      order.returnExchange.status = "Return Approved";
       order.orderStatus = "Delivered";
       order.paymentStatus = "Paid";
 
@@ -296,11 +332,10 @@ const approveReturnRequest = async (req, res) => {
       order.refundDetails.refundStatus = "None";
     } else {
       // Exchange request
-      order.returnExchange.status = "Exchange Approved";
       order.orderStatus = "Ready to Pack & Ship";
     }
 
-    order.returnExchange.approvedAt = new Date();
+    updateReturnRequestStatus(order, appStatus, { approvedAt: new Date() });
     await order.save();
 
     return res.status(200).json({
@@ -332,9 +367,8 @@ const markProductReceived = async (req, res) => {
     }
 
     order.orderStatus = "Return In Progress";
-    order.returnExchange.status = "Product Received";
     order.paymentStatus = "Paid";
-    order.returnExchange.receivedAt = new Date();
+    updateReturnRequestStatus(order, "Product Received", { receivedAt: new Date() });
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
@@ -435,12 +469,13 @@ const processReturnRefund = async (req, res) => {
 
     // Stage 6: Refund initiated & processing (Razorpay processing timeline: 5-7 working days)
     order.orderStatus = "Return In Progress";
-    order.returnExchange.status = "Refund Initiated";
     order.paymentStatus = "Refund Processing";
     order.refundDetails.refundStatus = "Refund Processing";
     order.refundDetails.refundId = refundResult.id;
     order.refundDetails.razorpayRefundId = refundResult.id;
     order.refundDetails.estimatedCreditWindow = "5-7 Working Days";
+
+    updateReturnRequestStatus(order, "Refund Initiated", { razorpayRefundId: refundResult.id });
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
@@ -477,13 +512,10 @@ const rejectReturnRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (!order.returnExchange) {
-      order.returnExchange = {};
-    }
-
-    order.returnExchange.status = "Rejected";
-    order.returnExchange.rejectionReason = rejectionReason || "Request does not meet return policy criteria.";
-    order.returnExchange.rejectedAt = new Date();
+    updateReturnRequestStatus(order, "Rejected", {
+      rejectionReason: rejectionReason || "Request does not meet return policy criteria.",
+      rejectedAt: new Date()
+    });
 
     await order.save();
 

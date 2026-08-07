@@ -151,6 +151,39 @@ const orderSchema = new mongoose.Schema(
         default: "None"
       }
     },
+    returnRequestsHistory: [
+      {
+        requestId: { type: String },
+        requestType: { type: String, default: "return" },
+        reason: { type: String, default: "" },
+        additionalNotes: { type: String, default: "" },
+        requestedSize: { type: String, default: "" },
+        requestedColor: { type: String, default: "" },
+        proofPhotos: [{ type: String }],
+        unboxingVideo: { type: String, default: "" },
+        reportedWithin48Hours: { type: Boolean, default: false },
+        requestedItems: [
+          {
+            itemId: { type: String },
+            name: { type: String },
+            size: { type: String },
+            color: { type: String },
+            returnQuantity: { type: Number, default: 1 },
+            image: { type: String }
+          }
+        ],
+        returnShippingFee: { type: Number, default: 99 },
+        refundAmount: { type: Number, default: 0 },
+        refundMethod: { type: String, default: "Original Payment Method" },
+        bankHolderName: { type: String, default: "" },
+        accountNumber: { type: String, default: "" },
+        ifscCode: { type: String, default: "" },
+        upiId: { type: String, default: "" },
+        razorpayRefundId: { type: String, default: "" },
+        requestedAt: { type: Date, default: Date.now },
+        status: { type: String, default: "Return Requested" }
+      }
+    ],
     refundDetails: {
       refundMethod: {
         type: String,
