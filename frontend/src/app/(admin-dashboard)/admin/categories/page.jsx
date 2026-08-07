@@ -39,7 +39,7 @@ export default function CategoriesAdminPage() {
     fetchCategories();
   }, []);
 
-  const fetchCategories = async () => {
+  async function fetchCategories() {
     try {
       setLoading(true);
       setError("");
@@ -48,6 +48,8 @@ export default function CategoriesAdminPage() {
 
       if (Array.isArray(data)) {
         setCategories(data);
+      } else if (data && Array.isArray(data.categories)) {
+        setCategories(data.categories);
       } else if (data && Array.isArray(data.data)) {
         setCategories(data.data);
       } else {
@@ -55,11 +57,11 @@ export default function CategoriesAdminPage() {
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to fetch categories. Please verify backend connection.");
+      setError("Failed to load categories.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -222,7 +224,7 @@ export default function CategoriesAdminPage() {
           </div>
         ) : categories.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-neutral-500 text-sm font-semibold">No categories found. Click "Add Category" to get started.</p>
+            <p className="text-neutral-500 text-sm font-semibold">No categories found. Click &quot;Add Category&quot; to get started.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">

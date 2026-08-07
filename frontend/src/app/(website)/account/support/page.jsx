@@ -92,7 +92,7 @@ export default function AccountSupportPage() {
                     Support & Help Center
                 </h2>
                 <p className="text-sm text-neutral-500 mt-1">
-                    Have a question or need assistance with your orders? We're here for you.
+                    Have a question or need assistance with your orders? We&apos;re here for you.
                 </p>
             </div>
 

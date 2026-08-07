@@ -39,7 +39,7 @@ export default function CollectionsAdminPage() {
     fetchCollections();
   }, []);
 
-  const fetchCollections = async () => {
+  async function fetchCollections() {
     try {
       setLoading(true);
       setError("");
@@ -59,7 +59,7 @@ export default function CollectionsAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -220,7 +220,7 @@ export default function CollectionsAdminPage() {
           </div>
         ) : collections.length === 0 ? (
           <div className="py-20 text-center">
-            <p className="text-neutral-500 text-sm font-semibold">No collections found. Click "Add Collection" to get started.</p>
+            <p className="text-neutral-500 text-sm font-semibold">No collections found. Click &quot;Add Collection&quot; to get started.</p>
           </div>
         ) : (
           <div className="overflow-x-auto w-full">

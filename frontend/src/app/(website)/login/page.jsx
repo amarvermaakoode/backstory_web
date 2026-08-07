@@ -329,7 +329,7 @@ export default function LoginPage() {
                           ))}
                         </div>
                         <div className="text-xs text-neutral-400 font-medium mt-3">
-                          Didn't receive the code?{" "}
+                          Didn&apos;t receive the code?{" "}
                           <button
                             type="button"
                             onClick={handleResendOtp}
@@ -374,7 +374,7 @@ export default function LoginPage() {
                             />
                           </div>
                           <p className="text-[11px] text-neutral-400 mt-2 font-medium">
-                            We'll send an OTP to verify your number
+                            We&apos;ll send an OTP to verify your number
                           </p>
                         </div>
                       ) : (
@@ -392,7 +392,7 @@ export default function LoginPage() {
                             className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
                           />
                           <p className="text-[11px] text-neutral-400 mt-2 font-medium">
-                            We'll send an OTP to verify your email
+                            We&apos;ll send an OTP to verify your email
                           </p>
                         </div>
                       )}

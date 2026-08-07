@@ -290,7 +290,7 @@ export default function PublicQRCodePage() {
                     </h1>
                     <div className="w-12 h-1 bg-[#6A6E53] rounded-full mt-2 mb-4" />
                     <p className="text-sm sm:text-base text-neutral-700 max-w-md leading-relaxed font-normal">
-                      Every BACSTORY garment is more than just fashion — it's a story of quality, design, and authenticity.
+                      Every BACSTORY garment is more than just fashion — it&apos;s a story of quality, design, and authenticity.
                     </p>
                   </div>
 
@@ -578,7 +578,7 @@ export default function PublicQRCodePage() {
                       Customer Support
                     </h4>
                     <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
-                      We're here to help you anytime.
+                      We&apos;re here to help you anytime.
                     </p>
                   </div>
                 </div>

@@ -136,7 +136,7 @@ export default function AccountQrIdentityPage() {
           <div className="bg-white border border-neutral-200 rounded-2xl p-8 text-center space-y-3">
             <QrCode className="w-10 h-10 text-neutral-300 mx-auto" />
             <p className="text-sm text-neutral-600 font-medium">
-              You haven't claimed any QR codes yet.
+              You haven&apos;t claimed any QR codes yet.
             </p>
             <p className="text-xs text-neutral-400 max-w-sm mx-auto">
               Scan the QR tag on your BACSTORY garment to verify your order and claim your digital identity!
@@ -183,13 +183,13 @@ export default function AccountQrIdentityPage() {
                       </p>
                       {qr.profileData.customText && (
                         <p className="text-[11px] text-neutral-500 line-clamp-2 italic">
-                          "{qr.profileData.customText}"
+                          &quot;{qr.profileData.customText}&quot;
                         </p>
                       )}
                     </div>
                   ) : (
                     <p className="text-xs text-neutral-400 italic">
-                      No story added yet. Click "Add Story & Details" to activate.
+                      No story added yet. Click &quot;Add Story & Details&quot; to activate.
                     </p>
                   )}
                 </div>

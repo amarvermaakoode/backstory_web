@@ -61,7 +61,7 @@ export default function QRCodesAdminPage() {
     }
   }, [activeTab, statusFilter]);
 
-  const fetchBatches = async () => {
+  async function fetchBatches() {
     try {
       setLoading(true);
       setError("");
@@ -78,9 +78,9 @@ export default function QRCodesAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchAllQRCodes = async () => {
+  async function fetchAllQRCodes() {
     try {
       setLoading(true);
       setError("");
@@ -105,7 +105,7 @@ export default function QRCodesAdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -400,7 +400,7 @@ export default function QRCodesAdminPage() {
                 <QrCode className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
                 <h3 className="text-lg font-semibold text-neutral-800">No QR Batches Created Yet</h3>
                 <p className="text-sm text-neutral-500 mt-1 max-w-md mx-auto">
-                  Click "Generate QR Batch" to create a new batch of QR codes ready for printing on shirts and garments.
+                  Click &quot;Generate QR Batch&quot; to create a new batch of QR codes ready for printing on shirts and garments.
                 </p>
                 <button
                   onClick={() => setIsGenerateModalOpen(true)}

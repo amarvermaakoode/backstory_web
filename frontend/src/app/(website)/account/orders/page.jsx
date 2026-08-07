@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag } from "lucide-react";
+import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 const STATUS_FILTER_OPTIONS = [
@@ -49,6 +50,7 @@ const getStepIndex = (statusStr) => {
 };
 
 export default function AccountOrdersPage() {
+    const { showToast } = useToast();
     const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -58,10 +60,17 @@ export default function AccountOrdersPage() {
     const [cancellingOrder, setCancellingOrder] = useState(null);
     const [cancelReason, setCancelReason] = useState("");
     const [cancelLoading, setCancelLoading] = useState(false);
+    const [showPolicyTooltip, setShowPolicyTooltip] = useState(false);
 
     const handleCancelOrderSubmit = async (e) => {
         e.preventDefault();
         if (!cancellingOrder) return;
+
+        if (!cancelReason.trim()) {
+            showToast("Please enter a reason for cancellation.", "error");
+            return;
+        }
+
         setCancelLoading(true);
 
         try {
@@ -72,12 +81,12 @@ export default function AccountOrdersPage() {
                     "Content-Type": "application/json",
                     ...(token && { Authorization: `Bearer ${token}` })
                 },
-                body: JSON.stringify({ reason: cancelReason || "Cancelled by customer before dispatch" })
+                body: JSON.stringify({ reason: cancelReason.trim() })
             });
 
             const data = await res.json();
             if (res.ok && data.success) {
-                alert(data.message || "Order cancelled successfully! 100% refund initiated for prepaid orders (no cancellation fee).");
+                showToast(data.message || "Order cancelled successfully! 100% refund initiated for prepaid orders (no cancellation fee).", "success");
                 setOrders(prev => prev.map(o => {
                     const matches = o.id === cancellingOrder.id || o._id === cancellingOrder.id || o.orderId === cancellingOrder.id || o.id === cancellingOrder._id;
                     if (matches) {
@@ -99,11 +108,11 @@ export default function AccountOrdersPage() {
                 setCancellingOrder(null);
                 setCancelReason("");
             } else {
-                alert(data.message || "Failed to cancel order.");
+                showToast(data.message || "Failed to cancel order.", "error");
             }
         } catch (err) {
             console.error("Error cancelling order:", err);
-            alert("An error occurred while cancelling order.");
+            showToast("An error occurred while cancelling order.", "error");
         } finally {
             setCancelLoading(false);
         }
@@ -247,7 +256,7 @@ export default function AccountOrdersPage() {
                     </div>
                     <h3 className="text-xl font-semibold font-clashDisplay text-neutral-900 mb-2">No Orders Yet</h3>
                     <p className="text-xs sm:text-sm text-neutral-500 max-w-xs mx-auto mb-6 leading-relaxed">
-                        You haven't placed any orders yet. When you place an order, it will appear here.
+                        You haven&apos;t placed any orders yet. When you place an order, it will appear here.
                     </p>
                     <Link
                         href="/product-list"
@@ -259,7 +268,7 @@ export default function AccountOrdersPage() {
             ) : filteredOrders.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-2xl border border-neutral-100 p-6">
                     <p className="text-sm font-semibold text-neutral-800 mb-1">No orders found</p>
-                    <p className="text-xs text-neutral-400 mb-4">No orders matching status "{selectedStatusFilter}".</p>
+                    <p className="text-xs text-neutral-400 mb-4">No orders matching status &quot;{selectedStatusFilter}&quot;.</p>
                     <button
                         onClick={() => setSelectedStatusFilter("All")}
                         className="text-xs font-semibold text-neutral-900 underline cursor-pointer"
@@ -277,33 +286,6 @@ export default function AccountOrdersPage() {
                                     <p className="text-xs font-normal text-neutral-400">
                                         Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
                                     </p>
-                                    <div className="flex items-center gap-2">
-                                        {order.returnExchange?.isRequested && (
-                                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                                order.returnExchange.status === "Approved"
-                                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                                    : order.returnExchange.status === "Rejected"
-                                                    ? "bg-red-50 text-red-800 border-red-200"
-                                                    : "bg-amber-50 text-amber-900 border-amber-200"
-                                            }`}>
-                                                {order.returnExchange.requestType === "return" ? "Return" : "Exchange"}: {order.returnExchange.status === "Pending Verification" ? "Requested" : order.returnExchange.status}
-                                            </span>
-                                        )}
-                                        {(!order.returnExchange?.isRequested || order.returnExchange.status === "Approved") && order.refundDetails?.refundStatus && order.refundDetails.refundStatus !== "None" && order.refundDetails.refundStatus !== "Not Applicable" && (
-                                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                                                Refund: {order.refundDetails.refundStatus}
-                                            </span>
-                                        )}
-                                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                            currentOrderStatus === "Cancelled"
-                                                ? "bg-red-50 text-red-700 border-red-200"
-                                                : currentOrderStatus === "Returned"
-                                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                        }`}>
-                                            {currentOrderStatus}
-                                        </span>
-                                    </div>
                                 </div>
 
                                 {/* Items inside this order */}
@@ -342,52 +324,15 @@ export default function AccountOrdersPage() {
                                                                 {item.color}
                                                             </span>
                                                         </div>
-                                                        <div className="text-xs text-neutral-500 space-x-3 pt-2 font-normal flex flex-wrap items-center gap-y-1">
-                                                            <span>
-                                                                Order Status: <strong className={currentOrderStatus === "Cancelled" ? "text-red-600 font-semibold" : "text-neutral-900 font-semibold"}>{itemStatus}</strong>
-                                                            </span>
-                                                            {(() => {
-                                                                const isCancelledOrder = currentOrderStatus === "Cancelled" || order.cancellation?.isCancelled;
-                                                                const isRefunded = order.refundDetails?.refundStatus === "Processed / Credited" || order.paymentStatus === "Refunded";
-
-                                                                let payStatusText = item.paymentStatus || order.paymentStatus || "Confirmed";
-                                                                let payStatusClass = "text-emerald-600 font-semibold";
-
-                                                                if (isCancelledOrder) {
-                                                                    if (isRefunded) {
-                                                                        payStatusText = "Refunded";
-                                                                        payStatusClass = "text-purple-600 font-semibold";
-                                                                    } else if (order.cancellation?.refundAmount > 0 || order.paymentStatus === "Refund Pending" || order.paymentStatus === "Refund Initiated") {
-                                                                        payStatusText = "Refund Pending";
-                                                                        payStatusClass = "text-amber-600 font-semibold";
-                                                                    } else {
-                                                                        payStatusText = "Cancelled (Unpaid)";
-                                                                        payStatusClass = "text-red-600 font-semibold";
-                                                                    }
-                                                                } else if (isRefunded) {
-                                                                    payStatusText = "Refunded";
-                                                                    payStatusClass = "text-purple-600 font-semibold";
-                                                                }
-
-                                                                return (
-                                                                    <span>
-                                                                        Payment Status: <strong className={payStatusClass}>{payStatusText}</strong>
-                                                                    </span>
-                                                                );
-                                                            })()}
-                                                            {order.refundDetails?.refundStatus && order.refundDetails.refundStatus !== "None" && (
-                                                                <span>
-                                                                    Refund Status: <strong className="text-amber-700 font-semibold">{order.refundDetails.refundStatus}</strong>
-                                                                </span>
-                                                            )}
-                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="text-right self-end sm:self-center shrink-0 space-y-1">
+                                                <div className="text-right self-end sm:self-start shrink-0 space-y-1">
                                                     <p className="font-semibold text-neutral-900 text-base sm:text-lg">{item.price}</p>
                                                     <p className="text-xs text-neutral-400 font-medium">Qty: {item.quantity}</p>
-                                                    <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
+                                                    {currentOrderStatus !== "Delivered" && itemStatus !== "Delivered" && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned" && (
+                                                        <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
@@ -410,21 +355,20 @@ export default function AccountOrdersPage() {
                                         {order.returnExchange?.isRequested ? (
                                             <Link
                                                 href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
-                                                className={`border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                                                    order.returnExchange.status === "Approved"
-                                                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                                        : order.returnExchange.status === "Rejected"
+                                                className={`border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${order.returnExchange.status === "Approved"
+                                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                                    : order.returnExchange.status === "Rejected"
                                                         ? "bg-red-50 text-red-800 border-red-300 hover:bg-red-100"
                                                         : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                                                }`}
+                                                    }`}
                                             >
                                                 <RotateCcw className="w-3.5 h-3.5 text-current" />
                                                 <span>
                                                     {order.returnExchange.status === "Approved"
                                                         ? "Return Request Approved"
                                                         : order.returnExchange.status === "Rejected"
-                                                        ? "Return Request Rejected"
-                                                        : "Return Request (Under Review)"}
+                                                            ? "Return Request Rejected"
+                                                            : "Return Request (Under Review)"}
                                                 </span>
                                             </Link>
                                         ) : currentOrderStatus === "Delivered" ? (
@@ -435,19 +379,10 @@ export default function AccountOrdersPage() {
                                                 <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
                                                 Return or Exchange
                                             </Link>
-                                        ) : (
-                                            <button
-                                                disabled
-                                                title="Return or Exchange is available only after the order has been delivered"
-                                                className="border border-neutral-200 bg-neutral-100 text-neutral-400 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed opacity-60"
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5 text-neutral-400" />
-                                                Return or Exchange
-                                            </button>
-                                        )}
+                                        ) : null}
 
                                         {/* Cancellation Action according to Bacstory policy */}
-                                        {currentOrderStatus === "Order Confirmed" ? (
+                                        {(currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing") ? (
                                             <button
                                                 onClick={() => setCancellingOrder(order)}
                                                 className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -455,14 +390,21 @@ export default function AccountOrdersPage() {
                                                 <X className="w-3.5 h-3.5 text-red-600" />
                                                 Cancel Order
                                             </button>
-                                        ) : currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned" ? (
-                                            <span
-                                                className="text-[11px] text-neutral-400 font-light border border-neutral-200 rounded-full px-3 py-1 bg-neutral-50"
-                                                title="Orders cannot be cancelled once packed or shipped for dispatch"
-                                            >
-                                                Packed & Non-Cancellable
-                                            </span>
-                                        ) : null}
+                                        ) : (() => {
+                                            const stepIdx = getStepIndex(currentOrderStatus);
+                                            const isNonCancellableInTransit = stepIdx >= 1 && stepIdx <= 3 && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned";
+                                            if (isNonCancellableInTransit) {
+                                                return (
+                                                    <span
+                                                        className="text-[11px] text-neutral-400 font-light border border-neutral-200 rounded-full px-3 py-1 bg-neutral-50 cursor-default select-none"
+                                                        title="Orders cannot be cancelled once packed or shipped for dispatch"
+                                                    >
+                                                        Packed & Non-Cancellable
+                                                    </span>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                     <Link
                                         href="/account/support"
@@ -582,6 +524,85 @@ export default function AccountOrdersPage() {
                             </button>
                         </div>
 
+                        {/* Order, Payment & Refund Overview Box */}
+                        {(() => {
+                            const modalOrderStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Order Confirmed";
+                            const isCancelledModal = modalOrderStatus === "Cancelled" || selectedTrackOrder.cancellation?.isCancelled;
+                            const isRefundedModal = selectedTrackOrder.refundDetails?.refundStatus === "Processed / Credited" || selectedTrackOrder.refundDetails?.refundStatus === "Processed" || selectedTrackOrder.refundDetails?.refundStatus === "Credited" || selectedTrackOrder.paymentStatus === "Refunded";
+
+                            let modalPayStatus = selectedTrackOrder.paymentStatus || "Confirmed";
+                            if (isCancelledModal) {
+                                if (isRefundedModal) {
+                                    modalPayStatus = "Refunded";
+                                } else if (selectedTrackOrder.cancellation?.refundAmount > 0 || selectedTrackOrder.paymentStatus === "Refund Pending" || selectedTrackOrder.paymentStatus === "Refund Initiated") {
+                                    modalPayStatus = "Refund Pending";
+                                } else {
+                                    modalPayStatus = "Cancelled (Unpaid)";
+                                }
+                            } else if (isRefundedModal) {
+                                modalPayStatus = "Refunded";
+                            }
+
+                            const cancelReason = selectedTrackOrder.cancellation?.cancellationReason;
+                            const refundAmount = selectedTrackOrder.cancellation?.refundAmount || selectedTrackOrder.totalAmount || 0;
+                            const refundMethod = selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+
+                            return (
+                                <div className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-4 space-y-2 text-xs">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-neutral-500 font-medium">Order Status:</span>
+                                        <span className="font-semibold text-neutral-900">
+                                            {modalOrderStatus}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
+                                        <span className="text-neutral-500 font-medium">Payment Status:</span>
+                                        <span className="font-semibold text-neutral-900">
+                                            {modalPayStatus}
+                                        </span>
+                                    </div>
+                                    {cancelReason && (
+                                        <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
+                                            <span className="text-neutral-500 font-medium">Cancellation Reason:</span>
+                                            <span className="font-semibold text-neutral-900 text-right max-w-[60%] truncate">
+                                                {cancelReason}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {(isCancelledModal || isRefundedModal || selectedTrackOrder.cancellation?.refundAmount > 0) && (
+                                        <>
+                                            <div className="border-t border-neutral-200/50 pt-2 space-y-1.5">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-neutral-500 font-medium">Order Total:</span>
+                                                    <span className="font-semibold text-neutral-900">
+                                                        Rs {Number(refundAmount || selectedTrackOrder.totalAmount || 0)?.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-neutral-500 font-medium">Cancellation Fee:</span>
+                                                    <span className="font-semibold text-neutral-900">
+                                                        - ₹0 (100% Refund)
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between border-t border-neutral-200/80 pt-1.5">
+                                                    <span className="text-neutral-900 font-bold">Refund Amount:</span>
+                                                    <span className="font-bold text-neutral-900 text-xs sm:text-sm">
+                                                        Rs {Number(refundAmount || selectedTrackOrder.totalAmount || 0)?.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
+                                                <span className="text-neutral-500 font-medium">Payout Method:</span>
+                                                <span className="font-semibold text-neutral-900">
+                                                    {refundMethod}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
                         {/* Dynamic Progress Timeline (Delivery vs Cancelled vs Returned) */}
                         {(() => {
                             const currentStatus = selectedTrackOrder.orderStatus || (selectedTrackOrder.items && selectedTrackOrder.items[0]?.orderStatus) || "Order Confirmed";
@@ -601,39 +622,18 @@ export default function AccountOrdersPage() {
                                 ];
 
                                 return (
-                                    <div className="space-y-6">
-                                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1.5 text-xs text-red-950">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-bold text-sm uppercase text-red-950">Order Cancelled</span>
-                                                <span className="bg-red-200 text-red-900 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                                                    Refund: {refundStatus}
-                                                </span>
-                                            </div>
-                                            <p className="text-red-900 leading-relaxed"><strong>Cancellation Reason:</strong> {cancelReason}</p>
-                                            <p className="text-red-900 leading-relaxed"><strong>Refund Amount:</strong> Rs {refundAmount?.toLocaleString()} (100% Refund, ₹0 Fee)</p>
-                                            <p className="text-red-900 leading-relaxed"><strong>Payout Method:</strong> {refundMethod}</p>
-                                        </div>
-
-                                        <div className="space-y-6 relative pl-6 border-l-2 border-red-200">
-                                            {CANCEL_STEPS.map((step, idx) => (
-                                                <div key={idx} className="relative space-y-0.5">
-                                                    <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${
-                                                        step.completed ? "bg-red-500 ring-4 ring-red-100" : "bg-neutral-300"
+                                    <div className="space-y-6 relative pl-6 border-l-2 border-red-200">
+                                        {CANCEL_STEPS.map((step, idx) => (
+                                            <div key={idx} className="relative space-y-0.5">
+                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${step.completed ? "bg-red-500 ring-4 ring-red-100" : "bg-neutral-300"
                                                     }`} />
-                                                    <p className={`text-sm font-semibold flex items-center justify-between ${
-                                                        step.completed ? "text-neutral-900" : "text-neutral-400"
+                                                <p className={`text-sm font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"
                                                     }`}>
-                                                        <span>{step.title}</span>
-                                                        {step.current && (
-                                                            <span className="text-[9px] font-bold uppercase bg-red-100 text-red-800 px-2 py-0.2 rounded-full">
-                                                                Current
-                                                            </span>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                    <span>{step.title}</span>
+                                                </p>
+                                                <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
+                                            </div>
+                                        ))}
                                     </div>
                                 );
                             }
@@ -665,18 +665,10 @@ export default function AccountOrdersPage() {
                                         <div className="space-y-6 relative pl-6 border-l-2 border-purple-200">
                                             {RETURN_STEPS.map((step, idx) => (
                                                 <div key={idx} className="relative space-y-0.5">
-                                                    <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${
-                                                        step.completed ? "bg-purple-600 ring-4 ring-purple-100" : "bg-neutral-300"
-                                                    }`} />
-                                                    <p className={`text-sm font-semibold flex items-center justify-between ${
-                                                        step.completed ? "text-neutral-900" : "text-neutral-400"
-                                                    }`}>
+                                                    <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${step.completed ? "bg-purple-600 ring-4 ring-purple-100" : "bg-neutral-300"
+                                                        }`} />
+                                                    <p className={`text-sm font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"}`}>
                                                         <span>{step.title}</span>
-                                                        {step.current && (
-                                                            <span className="text-[9px] font-bold uppercase bg-purple-100 text-purple-800 px-2 py-0.2 rounded-full">
-                                                                Current
-                                                            </span>
-                                                        )}
                                                     </p>
                                                     <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
                                                 </div>
@@ -696,20 +688,12 @@ export default function AccountOrdersPage() {
 
                                         return (
                                             <div key={idx} className="relative space-y-0.5">
-                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${
-                                                    isCompleted
-                                                        ? "bg-emerald-500 ring-4 ring-emerald-100"
-                                                        : "bg-neutral-300"
-                                                }`} />
-                                                <p className={`text-sm font-semibold flex items-center justify-between ${
-                                                    isCompleted ? "text-neutral-900" : "text-neutral-400"
-                                                }`}>
+                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${isCompleted
+                                                    ? "bg-emerald-500 ring-4 ring-emerald-100"
+                                                    : "bg-neutral-300"
+                                                    }`} />
+                                                <p className={`text-sm font-semibold ${isCompleted ? "text-neutral-900" : "text-neutral-400"}`}>
                                                     <span>{step.title}</span>
-                                                    {isCurrent && (
-                                                        <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.2 rounded-full">
-                                                            Current
-                                                        </span>
-                                                    )}
                                                 </p>
                                                 <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
                                             </div>
@@ -735,40 +719,63 @@ export default function AccountOrdersPage() {
                     <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative space-y-5 animate-fade-in border border-neutral-100">
                         <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                             <div>
-                                <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">Cancel Order</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">Cancel Order</h3>
+                                    {/* Info button for Cancellation Policy */}
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPolicyTooltip(prev => !prev)}
+                                            onMouseEnter={() => setShowPolicyTooltip(true)}
+                                            onMouseLeave={() => setShowPolicyTooltip(false)}
+                                            className="w-5 h-5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-900 flex items-center justify-center transition-colors cursor-pointer"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        {showPolicyTooltip && (
+                                            <div className="absolute left-0 top-7 w-72 sm:w-80 bg-white border border-amber-100 rounded-2xl p-4 shadow-sm z-30 space-y-1.5 text-xs text-neutral-800 animate-fade-in">
+                                                <p className="font-bold text-sm text-neutral-900 pb-1 border-b border-neutral-100 flex items-center gap-1.5">
+                                                    <Info className="w-4 h-4 text-amber-600" />
+                                                    <span>Bacstory Cancellation Policy</span>
+                                                </p>
+                                                <p className="leading-relaxed pt-1">
+                                                    • <strong>100% Refund:</strong> Prepaid orders cancelled before packing receive a full 100% refund.
+                                                </p>
+                                                <p className="leading-relaxed">
+                                                    • <strong>Zero Fee:</strong> No cancellation fee is charged.
+                                                </p>
+                                                <p className="leading-relaxed">
+                                                    • <strong>Packing Cutoff:</strong> Once packed for dispatch, orders cannot be cancelled.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                                 <p className="text-xs text-neutral-400 mt-0.5">
                                     Order ID: <span className="font-mono font-semibold text-neutral-800">{cancellingOrder.id}</span>
                                 </p>
                             </div>
                             <button
-                                onClick={() => setCancellingOrder(null)}
+                                onClick={() => {
+                                    setCancellingOrder(null);
+                                    setShowPolicyTooltip(false);
+                                }}
                                 className="text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 space-y-1.5 text-xs text-amber-900">
-                            <p className="font-semibold text-sm text-amber-950">Bacstory Cancellation Policy</p>
-                            <p className="leading-relaxed">
-                                • <strong>100% Refund:</strong> Prepaid orders cancelled before packing receive a full 100% refund.
-                            </p>
-                            <p className="leading-relaxed">
-                                • <strong>Zero Fee:</strong> No cancellation fee is charged.
-                            </p>
-                            <p className="leading-relaxed">
-                                • <strong>Packing Cutoff:</strong> Once packed for dispatch, orders cannot be cancelled.
-                            </p>
-                        </div>
-
                         <form onSubmit={handleCancelOrderSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                                    Reason for Cancellation (Optional)
+                                    Reason for Cancellation <span className="text-red-500">*</span>
                                 </label>
                                 <textarea
                                     rows={3}
-                                    placeholder="Tell us why you are cancelling..."
+                                    required
+                                    placeholder="Please tell us why you are cancelling..."
                                     value={cancelReason}
                                     onChange={(e) => setCancelReason(e.target.value)}
                                     className="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-xs text-black focus:outline-none focus:border-black resize-none"
