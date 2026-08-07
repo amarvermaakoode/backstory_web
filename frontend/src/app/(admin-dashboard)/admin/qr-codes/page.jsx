@@ -22,6 +22,8 @@ import {
   RefreshCw
 } from "lucide-react";
 
+import CustomSelect from "@/components/ui/CustomSelect";
+
 export default function QRCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
 
@@ -373,16 +375,21 @@ export default function QRCodesAdminPage() {
                 />
               </form>
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="py-1.5 px-3 text-xs border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-800 bg-white"
-              >
-                <option value="all">All Statuses</option>
-                <option value="unlinked">Unlinked Only</option>
-                <option value="claimed">Claimed Only</option>
-                <option value="active">Active Only</option>
-              </select>
+              <div className="w-44">
+                <CustomSelect
+                  options={[
+                    { value: "all", label: "All Statuses" },
+                    { value: "unlinked", label: "Unlinked Only" },
+                    { value: "claimed", label: "Claimed Only" },
+                    { value: "active", label: "Active Only" },
+                  ]}
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  placeholder="Select Status"
+                  showPlaceholderInMenu={false}
+                  className="!py-1.5 !px-3 !text-xs !rounded-lg"
+                />
+              </div>
             </div>
           )}
         </div>
