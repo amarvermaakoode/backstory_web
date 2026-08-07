@@ -730,8 +730,8 @@ export default function AccountOrdersPage() {
                                     { title: "Return Requested", desc: `Reason: ${returnReason}`, completed: true },
                                     { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
                                     { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
-                                    { title: "Refund Initiated", desc: "Refund payment processing", completed: isRefundInit },
-                                    { title: "Refunded", desc: "Refund completed & credited to account", completed: isRefundedDone }
+                                    { title: "Refund Initiated", desc: "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", completed: isRefundInit },
+                                    { title: "Refunded", desc: "Refund completed & credited to bank account", completed: isRefundedDone }
                                 ];
 
                                 return (

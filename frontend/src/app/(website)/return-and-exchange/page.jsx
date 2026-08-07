@@ -329,7 +329,8 @@ export default function ReturnAndExchangePage() {
     const selectedItem = activeItemsList.find((i) => selectedItemIds.includes(i.id)) || activeItemsList[0] || {};
     const itemSubtotal = selectedItemIds.reduce((sum, id) => {
         const item = activeItemsList.find((i) => i.id === id);
-        return sum + (item ? item.price : 0);
+        const qty = selectedQuantities[id] || (item ? item.quantity || 1 : 1);
+        return sum + (item ? (item.price * qty) : 0);
     }, 0);
 
     // Shipping cost rule for returns:
@@ -746,7 +747,7 @@ export default function ReturnAndExchangePage() {
 
                                                         <div className="text-right space-y-2 shrink-0">
                                                             <p className="font-semibold text-base sm:text-lg text-black">
-                                                                Rs {item.price?.toLocaleString()}
+                                                                Rs {((item.price || 0) * returnQty)?.toLocaleString()}
                                                             </p>
                                                             <p className="text-[11px] text-neutral-400">
                                                                 Order {item.orderId}
@@ -768,12 +769,20 @@ export default function ReturnAndExchangePage() {
                                         })}
                                     </div>
 
-                                    <button
-                                        onClick={nextStep}
-                                        className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
-                                    >
-                                        Continue with {selectedItemIds.length} item{selectedItemIds.length > 1 ? "s" : ""}
-                                    </button>
+                                    {(() => {
+                                        const totalSelectedQuantity = selectedItemIds.reduce((sum, id) => {
+                                            return sum + (selectedQuantities[id] || 1);
+                                        }, 0);
+
+                                        return (
+                                            <button
+                                                onClick={nextStep}
+                                                className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
+                                            >
+                                                Continue with {totalSelectedQuantity} item{totalSelectedQuantity > 1 ? "s" : ""}
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             )}
 

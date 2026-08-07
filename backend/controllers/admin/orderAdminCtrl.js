@@ -43,6 +43,18 @@ const getAllOrders = async (req, res) => {
       .populate("user", "name email phoneNumber")
       .sort({ createdAt: -1 });
 
+    // Auto-sync pending Razorpay refunds with live Razorpay API status
+    await Promise.all(
+      orders.map(async (ord) => {
+        if (
+          (ord.returnExchange?.status === "Refund Initiated" || ord.paymentStatus === "Refund Processing") &&
+          (ord.refundDetails?.razorpayRefundId || ord.refundDetails?.refundId)
+        ) {
+          await syncRazorpayRefundStatus(ord);
+        }
+      })
+    );
+
     return res.status(200).json({
       success: true,
       data: orders,
@@ -53,6 +65,42 @@ const getAllOrders = async (req, res) => {
       success: false,
       message: error.message || "Failed to fetch admin orders",
     });
+  }
+};
+
+// Helper to auto-sync Razorpay refund status with backend database
+const syncRazorpayRefundStatus = async (order) => {
+  try {
+    const refundId = order?.refundDetails?.razorpayRefundId || order?.refundDetails?.refundId;
+    if (!refundId || !refundId.startsWith("rfnd_")) return;
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return;
+
+    const Razorpay = require("razorpay");
+    const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    const rzpRefund = await rzp.refunds.fetch(refundId);
+
+    if (rzpRefund && rzpRefund.status === "processed") {
+      order.orderStatus = "Returned";
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Refunded";
+      order.paymentStatus = "Refunded";
+      if (!order.refundDetails) order.refundDetails = {};
+      order.refundDetails.refundStatus = "Refunded";
+      order.refundDetails.updatedAt = new Date();
+
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Returned";
+          item.paymentStatus = "Refunded";
+        });
+      }
+      await order.save();
+    }
+  } catch (err) {
+    console.error("Error auto-syncing Razorpay refund status:", err.message);
   }
 };
 
@@ -70,6 +118,13 @@ const getOrderById = async (req, res) => {
         success: false,
         message: "Order not found",
       });
+    }
+
+    if (
+      (order.returnExchange?.status === "Refund Initiated" || order.paymentStatus === "Refund Processing") &&
+      (order.refundDetails?.razorpayRefundId || order.refundDetails?.refundId)
+    ) {
+      await syncRazorpayRefundStatus(order);
     }
 
     return res.status(200).json({

@@ -163,6 +163,38 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleCompleteRefund = async (orderDbId) => {
+    if (!confirm("Confirm that the refund has been credited to customer's bank account (Stage 7)?")) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/refund-status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refundStatus: "Refunded" })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert("Refund marked as completed & credited successfully!");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        alert(data.message || "Failed to update refund status.");
+      }
+    } catch (error) {
+      console.error("Error completing refund status:", error);
+      alert("Failed to update refund status.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleRejectReturn = async (orderDbId) => {
     const reason = prompt("Enter rejection reason (optional):", "Request does not meet return policy criteria.");
     if (reason === null) return;
@@ -754,10 +786,10 @@ export default function AdminOrdersPage() {
                     if (retStatus === "Refund Initiated") {
                       return (
                         <div className="pt-3 border-t border-purple-200/80 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-amber-700 flex items-center gap-1.5">
-                            <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Initiated & Processing (Takes 5-7 Working Days)
+                          <span className="font-semibold text-amber-800 flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)
                           </span>
-                          <span className="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full uppercase">Refund Processing</span>
+                          <span className="bg-amber-100 text-amber-900 font-bold px-3 py-1 rounded-full uppercase">Refund Processing</span>
                         </div>
                       );
                     }
@@ -798,9 +830,25 @@ export default function AdminOrdersPage() {
                   : 99);
 
               const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
-              const netRefundAmount = isCancelled
+
+              let returnItemsSubtotal = 0;
+              if (!isCancelled && selectedOrder.returnExchange?.requestedItems?.length > 0) {
+                selectedOrder.returnExchange.requestedItems.forEach(ritem => {
+                  const origItem = selectedOrder.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
+                  const rawPrice = origItem ? origItem.price : (orderGrossTotal / (selectedOrder.items?.length || 1));
+                  const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
+                  const qty = ritem.returnQuantity || 1;
+                  returnItemsSubtotal += (unitPrice * qty);
+                });
+              }
+
+              const refundBaseSubtotal = isCancelled
                 ? (selectedOrder.cancellation?.refundAmount || orderGrossTotal)
-                : Math.max(0, orderGrossTotal - returnShippingFee);
+                : (returnItemsSubtotal > 0 ? returnItemsSubtotal : orderGrossTotal);
+
+              const netRefundAmount = (typeof selectedOrder.refundDetails?.refundAmount === "number" && selectedOrder.refundDetails.refundAmount > 0)
+                ? selectedOrder.refundDetails.refundAmount
+                : Math.max(0, refundBaseSubtotal - returnShippingFee);
 
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-3.5 text-xs text-blue-950">
@@ -812,11 +860,11 @@ export default function AdminOrdersPage() {
                   </div>
 
                   {/* Calculation Breakdown Box */}
-                  <div className="bg-white p-3.5 rounded-xl border border-blue-200/80 space-y-2 text-xs">
+                  <div className="bg-[#FFFFFF] p-3.5 rounded-xl border border-blue-200/80 space-y-2 text-xs">
                     <div className="flex items-center justify-between text-neutral-600 font-medium">
-                      <span>Order Total Paid</span>
+                      <span>{isCancelled ? "Order Total Paid" : "Returned Items Subtotal"}</span>
                       <span className="font-semibold text-neutral-900">
-                        Rs {orderGrossTotal.toLocaleString()}
+                        Rs {(isCancelled ? orderGrossTotal : (returnItemsSubtotal > 0 ? returnItemsSubtotal : (netRefundAmount + returnShippingFee))).toLocaleString()}
                       </span>
                     </div>
 

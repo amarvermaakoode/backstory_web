@@ -545,7 +545,32 @@ const submitReturnExchange = async (req, res) => {
         });
       }
 
-      const refundAmount = Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnShippingFee);
+      let itemsSubtotal = 0;
+      const parseNumericPrice = (val, fallback = 0) => {
+        if (typeof val === "number") return isNaN(val) ? fallback : val;
+        if (!val) return fallback;
+        const cleaned = String(val).replace(/[^0-9.]/g, "");
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? fallback : parsed;
+      };
+
+      const orderTotalNum = parseNumericPrice(order.totalAmount || order.orderTotal, 1100);
+
+      if (Array.isArray(items) && items.length > 0) {
+        items.forEach(reqItem => {
+          const origItem = order.items?.find(i => (i._id?.toString() === reqItem.itemId || i.id === reqItem.itemId || i.name === reqItem.name));
+          const unitPrice = origItem
+            ? parseNumericPrice(origItem.price, parseNumericPrice(origItem.priceNum, orderTotalNum / (order.items?.length || 1)))
+            : (orderTotalNum / (items.length || 1));
+          const qty = parseNumericPrice(reqItem.returnQuantity, 1);
+          itemsSubtotal += (unitPrice * qty);
+        });
+      } else {
+        itemsSubtotal = orderTotalNum;
+      }
+
+      const calculatedRefund = Math.max(0, itemsSubtotal - returnShippingFee);
+      const refundAmount = parseNumericPrice(calculatedRefund, Math.max(0, orderTotalNum - returnShippingFee));
 
       order.refundDetails = {
         refundMethod: finalRefundMethod,
