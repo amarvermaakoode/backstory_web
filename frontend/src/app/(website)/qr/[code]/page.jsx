@@ -255,14 +255,14 @@ export default function PublicQRCodePage() {
             {/* FULL WIDTH HERO BANNER CONTAINER */}
             <div className="w-full relative overflow-hidden bg-[#F3F0EA] min-h-[600px] lg:min-h-[680px] flex items-center">
               {/* Full Uncropped Background Image */}
-              <div className="absolute inset-0 z-0 flex items-center justify-end">
+              <div className="absolute inset-0 z-0 flex items-start justify-end">
                 <img
                   src="/images/qr-about/qr-bacstory-about.png"
                   alt="BACSTORY Authentic Garment Tag"
-                  className="w-full h-full object-contain object-right"
+                  className="w-full h-full object-cover object-top object-right"
                 />
                 {/* Soft gradient overlay for text readability on mobile/tablet */}
-                <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F3]/90 via-[#FAF8F3]/70 to-[#FAF8F3]/90 lg:bg-gradient-to-r lg:from-[#FAF8F3]/95 lg:via-[#FAF8F3]/75 lg:to-transparent z-0" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F3]/60 via-[#FAF8F3]/30 to-[#FAF8F3]/40 lg:bg-gradient-to-r lg:from-[#FAF8F3]/95 lg:via-[#FAF8F3]/75 lg:to-transparent z-0" />
               </div>
 
               {/* Top Left Brand Logo Inside Hero Section */}
@@ -336,14 +336,11 @@ export default function PublicQRCodePage() {
                 </div>
 
                 {/* Right Column: Floating Claim Card positioned at mt-48 */}
-                <div className="lg:col-span-7 w-full max-w-[100%] mx-auto mt-12 lg:mt-68">
-                  <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-neutral-200/10 shadow-xl space-y-5">
+                <div className="lg:col-span-7 w-full max-w-[100%] mx-auto mt-1 lg:mt-68">
+                  <div className="md:bg-white/10 bg-[#FAF8F3]/90 backdrop-blur-md rounded-3xl p-6 border border-neutral-200/10 shadow-xl space-y-5">
                     {/* Header with Icon & Two-Line Title */}
                     <div className="space-y-3">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs border border-[#DDD9CB]">
-                          <ShieldCheck className="w-6 h-6 stroke-[1.5]" />
-                        </div>
+                      <div className="flex items-start">
                         <div className="space-y-0.5">
                           <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 font-sans tracking-tight leading-tight">
                             Verify & Claim Your
@@ -530,67 +527,59 @@ export default function PublicQRCodePage() {
             </div>
 
             {/* FULL WIDTH BOTTOM 4 FEATURES SECTION */}
-            <div className="w-full bg-white border-t border-neutral-200/80 py-8 sm:py-12">
-              <div className="max-w-[1600px] mx-auto px-6 sm:px-10 lg:px-16">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-neutral-100">
+            <div className="w-full bg-white/40 border-t border-neutral-200/80 py-6 sm:py-8">
+              <div className="max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-16">
+                <div className="grid grid-cols-4 divide-x md:divide-neutral-200/70 divide-neutral-200/30">
                   {/* Feature 1 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 first:pt-0 sm:first:pl-0 sm:pl-4 lg:pl-0">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Award className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Award className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        100% Authentic
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Original BACSTORY products guaranteed.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      100% Authentic
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Original products guaranteed.
+                    </p>
                   </div>
 
                   {/* Feature 2 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <User className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Digital Ownership
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Link your garment to your unique profile.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Digital Ownership
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Link your garment to your profile.
+                    </p>
                   </div>
 
                   {/* Feature 3 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Gift className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Gift className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Exclusive Benefits
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        Get access to rewards and special offers.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Exclusive Benefits
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      Get access to rewards and offers.
+                    </p>
                   </div>
 
                   {/* Feature 4 */}
-                  <div className="flex items-start gap-4 pt-4 sm:pt-0 sm:pl-6">
-                    <div className="w-12 h-12 rounded-full bg-[#E4E1D5] text-[#4E523A] flex items-center justify-center shrink-0 shadow-2xs">
-                      <Headphones className="w-6 h-6 stroke-[1.5]" />
+                  <div className="flex flex-col items-center text-center px-1.5 sm:px-4">
+                    <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#EFECE6] text-[#4E523A] flex items-center justify-center shrink-0 mb-2 shadow-2xs">
+                      <Headphones className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.5]" />
                     </div>
-                    <div className="space-y-1">
-                      <h4 className="text-xs sm:text-sm font-bold text-neutral-900 uppercase tracking-tight">
-                        Customer Support
-                      </h4>
-                      <p className="text-xs text-neutral-500 font-normal leading-relaxed">
-                        We're here to help you anytime.
-                      </p>
-                    </div>
+                    <h4 className="text-[10px] sm:text-xs font-bold text-neutral-900 uppercase tracking-tight font-sans leading-tight">
+                      Customer Support
+                    </h4>
+                    <p className="text-[9px] sm:text-xs text-neutral-500 font-normal leading-tight mt-1">
+                      We're here to help you anytime.
+                    </p>
                   </div>
                 </div>
               </div>
