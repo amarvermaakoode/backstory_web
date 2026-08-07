@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 const ORDER_STATUS_STEPS = [
   "Order Confirmed",
@@ -202,7 +203,7 @@ export default function AdminOrdersPage() {
       {/* Controls Bar: Search & Status Filter */}
       <div className="bg-white p-4 rounded-2xl border border-neutral-200/80 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Search Input Form */}
-        <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
+        <form onSubmit={handleSearchSubmit} className="relative w-full">
           <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -213,24 +214,25 @@ export default function AdminOrdersPage() {
           />
         </form>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
-          {["All", "Return Requested", ...ORDER_STATUS_STEPS, "Cancelled", "Returned"].map((status) => {
-            const isActive = statusFilter === status;
-            return (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-black text-white shadow-xs"
-                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200/70"
-                }`}
-              >
-                {status}
-              </button>
-            );
-          })}
+        {/* Status Filter Dropdown */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+
+
+          <div className="w-52 sm:w-60">
+            <CustomSelect
+              options={[
+                { value: "All", label: "Filter by Status (All)" },
+                { value: "Return Requested", label: "Return Requested" },
+                ...ORDER_STATUS_STEPS.map((st) => ({ value: st, label: st })),
+                { value: "Cancelled", label: "Cancelled" },
+                { value: "Returned", label: "Returned" },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              placeholder="Filter by Status"
+              showPlaceholderInMenu={false}
+            />
+          </div>
         </div>
       </div>
 
@@ -254,11 +256,11 @@ export default function AdminOrdersPage() {
               <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-semibold uppercase text-[10px] tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4 sm:px-6">Order ID & Date</th>
-                  <th className="py-3.5 px-4">Customer & Shipping Address</th>
+                  <th className="py-3.5 px-4">Customer Details</th>
                   <th className="py-3.5 px-4">Items Summary</th>
                   <th className="py-3.5 px-4">Amount & Payment</th>
                   <th className="py-3.5 px-4">Fulfillment Status</th>
-                  <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
@@ -285,13 +287,12 @@ export default function AdminOrdersPage() {
 
                         {/* Live Return / Exchange Badge */}
                         {order.returnExchange?.isRequested && (
-                          <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${
-                            order.returnExchange.status === "Approved"
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                              : order.returnExchange.status === "Rejected"
+                          <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${order.returnExchange.status === "Approved"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : order.returnExchange.status === "Rejected"
                               ? "bg-red-50 text-red-800 border-red-200"
                               : "bg-amber-50 text-amber-900 border-amber-200"
-                          }`}>
+                            }`}>
                             <RotateCcw className="w-3 h-3 shrink-0" />
                             {order.returnExchange.status === "Pending Verification"
                               ? `${order.returnExchange.requestType === "return" ? "Return" : "Exchange"} Requested`
@@ -305,11 +306,15 @@ export default function AdminOrdersPage() {
                         <p className="font-semibold text-neutral-900">
                           {addr.firstName} {addr.lastName}
                         </p>
-                        <p className="text-[11px] text-neutral-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                        <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1 mt-0.5" title={addr.email || "No email"}>
                           <Mail className="w-3 h-3 text-neutral-400 shrink-0" />
-                          <span>{addr.email || "No email"}</span>
+                          <span>
+                            {addr.email
+                              ? (addr.email.length > 20 ? `${addr.email.slice(0, 20)}...` : addr.email)
+                              : "No email"}
+                          </span>
                         </p>
-                        <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1">
+                        {/* <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1">
                           <Phone className="w-3 h-3 text-neutral-400 shrink-0" />
                           <span>{addr.phoneNumber || "No phone"}</span>
                         </p>
@@ -318,13 +323,13 @@ export default function AdminOrdersPage() {
                           <span>
                             {addr.streetAddress}, {addr.city}, {addr.state} - {addr.pinCode}
                           </span>
-                        </p>
+                        </p> */}
                       </td>
 
                       {/* Items Summary */}
                       <td className="py-4 px-4 align-top max-w-xs">
                         <div className="space-y-2">
-                          {order.items.slice(0, 2).map((item, idx) => (
+                          {order.items.slice(0, 1).map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2.5">
                               <div className="relative w-9 h-9 bg-neutral-100 rounded-lg overflow-hidden shrink-0 border border-neutral-200/60">
                                 <Image
@@ -345,9 +350,9 @@ export default function AdminOrdersPage() {
                               </div>
                             </div>
                           ))}
-                          {order.items.length > 2 && (
+                          {order.items.length > 1 && (
                             <span className="text-[10px] text-neutral-400 font-semibold block">
-                              +{order.items.length - 2} more item(s)
+                              +{order.items.length - 1} more item(s)
                             </span>
                           )}
                         </div>
@@ -355,32 +360,11 @@ export default function AdminOrdersPage() {
 
                       {/* Amount & Payment */}
                       <td className="py-4 px-4 align-top">
-                        <span className="font-clashDisplay text-base font-bold text-neutral-900 block">
+                        <span className="font-clashDisplay text-base font-semibold text-neutral-900 block">
                           Rs {order.totalAmount ? order.totalAmount.toLocaleString() : 0}
                         </span>
-                        
-                        {order.paymentStatus === "Refund Pending" || order.paymentStatus === "Refunded" ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border mt-1 ${
-                            order.paymentStatus === "Refunded" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-amber-50 text-amber-800 border-amber-200"
-                          }`}>
-                            Payment: {order.paymentStatus}
-                          </span>
-                        ) : order.refundDetails?.refundStatus && order.refundDetails.refundStatus !== "None" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 mt-1">
-                            Refund: {order.refundDetails.refundStatus}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Paid ({order.paymentMethod === "COD" ? "COD" : "Razorpay"})
-                          </span>
-                        )}
 
-                        {order.razorpayPaymentId && (
-                          <p className="text-[10px] text-neutral-400 font-mono mt-1 truncate max-w-[120px]" title={order.razorpayPaymentId}>
-                            ID: {order.razorpayPaymentId}
-                          </p>
-                        )}
+
                       </td>
 
                       {/* Fulfillment Status Select Box */}
@@ -390,9 +374,8 @@ export default function AdminOrdersPage() {
                             disabled={isUpdating}
                             value={currentStatus}
                             onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                            className={`w-full appearance-none pl-3 pr-8 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer transition-colors focus:outline-none ${
-                              STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"
-                            } ${isUpdating ? "opacity-50 cursor-not-allowed" : ""}`}
+                            className={`w-full appearance-none pl-3 pr-1 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer transition-colors focus:outline-none ${STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"
+                              } ${isUpdating ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             {ORDER_STATUS_STEPS.map((st) => (
                               <option key={st} value={st} className="bg-white text-neutral-900 font-medium">
@@ -452,30 +435,7 @@ export default function AdminOrdersPage() {
               </button>
             </div>
 
-            {/* Status Step Indicator */}
-            <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-3">
-              <label className="text-[10px] font-bold text-neutral-400 tracking-wider uppercase block">
-                Update Order Status
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {ORDER_STATUS_STEPS.map((step, index) => {
-                  const isCurrent = selectedOrder.orderStatus === step;
-                  return (
-                    <button
-                      key={step}
-                      onClick={() => handleStatusChange(selectedOrder._id, step)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                        isCurrent
-                          ? "bg-black text-white border-black shadow-xs"
-                          : "bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-100"
-                      }`}
-                    >
-                      {index + 1}. {step}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+
 
             {/* Shipping Address Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2">
@@ -520,7 +480,7 @@ export default function AdminOrdersPage() {
                           <span>Size: <strong>{item.size}</strong></span>
                           <span>•</span>
                           <span className="flex items-center gap-1">
-                            Color: <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.colorHex || '#000' }} /> 
+                            Color: <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.colorHex || '#000' }} />
                             <strong>{item.color}</strong>
                           </span>
                         </div>
@@ -554,12 +514,12 @@ export default function AdminOrdersPage() {
                 "Parcel received with missing items",
                 "Item damaged during transit"
               ].includes(reqReason);
-              
+
               const returnShippingFee = isFreeShippingReason
                 ? 0
                 : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
-                    ? selectedOrder.returnExchange.returnShippingFee
-                    : 99);
+                  ? selectedOrder.returnExchange.returnShippingFee
+                  : 99);
 
               const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
               const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
@@ -570,13 +530,12 @@ export default function AdminOrdersPage() {
                     <span className="font-bold text-sm uppercase tracking-wider text-purple-950">
                       {selectedOrder.returnExchange.requestType === "return" ? "Return Request" : "Exchange Request"}
                     </span>
-                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
-                      selectedOrder.returnExchange.status === "Approved"
-                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        : selectedOrder.returnExchange.status === "Rejected"
+                    <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${selectedOrder.returnExchange.status === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      : selectedOrder.returnExchange.status === "Rejected"
                         ? "bg-red-100 text-red-800 border border-red-200"
                         : "bg-amber-100 text-amber-900 border border-amber-200"
-                    }`}>
+                      }`}>
                       {selectedOrder.returnExchange.status}
                     </span>
                   </div>
@@ -654,12 +613,12 @@ export default function AdminOrdersPage() {
                 "Item damaged during transit",
                 "Item defective or damaged"
               ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
-              
+
               const returnShippingFee = (isCancelled || isFreeShippingReason)
                 ? 0
                 : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
-                    ? selectedOrder.returnExchange.returnShippingFee
-                    : 99);
+                  ? selectedOrder.returnExchange.returnShippingFee
+                  : 99);
 
               const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
               const netRefundAmount = isCancelled
