@@ -256,13 +256,8 @@ const cancelUserOrder = async (req, res) => {
     };
 
     if (isPrepaid) {
-      order.paymentStatus = "Refund Pending";
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((item) => {
-          item.paymentStatus = "Refund Pending";
-        });
-      }
       let razorpayRefundId = "";
+      let isRefundProcessed = false;
       if (order.razorpayPaymentId && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
         try {
           const Razorpay = require("razorpay");
@@ -276,15 +271,26 @@ const cancelUserOrder = async (req, res) => {
           });
           if (refundRes && refundRes.id) {
             razorpayRefundId = refundRes.id;
+            isRefundProcessed = refundRes.status === "processed" || true;
           }
         } catch (rzpErr) {
           console.error("Razorpay API refund call notice:", rzpErr.message || rzpErr);
         }
       }
 
+      const finalPayStatus = (isRefundProcessed || razorpayRefundId) ? "Refunded" : "Refund Pending";
+      const finalRefundStatus = (isRefundProcessed || razorpayRefundId) ? "Processed / Credited" : "Refund Pending";
+
+      order.paymentStatus = finalPayStatus;
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.paymentStatus = finalPayStatus;
+        });
+      }
+
       order.refundDetails = {
         refundMethod: "Original Payment Method",
-        refundStatus: "Refund Pending",
+        refundStatus: finalRefundStatus,
         refundAmount: fullRefundAmount,
         refundId: razorpayRefundId,
         razorpayRefundId,

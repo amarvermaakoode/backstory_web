@@ -643,24 +643,28 @@ export default function AdminOrdersPage() {
               );
             })()}
 
-            {/* COD / Bank Refund Details */}
+            {/* Refund Details & Calculation */}
             {selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (() => {
+              const isCancelled = selectedOrder.cancellation?.isCancelled || selectedOrder.orderStatus === "Cancelled";
               const reqReason = selectedOrder.returnExchange?.reason || "";
               const isFreeShippingReason = [
                 "Defective or damaged product",
                 "Received wrong item",
                 "Parcel received with missing items",
-                "Item damaged during transit"
-              ].includes(reqReason);
+                "Item damaged during transit",
+                "Item defective or damaged"
+              ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
               
-              const returnShippingFee = isFreeShippingReason
+              const returnShippingFee = (isCancelled || isFreeShippingReason)
                 ? 0
                 : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
                     ? selectedOrder.returnExchange.returnShippingFee
                     : 99);
 
               const orderGrossTotal = selectedOrder.totalAmount || selectedOrder.subtotal || 0;
-              const netRefundAmount = Math.max(0, orderGrossTotal - returnShippingFee);
+              const netRefundAmount = isCancelled
+                ? (selectedOrder.cancellation?.refundAmount || orderGrossTotal)
+                : Math.max(0, orderGrossTotal - returnShippingFee);
 
               return (
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 space-y-3.5 text-xs text-blue-950">
