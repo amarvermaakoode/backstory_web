@@ -69,17 +69,27 @@ const getAllOrders = async (req, res) => {
 };
 
 // Helper to update active returnExchange and matching entry in returnRequestsHistory
-const updateReturnRequestStatus = (order, newStatus, additionalData = {}) => {
+const updateReturnRequestStatus = (order, newStatus, additionalData = {}, targetRequestId = null) => {
   if (!order.returnExchange) order.returnExchange = {};
-  order.returnExchange.status = newStatus;
-  Object.assign(order.returnExchange, additionalData);
 
   if (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
-    const lastIdx = order.returnRequestsHistory.length - 1;
-    if (order.returnRequestsHistory[lastIdx]) {
-      order.returnRequestsHistory[lastIdx].status = newStatus;
-      Object.assign(order.returnRequestsHistory[lastIdx], additionalData);
+    let targetIdx = -1;
+    if (targetRequestId) {
+      targetIdx = order.returnRequestsHistory.findIndex(
+        r => r.requestId === targetRequestId || (r._id && r._id.toString() === targetRequestId)
+      );
     }
+    if (targetIdx === -1) {
+      targetIdx = order.returnRequestsHistory.length - 1;
+    }
+    if (order.returnRequestsHistory[targetIdx]) {
+      order.returnRequestsHistory[targetIdx].status = newStatus;
+      Object.assign(order.returnRequestsHistory[targetIdx], additionalData);
+      order.returnExchange = { ...order.returnRequestsHistory[targetIdx] };
+    }
+  } else {
+    order.returnExchange.status = newStatus;
+    Object.assign(order.returnExchange, additionalData);
   }
 };
 
@@ -303,6 +313,7 @@ const updateRefundStatus = async (req, res) => {
 const approveReturnRequest = async (req, res) => {
   try {
     const { id } = req.params;
+    const { requestId } = req.body || {};
     const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
     const order = await Order.findOne({
       $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
@@ -312,11 +323,26 @@ const approveReturnRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (!order.returnExchange || !order.returnExchange.isRequested) {
+    let targetReturn = null;
+    if (requestId && Array.isArray(order.returnRequestsHistory)) {
+      targetReturn = order.returnRequestsHistory.find(r => r.requestId === requestId || (r._id && r._id.toString() === requestId));
+    }
+    if (!targetReturn && Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+      targetReturn = order.returnRequestsHistory[order.returnRequestsHistory.length - 1];
+    }
+    if (!targetReturn) {
+      targetReturn = order.returnExchange;
+    }
+
+    const hasAnyReturn = (targetReturn && (targetReturn.isRequested || targetReturn.status)) ||
+      (order.returnExchange && (order.returnExchange.isRequested || order.returnExchange.status)) ||
+      (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0);
+
+    if (!hasAnyReturn) {
       return res.status(400).json({ success: false, message: "No return or exchange request found for this order." });
     }
 
-    const reqType = order.returnExchange.requestType || "return";
+    const reqType = targetReturn.requestType || "return";
     const appStatus = reqType === "return" ? "Return Approved" : "Exchange Approved";
 
     if (reqType === "return") {
@@ -324,8 +350,8 @@ const approveReturnRequest = async (req, res) => {
       order.orderStatus = "Delivered";
       order.paymentStatus = "Paid";
 
-      const returnFee = order.returnExchange?.returnShippingFee || 0;
-      const refundAmountRs = order.refundDetails?.refundAmount || Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnFee);
+      const returnFee = targetReturn?.returnShippingFee || 0;
+      const refundAmountRs = targetReturn?.refundAmount || Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnFee);
       
       if (!order.refundDetails) order.refundDetails = {};
       order.refundDetails.refundAmount = refundAmountRs;
@@ -335,7 +361,7 @@ const approveReturnRequest = async (req, res) => {
       order.orderStatus = "Ready to Pack & Ship";
     }
 
-    updateReturnRequestStatus(order, appStatus, { approvedAt: new Date() });
+    updateReturnRequestStatus(order, appStatus, { approvedAt: new Date() }, requestId);
     await order.save();
 
     return res.status(200).json({
@@ -353,6 +379,7 @@ const approveReturnRequest = async (req, res) => {
 const markProductReceived = async (req, res) => {
   try {
     const { id } = req.params;
+    const { requestId } = req.body || {};
     const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
     const order = await Order.findOne({
       $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
@@ -362,13 +389,28 @@ const markProductReceived = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (!order.returnExchange || !order.returnExchange.isRequested) {
+    let targetReturn = null;
+    if (requestId && Array.isArray(order.returnRequestsHistory)) {
+      targetReturn = order.returnRequestsHistory.find(r => r.requestId === requestId || (r._id && r._id.toString() === requestId));
+    }
+    if (!targetReturn && Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+      targetReturn = order.returnRequestsHistory[order.returnRequestsHistory.length - 1];
+    }
+    if (!targetReturn) {
+      targetReturn = order.returnExchange;
+    }
+
+    const hasAnyReturn = (targetReturn && (targetReturn.isRequested || targetReturn.status)) ||
+      (order.returnExchange && (order.returnExchange.isRequested || order.returnExchange.status)) ||
+      (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0);
+
+    if (!hasAnyReturn) {
       return res.status(400).json({ success: false, message: "No return request found for this order." });
     }
 
     order.orderStatus = "Return In Progress";
     order.paymentStatus = "Paid";
-    updateReturnRequestStatus(order, "Product Received", { receivedAt: new Date() });
+    updateReturnRequestStatus(order, "Product Received", { receivedAt: new Date() }, requestId);
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
@@ -393,6 +435,7 @@ const markProductReceived = async (req, res) => {
 const processReturnRefund = async (req, res) => {
   try {
     const { id } = req.params;
+    const { requestId } = req.body || {};
     const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
     const order = await Order.findOne({
       $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
@@ -402,15 +445,42 @@ const processReturnRefund = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (!order.returnExchange || !order.returnExchange.isRequested) {
+    let targetReturn = null;
+    if (requestId && Array.isArray(order.returnRequestsHistory)) {
+      targetReturn = order.returnRequestsHistory.find(r => r.requestId === requestId || (r._id && r._id.toString() === requestId));
+    }
+    if (!targetReturn && Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+      targetReturn = order.returnRequestsHistory[order.returnRequestsHistory.length - 1];
+    }
+    if (!targetReturn) {
+      targetReturn = order.returnExchange;
+    }
+
+    const hasAnyReturn = (targetReturn && (targetReturn.isRequested || targetReturn.status)) ||
+      (order.returnExchange && (order.returnExchange.isRequested || order.returnExchange.status)) ||
+      (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0);
+
+    if (!hasAnyReturn) {
       return res.status(400).json({ success: false, message: "No return request found for this order." });
     }
 
-    const returnFee = typeof order.returnExchange?.returnShippingFee === "number" ? order.returnExchange.returnShippingFee : 0;
+    const returnFee = typeof targetReturn?.returnShippingFee === "number" ? targetReturn.returnShippingFee : 0;
+    
+    let reqItemsSubtotal = 0;
+    if (targetReturn?.requestedItems?.length > 0) {
+      targetReturn.requestedItems.forEach(ritem => {
+        const origItem = order.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
+        const rawPrice = origItem ? origItem.price : ((order.totalAmount || order.subtotal || 1100) / (order.items?.length || 1));
+        const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
+        const qty = ritem.returnQuantity || 1;
+        reqItemsSubtotal += (unitPrice * qty);
+      });
+    }
+
     const orderTotal = order.totalAmount || order.orderTotal || 1100;
-    const refundAmountRs = (typeof order.refundDetails?.refundAmount === "number" && order.refundDetails.refundAmount > 0)
-      ? order.refundDetails.refundAmount
-      : Math.max(0, orderTotal - returnFee);
+    const refundAmountRs = (typeof targetReturn?.refundAmount === "number" && targetReturn.refundAmount > 0)
+      ? targetReturn.refundAmount
+      : Math.max(0, (reqItemsSubtotal > 0 ? reqItemsSubtotal : orderTotal) - returnFee);
 
     if (!order.refundDetails) order.refundDetails = {};
     order.refundDetails.refundAmount = refundAmountRs;
@@ -445,7 +515,7 @@ const processReturnRefund = async (req, res) => {
         amount: Math.round(refundAmountRs * 100),
         notes: {
           orderId: order.orderId,
-          reason: order.returnExchange.reason || "Return refund post inspection"
+          reason: targetReturn.reason || "Return refund post inspection"
         }
       });
     } catch (rzpErr) {
@@ -475,7 +545,7 @@ const processReturnRefund = async (req, res) => {
     order.refundDetails.razorpayRefundId = refundResult.id;
     order.refundDetails.estimatedCreditWindow = "5-7 Working Days";
 
-    updateReturnRequestStatus(order, "Refund Initiated", { razorpayRefundId: refundResult.id });
+    updateReturnRequestStatus(order, "Refund Initiated", { razorpayRefundId: refundResult.id }, requestId);
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
@@ -501,7 +571,7 @@ const processReturnRefund = async (req, res) => {
 const rejectReturnRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rejectionReason } = req.body;
+    const { rejectionReason, requestId } = req.body || {};
 
     const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
     const order = await Order.findOne({
@@ -512,10 +582,29 @@ const rejectReturnRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
+    let targetReturn = null;
+    if (requestId && Array.isArray(order.returnRequestsHistory)) {
+      targetReturn = order.returnRequestsHistory.find(r => r.requestId === requestId || (r._id && r._id.toString() === requestId));
+    }
+    if (!targetReturn && Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0) {
+      targetReturn = order.returnRequestsHistory[order.returnRequestsHistory.length - 1];
+    }
+    if (!targetReturn) {
+      targetReturn = order.returnExchange;
+    }
+
+    const hasAnyReturn = (targetReturn && (targetReturn.isRequested || targetReturn.status)) ||
+      (order.returnExchange && (order.returnExchange.isRequested || order.returnExchange.status)) ||
+      (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0);
+
+    if (!hasAnyReturn) {
+      return res.status(400).json({ success: false, message: "No return request found for this order." });
+    }
+
     updateReturnRequestStatus(order, "Rejected", {
       rejectionReason: rejectionReason || "Request does not meet return policy criteria.",
       rejectedAt: new Date()
-    });
+    }, requestId);
 
     await order.save();
 

@@ -150,8 +150,8 @@ export default function ReturnAndExchangePage() {
     // Look up real order from MongoDB backend
     const handleFindOrder = async () => {
         setSearchError("");
-        if (!orderNumber.trim() && !emailAddress.trim()) {
-            setSearchError("Please enter your Order Number or Email Address.");
+        if (!orderNumber.trim()) {
+            setSearchError("Please enter your Order Number * to proceed.");
             return;
         }
 
@@ -583,24 +583,30 @@ export default function ReturnAndExchangePage() {
                                     <div className="space-y-4">
                                         <input
                                             type="text"
-                                            placeholder="Order Number (e.g. BS-10024)"
+                                            placeholder="Order Number (e.g. BS-10024) *"
                                             value={orderNumber}
-                                            onChange={(e) => setOrderNumber(e.target.value)}
+                                            onChange={(e) => {
+                                                setOrderNumber(e.target.value);
+                                                setSearchError("");
+                                            }}
                                             className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl px-6 py-4 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all"
                                         />
 
                                         <input
                                             type="email"
-                                            placeholder="Email Address"
+                                            placeholder="Email Address (Optional)"
                                             value={emailAddress}
-                                            onChange={(e) => setEmailAddress(e.target.value)}
+                                            onChange={(e) => {
+                                                setEmailAddress(e.target.value);
+                                                setSearchError("");
+                                            }}
                                             className="w-full bg-[#F4F4F4] border border-transparent rounded-2xl px-6 py-4 text-sm text-black placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-black transition-all"
                                         />
 
                                         <button
                                             onClick={handleFindOrder}
-                                            disabled={searchLoading || (!orderNumber.trim() && !emailAddress.trim())}
-                                            className={`w-full py-4 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm ${orderNumber.trim() || emailAddress.trim()
+                                            disabled={searchLoading || !orderNumber.trim()}
+                                            className={`w-full py-4 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition-all shadow-sm ${orderNumber.trim()
                                                 ? "bg-[#101820] text-white hover:bg-black cursor-pointer"
                                                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
                                                 }`}
