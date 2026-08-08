@@ -739,10 +739,11 @@ export default function AccountOrdersPage() {
                                             const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
                                             const reqPayoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
 
-                                            const isApproved = reqStatus === "Return Approved" || reqStatus === "Exchange Approved" || reqStatus === "Approved" || reqStatus === "Product Received" || reqStatus === "Product Picked Up" || reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
-                                            const isReceived = reqStatus === "Product Received" || reqStatus === "Product Picked Up" || reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
-                                            const isRefundInit = reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
-                                            const isRefundedDone = reqStatus === "Refunded" || reqStatus === "Exchange Completed";
+                                            const isApproved = ["Return Approved", "Exchange Approved", "Approved", "Product Received", "Product Picked Up", "Replacement Ready to Pack & Ship", "Refund Initiated", "Replacement Dispatched", "Refunded", "Exchange Completed"].includes(reqStatus);
+                                            const isReceived = ["Product Received", "Product Picked Up", "Replacement Ready to Pack & Ship", "Refund Initiated", "Replacement Dispatched", "Refunded", "Exchange Completed"].includes(reqStatus);
+                                            const isReadyToShip = ["Replacement Ready to Pack & Ship", "Replacement Dispatched", "Exchange Completed"].includes(reqStatus);
+                                            const isDispatched = ["Replacement Dispatched", "Exchange Completed"].includes(reqStatus);
+                                            const isExchangedDone = reqStatus === "Exchange Completed";
 
                                             const RETURN_STEPS = [
                                                 { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true },
@@ -751,12 +752,12 @@ export default function AccountOrdersPage() {
                                                 { 
                                                     title: "Refund Initiated", 
                                                     desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", 
-                                                    completed: isRefundInit 
+                                                    completed: ["Refund Initiated", "Refunded"].includes(reqStatus) 
                                                 },
                                                 { 
                                                     title: "Refunded", 
                                                     desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account", 
-                                                    completed: isRefundedDone 
+                                                    completed: reqStatus === "Refunded" 
                                                 }
                                             ];
 
@@ -768,14 +769,19 @@ export default function AccountOrdersPage() {
                                                 { title: "Exchange Approved", desc: "Exchange request approved by seller", completed: isApproved },
                                                 { title: "Product Picked Up", desc: "Product picked up by seller for quality inspection", completed: isReceived },
                                                 { 
+                                                    title: "Replacement Ready to Pack & Ship", 
+                                                    desc: "Replacement item undergoing quality check & packing", 
+                                                    completed: isReadyToShip 
+                                                },
+                                                { 
                                                     title: "Replacement Dispatched", 
                                                     desc: "Replacement item dispatched & in transit", 
-                                                    completed: isRefundInit 
+                                                    completed: isDispatched 
                                                 },
                                                 { 
                                                     title: "Exchange Completed", 
                                                     desc: "Replacement item delivered successfully to customer", 
-                                                    completed: isRefundedDone 
+                                                    completed: isExchangedDone 
                                                 }
                                             ];
 

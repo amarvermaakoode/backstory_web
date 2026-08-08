@@ -147,12 +147,18 @@ const orderSchema = new mongoose.Schema(
           "Return Requested",
           "Return Approved",
           "Product Received",
+          "Product Picked Up",
+          "Replacement Ready to Pack & Ship",
+          "Replacement Dispatched",
           "Refund Initiated",
           "Refunded",
           "Rejected",
           "Pending Verification",
           "Exchange Requested",
-          "Exchange Approved"
+          "Exchange Approved",
+          "Exchange Processing",
+          "Exchange Completed",
+          "Exchanged"
         ],
         default: "None"
       }

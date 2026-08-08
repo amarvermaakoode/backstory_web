@@ -448,6 +448,24 @@ const markProductReceived = async (req, res) => {
       return res.status(400).json({ success: false, message: "No return request found for this order." });
     }
 
+    const isExchangeRequest = targetReturn?.requestType === "exchange" || order.returnExchange?.requestType === "exchange";
+
+    if (isExchangeRequest) {
+      updateReturnRequestStatus(order, "Product Picked Up", { receivedAt: new Date(), pickedUpAt: new Date() }, requestId);
+      order.orderStatus = "Exchange In Progress";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Exchange In Progress";
+        });
+      }
+      await order.save();
+      return res.status(200).json({
+        success: true,
+        message: "Product marked as picked up for exchange successfully!",
+        data: order
+      });
+    }
+
     order.orderStatus = "Return In Progress";
     order.paymentStatus = "Paid";
     updateReturnRequestStatus(order, "Product Received", { receivedAt: new Date() }, requestId);
@@ -761,6 +779,64 @@ const deleteOrder = async (req, res) => {
   }
 };
 
+// Update Exchange status step-by-step
+const updateExchangeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { requestId, status } = req.body || {};
+    const isMongoId = id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id);
+    const order = await Order.findOne({
+      $or: [{ _id: isMongoId ? id : null }, { orderId: id.trim() }]
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const validExchangeStatuses = [
+      "Product Picked Up",
+      "Replacement Ready to Pack & Ship",
+      "Replacement Dispatched",
+      "Exchange Completed"
+    ];
+
+    if (!status || !validExchangeStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid exchange status." });
+    }
+
+    let additionalData = {};
+    if (status === "Product Picked Up") additionalData.pickedUpAt = new Date();
+    if (status === "Replacement Ready to Pack & Ship") additionalData.readyToShipAt = new Date();
+    if (status === "Replacement Dispatched") additionalData.dispatchedAt = new Date();
+    if (status === "Exchange Completed") additionalData.completedAt = new Date();
+
+    updateReturnRequestStatus(order, status, additionalData, requestId);
+
+    if (status === "Exchange Completed") {
+      order.orderStatus = "Exchanged";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => { item.orderStatus = "Exchanged"; });
+      }
+    } else {
+      order.orderStatus = "Exchange In Progress";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => { item.orderStatus = "Exchange In Progress"; });
+      }
+    }
+
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Exchange status updated to '${status}' successfully!`,
+      data: order
+    });
+  } catch (error) {
+    console.error("Admin update exchange status error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Failed to update exchange status" });
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -768,6 +844,7 @@ module.exports = {
   updateRefundStatus,
   approveReturnRequest,
   markProductReceived,
+  updateExchangeStatus,
   processReturnRefund,
   rejectReturnRequest,
   deleteOrder,

@@ -67,10 +67,13 @@ const mapCartItem = (dbItem) => {
     }));
     const sizesList = product.sizeGuide?.chart?.map(sz => sz.size) || product.sizes || ["S", "M", "L"];
 
-    const matchingColorObj = (product.colors || []).find(c =>
-        (c.color?.name || c.name) === dbItem.color?.name
-    );
-    const mainImg = matchingColorObj?.images?.[0] || product.colors?.[0]?.images?.[0] || product.image || "";
+    const targetColorName = (dbItem.color?.name || "").toLowerCase().trim();
+    const matchingColorObj = (product.colors || []).find(c => {
+        const cName = (c.color?.name || c.name || "").toLowerCase().trim();
+        return cName === targetColorName;
+    });
+    const firstColorWithImg = (product.colors || []).find(c => Array.isArray(c.images) && c.images.length > 0 && c.images[0]);
+    const mainImg = matchingColorObj?.images?.[0] || firstColorWithImg?.images?.[0] || product.colors?.[0]?.images?.[0] || product.image || (Array.isArray(product.images) ? product.images[0] : "") || "";
 
     const pId = product._id || product.id;
     const name = product.title || product.name || "Product";

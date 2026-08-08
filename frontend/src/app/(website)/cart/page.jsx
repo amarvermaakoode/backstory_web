@@ -295,13 +295,14 @@ export default function CartPage() {
 
                                                 {/* Image */}
                                                 <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                    <Image 
+                                                    <img 
                                                         src={getImageUrl(item.image)} 
                                                         alt={item.name || "Product image"} 
-                                                        fill 
-                                                        className="object-contain p-2 select-none"
-                                                        sizes="96px"
-                                                        unoptimized
+                                                        className="w-full h-full object-contain p-2 select-none"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                        }}
                                                     />
                                                 </div>
 

@@ -1442,13 +1442,14 @@ export default function CheckoutPage() {
                                     <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0 items-start">
                                         {/* Thumbnail Image Container */}
                                         <div className="relative w-18 h-20 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            <Image
+                                            <img
                                                 src={getImageUrl(item.image)}
                                                 alt={item.name || item.title || "Product image"}
-                                                fill
-                                                className="object-contain p-1.5 select-none"
-                                                sizes="72px"
-                                                unoptimized
+                                                className="w-full h-full object-contain p-1.5 select-none"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                }}
                                             />
                                         </div>
                                         {/* Product specifications */}

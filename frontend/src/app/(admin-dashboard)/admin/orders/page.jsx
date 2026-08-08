@@ -16,6 +16,7 @@ import {
   Loader2,
   X,
   Check,
+  PackageCheck,
   User,
   Phone,
   Mail,
@@ -277,6 +278,37 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleUpdateExchangeStatus = async (orderDbId, newStatus, requestId = null) => {
+    const confirmed = await customConfirm(`Update exchange status to '${newStatus}'?`, "Update Exchange Status");
+    if (!confirmed) return;
+    setActionLoading(true);
+    try {
+      const res = await adminFetch(`/orders/${orderDbId}/exchange-status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, status: newStatus })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showToast(data.message || `Exchange status updated to '${newStatus}'!`, "success");
+        if (data.data) {
+          setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
+          setSelectedOrder(data.data);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        showToast(data.message || "Failed to update exchange status.", "error");
+      }
+    } catch (error) {
+      console.error("Error updating exchange status:", error);
+      showToast("Failed to update exchange status.", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleRejectReturn = async (orderDbId, requestId = null) => {
     const reason = await customPrompt("Enter rejection reason for customer (optional):", "Request does not meet return policy criteria.", "Reject Return Request", "Rejection reason...");
     if (reason === null) return;
@@ -527,12 +559,14 @@ export default function AdminOrdersPage() {
                           {order.items.slice(0, 1).map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2.5">
                               <div className="relative w-9 h-9 bg-neutral-100 rounded-lg overflow-hidden shrink-0 border border-neutral-200/60">
-                                <Image
+                                <img
                                   src={getImageUrl(item.image)}
                                   alt={item.name}
-                                  fill
-                                  className="object-cover"
-                                  unoptimized
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "/images/landing-page/coding-tshirt.png";
+                                  }}
                                 />
                               </div>
                               <div className="min-w-0">
@@ -682,12 +716,14 @@ export default function AdminOrdersPage() {
                   <div key={idx} className="p-3.5 flex items-center justify-between gap-4 bg-white">
                     <div className="flex items-center gap-3">
                       <div className="relative w-12 h-12 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                        <Image
+                        <img
                           src={getImageUrl(item.image)}
                           alt={item.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/images/landing-page/coding-tshirt.png";
+                          }}
                         />
                       </div>
                       <div>
@@ -765,7 +801,43 @@ export default function AdminOrdersPage() {
                             {isReturn ? `Return Request #${reqIndex + 1}` : `Exchange Request #${reqIndex + 1}`}
                           </span>
 
-                          {isPendingAction ? (
+                          {!isReturn && (req.status === "Approved" || req.status === "Exchange Approved" || req.status === "Return Approved") ? (
+                            <button
+                              onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
+                              disabled={actionLoading}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PackageCheck className="w-3.5 h-3.5" />}
+                              Mark Product Picked Up
+                            </button>
+                          ) : !isReturn && (req.status === "Product Picked Up" || req.status === "Product Received") ? (
+                            <button
+                              onClick={() => handleUpdateExchangeStatus(selectedOrder._id || selectedOrder.orderId, "Replacement Ready to Pack & Ship", req.requestId || req._id)}
+                              disabled={actionLoading}
+                              className="bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
+                              Mark Ready to Pack & Ship
+                            </button>
+                          ) : !isReturn && (req.status === "Replacement Ready to Pack & Ship") ? (
+                            <button
+                              onClick={() => handleUpdateExchangeStatus(selectedOrder._id || selectedOrder.orderId, "Replacement Dispatched", req.requestId || req._id)}
+                              disabled={actionLoading}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                              Mark Replacement Dispatched
+                            </button>
+                          ) : !isReturn && (req.status === "Replacement Dispatched") ? (
+                            <button
+                              onClick={() => handleUpdateExchangeStatus(selectedOrder._id || selectedOrder.orderId, "Exchange Completed", req.requestId || req._id)}
+                              disabled={actionLoading}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                            >
+                              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              Mark Exchange Completed
+                            </button>
+                          ) : isPendingAction ? (
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
@@ -785,11 +857,13 @@ export default function AdminOrdersPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${req.status === "Approved" || req.status === "Return Approved"
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${req.status === "Approved" || req.status === "Return Approved" || req.status === "Exchange Approved" || req.status === "Exchange Completed"
                               ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                              : req.status === "Rejected"
-                                ? "bg-red-100 text-red-800 border border-red-200"
-                                : "bg-neutral-200 text-neutral-800 border border-neutral-300"
+                              : req.status === "Product Picked Up" || req.status === "Product Received" || req.status === "Replacement Ready to Pack & Ship" || req.status === "Replacement Dispatched"
+                                ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                                : req.status === "Rejected"
+                                  ? "bg-red-100 text-red-800 border border-red-200"
+                                  : "bg-neutral-200 text-neutral-800 border border-neutral-300"
                               }`}>
                               {req.status}
                             </span>

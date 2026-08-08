@@ -7,6 +7,7 @@ const {
   updateRefundStatus,
   approveReturnRequest,
   markProductReceived,
+  updateExchangeStatus,
   processReturnRefund,
   rejectReturnRequest,
   deleteOrder,
@@ -23,6 +24,7 @@ router.put("/:id/status", updateOrderStatus);
 router.put("/:id/refund-status", updateRefundStatus);
 router.put("/:id/approve-return", approveReturnRequest);
 router.put("/:id/product-received", markProductReceived);
+router.put("/:id/exchange-status", updateExchangeStatus);
 router.put("/:id/process-refund", processReturnRefund);
 router.put("/:id/reject-return", rejectReturnRequest);
 router.delete("/:id", deleteOrder);

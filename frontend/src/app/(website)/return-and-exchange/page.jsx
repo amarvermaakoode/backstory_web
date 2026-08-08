@@ -220,14 +220,17 @@ export default function ReturnAndExchangePage() {
                     setSelectedQuantities(initialQuantities);
 
                     const initialEligible = firstSelectable?.eligibleExchangeVariants || [];
-                    const initialColors = Array.from(new Set(initialEligible.map(v => v.color)));
-                    if (initialColors.length > 0) {
-                        const initCol = initialColors[0];
-                        setRequestedColor(initCol);
-                        const initSizes = initialEligible
-                            .filter(v => v.color.toLowerCase().trim() === initCol.toLowerCase().trim())
-                            .map(v => v.size);
-                        if (initSizes.length > 0) setRequestedSize(initSizes[0]);
+                    const sizeOrderMap = { XS: 1, S: 2, M: 3, L: 4, XL: 5, XXL: 6, "3XL": 7 };
+                    const initialSizes = Array.from(new Set(initialEligible.map(v => v.size)));
+                    initialSizes.sort((a, b) => (sizeOrderMap[a.toUpperCase()] || 99) - (sizeOrderMap[b.toUpperCase()] || 99));
+
+                    if (initialSizes.length > 0) {
+                        const initSize = initialSizes[0];
+                        setRequestedSize(initSize);
+                        const initColors = initialEligible
+                            .filter(v => v.size.toUpperCase().trim() === initSize.toUpperCase().trim())
+                            .map(v => v.color);
+                        if (initColors.length > 0) setRequestedColor(initColors[0]);
                     }
                 } else {
                     setOrderItems([]);
@@ -686,12 +689,14 @@ export default function ReturnAndExchangePage() {
                                                     >
                                                         <div className="flex items-center gap-4 sm:gap-5">
                                                             <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                                                                <Image
+                                                                <img
                                                                     src={getImageUrl(item.image)}
-                                                                    alt={item.title}
-                                                                    fill
-                                                                    className="object-cover object-center"
-                                                                    unoptimized
+                                                                    alt={item.title || "Product image"}
+                                                                    className="w-full h-full object-cover object-center"
+                                                                    onError={(e) => {
+                                                                        e.target.onerror = null;
+                                                                        e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                                    }}
                                                                 />
                                                             </div>
 
@@ -810,12 +815,14 @@ export default function ReturnAndExchangePage() {
                                     <div className="border border-neutral-200/90 rounded-2xl p-4 sm:p-5 bg-white flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="relative w-14 h-16 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                                                <Image
+                                                <img
                                                     src={getImageUrl(selectedItem.image)}
-                                                    alt={selectedItem.title}
-                                                    fill
-                                                    className="object-cover object-center"
-                                                    unoptimized
+                                                    alt={selectedItem.title || "Product image"}
+                                                    className="w-full h-full object-cover object-center"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                    }}
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -893,9 +900,12 @@ export default function ReturnAndExchangePage() {
                                         {/* Exchange Options (New Size & Color) */}
                                         {requestType === "exchange" && (() => {
                                             const eligibleVariants = selectedItem?.eligibleExchangeVariants || [];
-                                            const availColors = Array.from(new Set(eligibleVariants.map(v => v.color)));
 
-                                            if (availColors.length === 0) {
+                                            const sizeOrderMap = { XS: 1, S: 2, M: 3, L: 4, XL: 5, XXL: 6, "3XL": 7 };
+                                            const availSizes = Array.from(new Set(eligibleVariants.map(v => v.size)));
+                                            availSizes.sort((a, b) => (sizeOrderMap[a.toUpperCase()] || 99) - (sizeOrderMap[b.toUpperCase()] || 99));
+
+                                            if (availSizes.length === 0) {
                                                 return (
                                                     <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 font-medium">
                                                         No eligible replacement variants (different size/color with available stock) are currently in stock for exchange.
@@ -903,12 +913,16 @@ export default function ReturnAndExchangePage() {
                                                 );
                                             }
 
-                                            const currentSelectedColor = requestedColor && availColors.includes(requestedColor) ? requestedColor : availColors[0];
-                                            const availSizesForColor = eligibleVariants
-                                                .filter(v => v.color.toLowerCase().trim() === currentSelectedColor.toLowerCase().trim())
-                                                .map(v => v.size);
+                                            const currentSelectedSize = requestedSize && availSizes.includes(requestedSize) ? requestedSize : availSizes[0];
+                                            const colorsForCurrentSize = Array.from(new Set(
+                                                eligibleVariants
+                                                    .filter(v => v.size.toUpperCase().trim() === currentSelectedSize.toUpperCase().trim())
+                                                    .map(v => v.color)
+                                            ));
 
-                                            const currentSelectedSize = requestedSize && availSizesForColor.includes(requestedSize) ? requestedSize : (availSizesForColor[0] || "");
+                                            const currentSelectedColor = requestedColor && colorsForCurrentSize.includes(requestedColor)
+                                                ? requestedColor
+                                                : (colorsForCurrentSize[0] || "");
 
                                             return (
                                                 <div className="bg-purple-50/70 border border-purple-200 p-4 sm:p-5 rounded-2xl space-y-3 text-xs text-purple-950">
@@ -924,9 +938,18 @@ export default function ReturnAndExchangePage() {
                                                                 Requested Size
                                                             </label>
                                                             <CustomSelect
-                                                                options={availSizesForColor.map((sz) => ({ value: sz, label: sz }))}
+                                                                options={availSizes.map((sz) => ({ value: sz, label: sz }))}
                                                                 value={currentSelectedSize}
-                                                                onChange={(e) => setRequestedSize(e.target.value)}
+                                                                onChange={(e) => {
+                                                                    const newSize = e.target.value;
+                                                                    setRequestedSize(newSize);
+                                                                    const colorsForNewSize = eligibleVariants
+                                                                        .filter(v => v.size.toUpperCase().trim() === newSize.toUpperCase().trim())
+                                                                        .map(v => v.color);
+                                                                    if (colorsForNewSize.length > 0 && !colorsForNewSize.includes(requestedColor)) {
+                                                                        setRequestedColor(colorsForNewSize[0]);
+                                                                    }
+                                                                }}
                                                                 placeholder="Select Size"
                                                                 showPlaceholderInMenu={false}
                                                                 className="!bg-white !border-purple-200 !rounded-xl !py-2.5 !px-3.5 !text-xs text-black hover:!border-purple-300 shadow-2xs"
@@ -937,18 +960,9 @@ export default function ReturnAndExchangePage() {
                                                                 Requested Color
                                                             </label>
                                                             <CustomSelect
-                                                                options={availColors.map((col) => ({ value: col, label: col }))}
+                                                                options={colorsForCurrentSize.map((col) => ({ value: col, label: col }))}
                                                                 value={currentSelectedColor}
-                                                                onChange={(e) => {
-                                                                    const newColor = e.target.value;
-                                                                    setRequestedColor(newColor);
-                                                                    const sizesForNewColor = eligibleVariants
-                                                                        .filter(v => v.color.toLowerCase().trim() === newColor.toLowerCase().trim())
-                                                                        .map(v => v.size);
-                                                                    if (sizesForNewColor.length > 0) {
-                                                                        setRequestedSize(sizesForNewColor[0]);
-                                                                    }
-                                                                }}
+                                                                onChange={(e) => setRequestedColor(e.target.value)}
                                                                 placeholder="Select Color"
                                                                 showPlaceholderInMenu={false}
                                                                 className="!bg-white !border-purple-200 !rounded-xl !py-2.5 !px-3.5 !text-xs text-black hover:!border-purple-300 shadow-2xs"
@@ -1171,12 +1185,14 @@ export default function ReturnAndExchangePage() {
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-center gap-4">
                                                 <div className="relative w-16 h-20 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                                                    <Image
+                                                    <img
                                                         src={getImageUrl(selectedItem.image)}
-                                                        alt={selectedItem.title}
-                                                        fill
-                                                        className="object-cover object-center"
-                                                        unoptimized
+                                                        alt={selectedItem.title || "Product image"}
+                                                        className="w-full h-full object-cover object-center"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
