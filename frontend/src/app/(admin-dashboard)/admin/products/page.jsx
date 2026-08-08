@@ -933,7 +933,7 @@ export default function ProductsAdminPage() {
                       return productColors.flatMap(color =>
                         sizes.map(size => {
                           const key = `${size.toUpperCase().trim()}_${color.name.toLowerCase().trim()}`;
-                          const currentStockValue = variantStock[key] !== undefined ? variantStock[key] : 10;
+                          const currentStockValue = variantStock[key] !== undefined ? variantStock[key] : 0;
 
                           return (
                             <div key={key} className="space-y-1 bg-white p-2.5 rounded-lg border border-neutral-200 shadow-2xs">

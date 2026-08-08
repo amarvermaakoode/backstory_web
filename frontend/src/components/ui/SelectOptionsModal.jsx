@@ -27,7 +27,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
         let sizes = product.sizes || [];
         let colors = product.colors || [];
 
-        // If product already has sizes, colors, and variantStock, use them
+        // If product already has sizes, colors, and variantStock, use them directly
         if (sizes.length > 0 && colors.length > 0 && product.variantStock) {
             setAvailableSizes(sizes);
             setAvailableColors(colors);
@@ -36,7 +36,7 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
             setSelectedColor(initialColor);
 
             // Pick first in-stock size for initial color
-            const firstInStockSize = sizes.find((sz) => getStockForSizeAndColor(sz, initialColor, activeProduct) > 0) || sizes[0] || "M";
+            const firstInStockSize = sizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || sizes[0] || "M";
             setSelectedSize(firstInStockSize);
             return;
         }
@@ -53,13 +53,13 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
 
                 if (data.success && data.data) {
                     const dbProd = data.data;
-                    const fetchedSizes = dbProd.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L", "XL"];
+                    const fetchedSizes = dbProd.sizeGuide?.chart?.map(sz => sz.size) || [];
                     const fetchedColors = (dbProd.colors || []).map(c => ({
                         name: c.color?.name || "Default",
                         hex: c.color?.hexCode || "#000000"
                     }));
 
-                    const finalSizes = fetchedSizes.length > 0 ? fetchedSizes : (sizes.length > 0 ? sizes : ["S", "M", "L", "XL"]);
+                    const finalSizes = fetchedSizes.length > 0 ? fetchedSizes : (sizes.length > 0 ? sizes : []);
                     const finalColors = fetchedColors.length > 0 ? fetchedColors : (colors.length > 0 ? colors : [{ name: "Default", hex: "#000000" }]);
 
                     setAvailableSizes(finalSizes);
@@ -83,20 +83,15 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
         };
 
         const applyFallbacks = () => {
-            const defaultSizes = sizes.length > 0 ? sizes : ["S", "M", "L", "XL"];
-            const defaultColors = colors.length > 0 ? colors : [
-                { name: "Blue", hex: "#2563EB" },
-                { name: "Black", hex: "#101820" },
-                { name: "White", hex: "#FFFFFF" },
-                { name: "Beige", hex: "#C5B9AC" }
-            ];
+            const defaultSizes = sizes.length > 0 ? sizes : [];
+            const defaultColors = colors.length > 0 ? colors : [{ name: "Default", hex: "#000000" }];
             setAvailableSizes(defaultSizes);
             setAvailableColors(defaultColors);
 
             const initialColor = defaultColors[0];
             setSelectedColor(initialColor);
 
-            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, activeProduct) > 0) || defaultSizes[0] || "M";
+            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || defaultSizes[0] || "M";
             setSelectedSize(firstInStock);
         };
 

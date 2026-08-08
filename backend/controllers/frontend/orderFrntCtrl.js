@@ -355,6 +355,110 @@ const cancelUserOrder = async (req, res) => {
   }
 };
 
+// Helper to calculate eligible replacement variants for an item being exchanged
+const getEligibleExchangeVariants = (productDoc, orderedSize, orderedColor) => {
+  if (!productDoc) return [];
+
+  const normOrdSize = (orderedSize || "").toUpperCase().trim();
+  const normOrdColor = (orderedColor || "").toLowerCase().trim();
+
+  const variantMap = new Map();
+  const colorsSet = new Set();
+  const sizesSet = new Set();
+
+  if (Array.isArray(productDoc.colors)) {
+    productDoc.colors.forEach(c => {
+      const cName = c.color?.name || (typeof c.color === "string" ? c.color : null);
+      if (cName) colorsSet.add(cName.trim());
+    });
+  }
+
+  if (productDoc.sizeGuide?.chart && Array.isArray(productDoc.sizeGuide.chart)) {
+    productDoc.sizeGuide.chart.forEach(sz => {
+      if (sz.size) sizesSet.add(sz.size.trim().toUpperCase());
+    });
+  }
+
+  if (productDoc.variantStock && typeof productDoc.variantStock === "object") {
+    const keys = Object.keys(productDoc.variantStock);
+    const validSizes = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "FREE", "ONESIZE"];
+
+    keys.forEach(k => {
+      const parts = k.split("_");
+      if (parts.length >= 2) {
+        const first = parts[0].toUpperCase().trim();
+        const rest = parts.slice(1).join("_").trim();
+        if (validSizes.includes(first)) {
+          sizesSet.add(first);
+          if (rest) colorsSet.add(rest);
+        } else {
+          colorsSet.add(first);
+          if (validSizes.includes(rest.toUpperCase())) {
+            sizesSet.add(rest.toUpperCase());
+          }
+        }
+      }
+    });
+  }
+
+  const allColors = Array.from(colorsSet);
+  const allSizes = Array.from(sizesSet);
+
+  const getStock = (sz, col) => {
+    const szUpper = sz.toUpperCase().trim();
+    const colLower = col.toLowerCase().trim();
+
+    if (Array.isArray(productDoc.inventory) && productDoc.inventory.length > 0) {
+      const match = productDoc.inventory.find(
+        inv => inv.size?.toUpperCase().trim() === szUpper && inv.color?.toLowerCase().trim() === colLower
+      );
+      if (match && typeof match.stock === "number") return Math.max(0, match.stock);
+    }
+
+    if (productDoc.variantStock && typeof productDoc.variantStock === "object") {
+      const exactKey = `${szUpper}_${colLower}`;
+      if (typeof productDoc.variantStock[exactKey] === "number") {
+        return Math.max(0, productDoc.variantStock[exactKey]);
+      }
+      const vsKeys = Object.keys(productDoc.variantStock);
+      const targetNorm = exactKey.replace(/[\s\-_]/g, "");
+      const targetRev = `${colLower}_${szUpper}`.replace(/[\s\-_]/g, "");
+      const matchKey = vsKeys.find(k => {
+        const kNorm = k.toLowerCase().replace(/[\s\-_]/g, "");
+        return kNorm === targetNorm || kNorm === targetRev;
+      });
+      if (matchKey && typeof productDoc.variantStock[matchKey] === "number") {
+        return Math.max(0, productDoc.variantStock[matchKey]);
+      }
+    }
+    return 0;
+  };
+
+  allColors.forEach(col => {
+    allSizes.forEach(sz => {
+      const stock = getStock(sz, col);
+      const szNorm = sz.toUpperCase().trim();
+      const colNorm = col.toLowerCase().trim();
+
+      const isOriginalVariant = (szNorm === normOrdSize && colNorm === normOrdColor);
+
+      // Must have stock > 0 AND must NOT be the exact original ordered variant
+      if (stock > 0 && !isOriginalVariant) {
+        const variantKey = `${colNorm}:::${szNorm}`;
+        if (!variantMap.has(variantKey)) {
+          variantMap.set(variantKey, {
+            color: col,
+            size: sz,
+            stock
+          });
+        }
+      }
+    });
+  });
+
+  return Array.from(variantMap.values());
+};
+
 // Find order details for return/exchange lookup step
 const findOrderForReturn = async (req, res) => {
   try {
@@ -386,56 +490,13 @@ const findOrderForReturn = async (req, res) => {
     const formattedOrder = order.toObject();
     if (formattedOrder.items && Array.isArray(formattedOrder.items)) {
       formattedOrder.items = formattedOrder.items.map((item) => {
-        let availableColors = [];
-        let availableSizes = [];
-
-        if (item.product) {
-          if (Array.isArray(item.product.colors) && item.product.colors.length > 0) {
-            availableColors = item.product.colors
-              .map((c) => (c.color?.name ? c.color.name : (typeof c.color === "string" ? c.color : null)))
-              .filter(Boolean);
-          }
-          if (item.product.variantStock && typeof item.product.variantStock === "object") {
-            const keys = Object.keys(item.product.variantStock);
-            const sizeSet = new Set();
-            const colorSet = new Set();
-            const validSizes = ["XS", "S", "M", "L", "XL", "XXL"];
-
-            keys.forEach((k) => {
-              const stockVal = Number(item.product.variantStock[k]);
-              if (stockVal > 0) {
-                const parts = k.split("_");
-                const firstPart = parts[0]?.toUpperCase()?.trim();
-                const secondPart = parts.slice(1).join("_")?.trim();
-
-                if (validSizes.includes(firstPart)) {
-                  sizeSet.add(firstPart);
-                  if (secondPart) colorSet.add(secondPart);
-                } else if (secondPart && validSizes.includes(secondPart.toUpperCase())) {
-                  sizeSet.add(secondPart.toUpperCase());
-                  if (firstPart) colorSet.add(firstPart);
-                }
-              }
-            });
-
-            if (sizeSet.size > 0) {
-              availableSizes = Array.from(sizeSet);
-            }
-            if (colorSet.size > 0 && availableColors.length === 0) {
-              availableColors = Array.from(colorSet);
-            }
-          }
-        }
-
-        if (availableColors.length === 0) {
-          availableColors = item.color ? [item.color] : ["Standard"];
-        }
-        if (availableSizes.length === 0) {
-          availableSizes = ["XS", "S", "M", "L", "XL", "XXL"];
-        }
+        const eligibleExchangeVariants = getEligibleExchangeVariants(item.product, item.size, item.color);
+        const availableColors = Array.from(new Set(eligibleExchangeVariants.map(v => v.color)));
+        const availableSizes = Array.from(new Set(eligibleExchangeVariants.map(v => v.size)));
 
         return {
           ...item,
+          eligibleExchangeVariants,
           availableColors,
           availableSizes
         };
@@ -512,6 +573,34 @@ const submitReturnExchange = async (req, res) => {
         success: false,
         message: "Only one exchange is allowed per order."
       });
+    }
+
+    // Policy Check 1b: Exchange replacement variant validation
+    if (requestType === "exchange") {
+      if (!requestedSize || !requestedColor) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select a replacement size and color for exchange."
+        });
+      }
+
+      const reqItemsList = Array.isArray(items) ? items : [];
+      for (const reqItem of reqItemsList) {
+        const origItem = order.items?.find(i => (i._id?.toString() === reqItem.itemId || i.id === reqItem.itemId || i.name === reqItem.name));
+        if (origItem) {
+          const origSize = (origItem.size || "").toUpperCase().trim();
+          const origColor = (origItem.color || "").toLowerCase().trim();
+          const reqSize = (requestedSize || "").toUpperCase().trim();
+          const reqColor = (requestedColor || "").toLowerCase().trim();
+
+          if (origSize === reqSize && origColor === reqColor) {
+            return res.status(400).json({
+              success: false,
+              message: `The replacement variant (${requestedSize} / ${requestedColor}) cannot be identical to the originally ordered variant.`
+            });
+          }
+        }
+      }
     }
 
     // Policy Check 2: 7-day return & exchange window

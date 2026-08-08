@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { API_BASE_URL } from "@/lib/api";
+import { mapProductItem } from "@/services/productService";
 
 export default function ProductsListing({
     categorySlug, 
@@ -124,39 +125,7 @@ export default function ProductsListing({
                 const prodRes = await fetch(`${API_BASE_URL}/frontend/products`);
                 const prodData = await prodRes.json();
                 if (prodData && prodData.success && Array.isArray(prodData.data) && prodData.data.length > 0) {
-                    const mapped = prodData.data.map(item => {
-                        const colorsList = (item.colors || []).map(c => ({
-                            name: c.color?.name || "Default",
-                            hex: c.color?.hexCode || "#CCCCCC"
-                        }));
-                        const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
-                        const mainImg = item.colors?.[0]?.images?.[0] || "";
-                        const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-                        
-                        return {
-                            id: item._id,
-                            slug: item.slug,
-                            name: item.title,
-                            price: `Rs ${item.price}`,
-                            priceNum: Number(item.price),
-                            image: mainImg,
-                            hoverImage: hoverImg,
-                            sizes: sizesList,
-                            colors: colorsList,
-                            tag: item.category?.Name || "Product",
-                            rating: "4.7",
-                            reviewsCount: 63,
-                            categoryId: item.category?._id || "",
-                            categorySlug: item.category?.slug || "",
-                            categoryName: item.category?.Name || "",
-                            collectionId: item.collection?._id || "",
-                            collectionSlug: item.collection?.slug || "",
-                            collectionName: item.collection?.Name || "",
-                            subCategoryId: item.subCategory?._id || "",
-                            subCategorySlug: item.subCategory?.slug || "",
-                            subCategoryName: item.subCategory?.name || ""
-                        };
-                    });
+                    const mapped = prodData.data.map(mapProductItem);
                     setProducts(mapped);
                 } else {
                     setProducts([]);

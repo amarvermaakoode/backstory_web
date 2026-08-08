@@ -36,7 +36,9 @@ export const mapProductItem = (item) => {
         subCategoryId: item.subCategory?._id || "",
         subCategorySlug: item.subCategory?.slug || "",
         subCategoryName: item.subCategory?.name || "",
-        link: `/products/${item.slug || item._id}`
+        link: `/products/${item.slug || item._id}`,
+        variantStock: item.variantStock || {},
+        inventory: item.inventory || []
     };
 };
 
@@ -99,7 +101,9 @@ export async function getProductByIdOrSlug(idOrSlug) {
                     images: c.images || []
                 })),
                 sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || [],
-                faqs: dbProd.faqs || []
+                faqs: dbProd.faqs || [],
+                variantStock: dbProd.variantStock || {},
+                inventory: dbProd.inventory || []
             };
         }
         return null;

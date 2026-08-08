@@ -194,8 +194,8 @@ export default function ReturnAndExchangePage() {
                             id: itemIdStr,
                             title: i.name || "Product",
                             subtitle: i.category || "Collection",
-                            size: i.size || "M",
-                            color: i.color || "Standard",
+                            size: i.size || "",
+                            color: i.color || "",
                             colorDot: i.colorHex || "#000000",
                             price: i.priceNum || 0,
                             quantity: remainingQty,
@@ -203,8 +203,9 @@ export default function ReturnAndExchangePage() {
                             returnedQuantity: returnedQty,
                             orderId: data.data.orderId,
                             image: i.image || "/images/landing-page/coding-tshirt.png",
-                            availableSizes: Array.isArray(i.availableSizes) && i.availableSizes.length > 0 ? i.availableSizes : ["XS", "S", "M", "L", "XL", "XXL"],
-                            availableColors: Array.isArray(i.availableColors) && i.availableColors.length > 0 ? i.availableColors : (i.color ? [i.color] : ["Standard"])
+                            eligibleExchangeVariants: Array.isArray(i.eligibleExchangeVariants) ? i.eligibleExchangeVariants : [],
+                            availableColors: Array.isArray(i.availableColors) ? i.availableColors : [],
+                            availableSizes: Array.isArray(i.availableSizes) ? i.availableSizes : []
                         };
                     });
 
@@ -217,8 +218,17 @@ export default function ReturnAndExchangePage() {
                         initialQuantities[i.id] = i.quantity > 0 ? i.quantity : 1;
                     });
                     setSelectedQuantities(initialQuantities);
-                    if (firstSelectable?.availableSizes?.length > 0) setRequestedSize(firstSelectable.availableSizes[0]);
-                    if (firstSelectable?.availableColors?.length > 0) setRequestedColor(firstSelectable.availableColors[0]);
+
+                    const initialEligible = firstSelectable?.eligibleExchangeVariants || [];
+                    const initialColors = Array.from(new Set(initialEligible.map(v => v.color)));
+                    if (initialColors.length > 0) {
+                        const initCol = initialColors[0];
+                        setRequestedColor(initCol);
+                        const initSizes = initialEligible
+                            .filter(v => v.color.toLowerCase().trim() === initCol.toLowerCase().trim())
+                            .map(v => v.size);
+                        if (initSizes.length > 0) setRequestedSize(initSizes[0]);
+                    }
                 } else {
                     setOrderItems([]);
                     setSelectedItemIds([]);
@@ -882,14 +892,23 @@ export default function ReturnAndExchangePage() {
 
                                         {/* Exchange Options (New Size & Color) */}
                                         {requestType === "exchange" && (() => {
-                                            const standardSizes = ["XS", "S", "M", "L", "XL", "XXL"];
-                                            const rawSizes = (selectedItem?.availableSizes && selectedItem.availableSizes.length > 0)
-                                                ? selectedItem.availableSizes.filter((s) => standardSizes.includes(s.toUpperCase()))
-                                                : standardSizes;
-                                            const availSizes = rawSizes.length > 0 ? rawSizes : standardSizes;
-                                            const availColors = (selectedItem?.availableColors && selectedItem.availableColors.length > 0)
-                                                ? selectedItem.availableColors
-                                                : (selectedItem?.color ? [selectedItem.color] : ["Standard"]);
+                                            const eligibleVariants = selectedItem?.eligibleExchangeVariants || [];
+                                            const availColors = Array.from(new Set(eligibleVariants.map(v => v.color)));
+
+                                            if (availColors.length === 0) {
+                                                return (
+                                                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 font-medium">
+                                                        No eligible replacement variants (different size/color with available stock) are currently in stock for exchange.
+                                                    </div>
+                                                );
+                                            }
+
+                                            const currentSelectedColor = requestedColor && availColors.includes(requestedColor) ? requestedColor : availColors[0];
+                                            const availSizesForColor = eligibleVariants
+                                                .filter(v => v.color.toLowerCase().trim() === currentSelectedColor.toLowerCase().trim())
+                                                .map(v => v.size);
+
+                                            const currentSelectedSize = requestedSize && availSizesForColor.includes(requestedSize) ? requestedSize : (availSizesForColor[0] || "");
 
                                             return (
                                                 <div className="bg-purple-50/70 border border-purple-200 p-4 sm:p-5 rounded-2xl space-y-3 text-xs text-purple-950">
@@ -905,8 +924,8 @@ export default function ReturnAndExchangePage() {
                                                                 Requested Size
                                                             </label>
                                                             <CustomSelect
-                                                                options={availSizes.map((sz) => ({ value: sz, label: sz }))}
-                                                                value={requestedSize && availSizes.includes(requestedSize) ? requestedSize : availSizes[0]}
+                                                                options={availSizesForColor.map((sz) => ({ value: sz, label: sz }))}
+                                                                value={currentSelectedSize}
                                                                 onChange={(e) => setRequestedSize(e.target.value)}
                                                                 placeholder="Select Size"
                                                                 showPlaceholderInMenu={false}
@@ -919,8 +938,17 @@ export default function ReturnAndExchangePage() {
                                                             </label>
                                                             <CustomSelect
                                                                 options={availColors.map((col) => ({ value: col, label: col }))}
-                                                                value={requestedColor && availColors.includes(requestedColor) ? requestedColor : availColors[0]}
-                                                                onChange={(e) => setRequestedColor(e.target.value)}
+                                                                value={currentSelectedColor}
+                                                                onChange={(e) => {
+                                                                    const newColor = e.target.value;
+                                                                    setRequestedColor(newColor);
+                                                                    const sizesForNewColor = eligibleVariants
+                                                                        .filter(v => v.color.toLowerCase().trim() === newColor.toLowerCase().trim())
+                                                                        .map(v => v.size);
+                                                                    if (sizesForNewColor.length > 0) {
+                                                                        setRequestedSize(sizesForNewColor[0]);
+                                                                    }
+                                                                }}
                                                                 placeholder="Select Color"
                                                                 showPlaceholderInMenu={false}
                                                                 className="!bg-white !border-purple-200 !rounded-xl !py-2.5 !px-3.5 !text-xs text-black hover:!border-purple-300 shadow-2xs"

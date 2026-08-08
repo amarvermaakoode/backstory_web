@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import ProductCard from "@/components/ui/ProductCard";
 import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
+import { mapProductItem } from "@/services/productService";
 
 export default function FeaturedProducts() {
     const { addToCart } = useCart();
@@ -23,29 +24,7 @@ export default function FeaturedProducts() {
                 const res = await fetch(`${API_BASE_URL}/frontend/products/featured`);
                 const data = await res.json();
                 if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
-                    const mapped = data.data.map(item => {
-                        const colorsList = (item.colors || []).map(c => ({
-                            name: c.color?.name || "Default",
-                            hex: c.color?.hexCode || "#CCCCCC"
-                        }));
-                        const sizesList = item.sizeGuide?.chart?.map(sz => sz.size) || ["S", "M", "L"];
-                        const mainImg = item.colors?.[0]?.images?.[0] || "";
-                        const hoverImg = item.colors?.[0]?.images?.[1] || item.colors?.[1]?.images?.[0] || "";
-
-                        return {
-                            id: item._id,
-                            slug: item.slug,
-                            name: item.title,
-                            price: `Rs ${item.price}`,
-                            priceNum: Number(item.price),
-                            image: mainImg,
-                            hoverImage: hoverImg,
-                            sizes: sizesList,
-                            colors: colorsList,
-                            tag: item.subCategory?.name || item.category?.Name || "Featured",
-                            link: `/products/${item.slug || item._id}`
-                        };
-                    });
+                    const mapped = data.data.map(mapProductItem);
                     setProducts(mapped);
                 } else {
                     setProducts([]);
