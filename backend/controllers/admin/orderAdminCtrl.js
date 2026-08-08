@@ -9,6 +9,8 @@ const ALLOWED_STATUSES = [
   "Delivered",
   "Return In Progress",
   "Returned",
+  "Exchange In Progress",
+  "Exchanged",
   "Cancelled",
   "Processing"
 ];
@@ -255,6 +257,12 @@ const updateOrderStatus = async (req, res) => {
         order.refundDetails.refundId = order.refundDetails.refundId || `WLT-${Math.floor(100000 + Math.random() * 900000)}`;
         order.refundDetails.estimatedCreditWindow = "Instant Credit to BacStory Wallet";
       }
+    } else if (status === "Exchange In Progress") {
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Exchange Approved";
+    } else if (status === "Exchanged") {
+      if (!order.returnExchange) order.returnExchange = {};
+      order.returnExchange.status = "Exchange Completed";
     }
 
     await order.save();
@@ -494,6 +502,27 @@ const processReturnRefund = async (req, res) => {
 
     if (!hasAnyReturn) {
       return res.status(400).json({ success: false, message: "No return request found for this order." });
+    }
+
+    const isExchangeRequest = targetReturn?.requestType === "exchange" || order.returnExchange?.requestType === "exchange";
+
+    if (isExchangeRequest) {
+      targetReturn.status = "Exchange Approved";
+      order.orderStatus = "Exchange In Progress";
+      if (order.returnExchange) {
+        order.returnExchange.status = "Exchange Approved";
+      }
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Exchange In Progress";
+        });
+      }
+      await order.save();
+      return res.status(200).json({
+        success: true,
+        message: "Exchange request approved successfully! Replacement processing is in progress.",
+        data: order
+      });
     }
 
     const returnFee = typeof targetReturn?.returnShippingFee === "number" ? targetReturn.returnShippingFee : 0;

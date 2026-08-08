@@ -394,10 +394,11 @@ export default function AccountOrdersPage() {
                                              }
 
                                              if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
+                                                 const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
                                                  return (
                                                      <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
                                                          <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
-                                                         <span>All Items Returned</span>
+                                                         <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
                                                      </span>
                                                  );
                                              }
@@ -603,7 +604,9 @@ export default function AccountOrdersPage() {
                                     </div>
                                     {isReturnRequestedModal && (
                                         <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
-                                            <span className="text-neutral-500 font-medium">Return Requests:</span>
+                                            <span className="text-neutral-500 font-medium">
+                                                {returnRequestsList.some(r => r.requestType === "exchange") ? "Exchange Requests:" : "Return Requests:"}
+                                            </span>
                                             <span className="font-semibold text-neutral-900">
                                                 {returnRequestsList.length} Request{returnRequestsList.length > 1 ? "s" : ""} Submitted
                                             </span>
@@ -702,7 +705,7 @@ export default function AccountOrdersPage() {
                                 return (
                                     <div className="space-y-4">
                                         <span className="text-xs font-semibold text-neutral-400 tracking-wider uppercase block">
-                                            Return & Exchange Requests ({returnRequestsList.length})
+                                            {returnRequestsList.every(r => r.requestType === "exchange") ? "Exchange Requests" : "Return & Exchange Requests"} ({returnRequestsList.length})
                                         </span>
 
                                         {returnRequestsList.map((req, reqIndex) => {
@@ -736,10 +739,10 @@ export default function AccountOrdersPage() {
                                             const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
                                             const reqPayoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
 
-                                            const isApproved = reqStatus === "Return Approved" || reqStatus === "Approved" || reqStatus === "Product Received" || reqStatus === "Refund Initiated" || reqStatus === "Refunded";
-                                            const isReceived = reqStatus === "Product Received" || reqStatus === "Refund Initiated" || reqStatus === "Refunded";
-                                            const isRefundInit = reqStatus === "Refund Initiated" || reqStatus === "Refunded";
-                                            const isRefundedDone = reqStatus === "Refunded";
+                                            const isApproved = reqStatus === "Return Approved" || reqStatus === "Exchange Approved" || reqStatus === "Approved" || reqStatus === "Product Received" || reqStatus === "Product Picked Up" || reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
+                                            const isReceived = reqStatus === "Product Received" || reqStatus === "Product Picked Up" || reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
+                                            const isRefundInit = reqStatus === "Refund Initiated" || reqStatus === "Replacement Dispatched" || reqStatus === "Refunded" || reqStatus === "Exchange Completed";
+                                            const isRefundedDone = reqStatus === "Refunded" || reqStatus === "Exchange Completed";
 
                                             const RETURN_STEPS = [
                                                 { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true },
@@ -757,13 +760,34 @@ export default function AccountOrdersPage() {
                                                 }
                                             ];
 
+                                            const reqSizePref = req.requestedSize || selectedTrackOrder.returnExchange?.requestedSize || "";
+                                            const reqColorPref = req.requestedColor || selectedTrackOrder.returnExchange?.requestedColor || "";
+
+                                            const EXCHANGE_STEPS = [
+                                                { title: "Exchange Requested", desc: `Reason: ${reqReason}`, completed: true },
+                                                { title: "Exchange Approved", desc: "Exchange request approved by seller", completed: isApproved },
+                                                { title: "Product Picked Up", desc: "Product picked up by seller for quality inspection", completed: isReceived },
+                                                { 
+                                                    title: "Replacement Dispatched", 
+                                                    desc: "Replacement item dispatched & in transit", 
+                                                    completed: isRefundInit 
+                                                },
+                                                { 
+                                                    title: "Exchange Completed", 
+                                                    desc: "Replacement item delivered successfully to customer", 
+                                                    completed: isRefundedDone 
+                                                }
+                                            ];
+
+                                            const TRACKING_STEPS = isReturn ? RETURN_STEPS : EXCHANGE_STEPS;
+
                                             return (
                                                 <div key={req._id || req.requestId || reqIndex} className="bg-neutral-50 border border-neutral-200/80 rounded-2xl p-4 space-y-3">
                                                     <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
                                                         <span className="text-xs font-semibold text-neutral-900">
                                                             {isReturn ? `Return Request #${reqIndex + 1}` : `Exchange Request #${reqIndex + 1}`}
                                                         </span>
-                                                        <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${reqStatus === "Approved" || reqStatus === "Return Approved"
+                                                        <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${reqStatus === "Approved" || reqStatus === "Return Approved" || reqStatus === "Exchange Approved"
                                                             ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                                             : reqStatus === "Rejected"
                                                                 ? "bg-red-100 text-red-800 border border-red-200"
@@ -791,7 +815,20 @@ export default function AccountOrdersPage() {
                                                         </div>
                                                     )}
 
-                                                    {/* Refund Breakdown Box for this Request */}
+                                                    {/* Requested Replacement Box for Exchange */}
+                                                    {!isReturn && (reqSizePref || reqColorPref) && (
+                                                        <div className="bg-purple-50/70 p-3 rounded-xl border border-purple-200/80 space-y-1 text-xs text-purple-950">
+                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">Requested Replacement Preference:</span>
+                                                            <div className="flex items-center justify-between font-medium">
+                                                                <span>Replacement Variant:</span>
+                                                                <span className="font-bold text-neutral-900 bg-white px-2.5 py-0.5 rounded border border-purple-200">
+                                                                    Size: {reqSizePref || "N/A"}{reqColorPref ? ` | Color: ${reqColorPref}` : ""}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Refund Breakdown Box for Return */}
                                                     {isReturn && (
                                                         <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-1.5 text-xs">
                                                             <div className="flex items-center justify-between text-neutral-600">
@@ -815,11 +852,11 @@ export default function AccountOrdersPage() {
                                                         </div>
                                                     )}
 
-                                                    {/* Return Timeline for this Request */}
+                                                    {/* Status Timeline for this Request */}
                                                     <div className="space-y-3 pt-1">
                                                         <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Status Timeline:</span>
                                                         <div className="space-y-4 relative pl-5 border-l-2 border-purple-200">
-                                                            {RETURN_STEPS.map((step, idx) => (
+                                                            {TRACKING_STEPS.map((step, idx) => (
                                                                 <div key={idx} className="relative space-y-0.5">
                                                                     <span className={`absolute -left-[27px] top-0 w-3.5 h-3.5 rounded-full border-2 border-white transition-all ${step.completed ? "bg-purple-600 ring-4 ring-purple-100" : "bg-neutral-300"
                                                                         }`} />

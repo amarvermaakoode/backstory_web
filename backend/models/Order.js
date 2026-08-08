@@ -62,6 +62,8 @@ const orderSchema = new mongoose.Schema(
             "Delivered",
             "Return In Progress",
             "Returned",
+            "Exchange In Progress",
+            "Exchanged",
             "Cancelled",
             "Processing"
           ],
@@ -103,6 +105,8 @@ const orderSchema = new mongoose.Schema(
         "Delivered",
         "Return In Progress",
         "Returned",
+        "Exchange In Progress",
+        "Exchanged",
         "Cancelled",
         "Processing"
       ],

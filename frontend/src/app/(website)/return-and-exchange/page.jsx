@@ -1254,8 +1254,11 @@ export default function ReturnAndExchangePage() {
                                                         {requestType === "return" ? "Estimated Refund" : "Exchange Replacement Item"}
                                                     </p>
                                                 </div>
-                                                <span className="font-bold text-xl sm:text-2xl text-black">
-                                                    {requestType === "return" ? `Rs ${totalRefund.toLocaleString()}` : `Size: ${requestedSize}`}
+                                                <span className="font-semibold text-base text-black">
+                                                    {requestType === "return"
+                                                        ? `Rs ${totalRefund.toLocaleString()}`
+                                                        : `Size: ${requestedSize}${requestedColor ? ` | Color: ${requestedColor}` : ""}`
+                                                    }
                                                 </span>
                                             </div>
                                         </div>
@@ -1410,7 +1413,10 @@ export default function ReturnAndExchangePage() {
                                         )}
 
                                         <p className="text-xs text-neutral-400 text-center font-light pt-1">
-                                            Refunds are initiated within 2 business days after quality inspection, credited in 5–7 business days.
+                                            {requestType === "return"
+                                                ? "Refunds are initiated within 2 business days after quality inspection, credited in 5–7 business days."
+                                                : "Exchanges are processed within 2 business days after quality inspection, dispatched in 5–7 business days."
+                                            }
                                         </p>
                                     </div>
 
@@ -1462,7 +1468,10 @@ export default function ReturnAndExchangePage() {
                                     Request Submitted!
                                 </h2>
                                 <p className="text-neutral-500 text-sm sm:text-base leading-relaxed max-w-md mx-auto">
-                                    We&apos;ve received your return request. A prepaid return shipping label and drop-off instructions have been sent to your email.
+                                    {requestType === "return"
+                                        ? "We've received your return request. A prepaid return shipping label and drop-off instructions have been sent to your email."
+                                        : "We've received your exchange request. Instructions for pickup and replacement delivery have been sent to your email."
+                                    }
                                 </p>
                             </div>
 
@@ -1475,7 +1484,7 @@ export default function ReturnAndExchangePage() {
                                     <div className="flex justify-between">
                                         <span className="text-neutral-500">Item:</span>
                                         <span className="font-semibold text-black">
-                                            {selectedItem.title} ({selectedItem.size})
+                                            {selectedItem.title} ({selectedItem.size} / {selectedItem.color})
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
@@ -1484,18 +1493,35 @@ export default function ReturnAndExchangePage() {
                                             {requestType}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-neutral-500">Refund Method:</span>
-                                        <span className="font-semibold text-black">
-                                            {paymentMode === "original" ? "Original Payment Method" : "BacStory Wallet"}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-neutral-500">Est. Refund:</span>
-                                        <span className="font-bold text-black">
-                                            Rs {totalRefund.toLocaleString()}
-                                        </span>
-                                    </div>
+                                    {requestType === "return" ? (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-neutral-500">Refund Method:</span>
+                                                <span className="font-semibold text-black">
+                                                    {paymentMode === "original"
+                                                        ? "Original Payment Method"
+                                                        : paymentMode === "bank"
+                                                        ? "Bank Transfer"
+                                                        : paymentMode === "upi"
+                                                        ? "UPI"
+                                                        : "BacStory Wallet"}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-neutral-500">Est. Refund:</span>
+                                                <span className="font-bold text-black">
+                                                    Rs {totalRefund.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex justify-between">
+                                            <span className="text-neutral-500">Replacement Item:</span>
+                                            <span className="font-bold text-black">
+                                                Size: {requestedSize}{requestedColor ? ` | Color: ${requestedColor}` : ""}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

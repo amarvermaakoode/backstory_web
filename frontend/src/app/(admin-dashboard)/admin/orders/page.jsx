@@ -45,8 +45,10 @@ const STATUS_BADGE_STYLES = {
   "Out for Delivery": "bg-indigo-50 text-indigo-700 border-indigo-200",
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-200",
   "Return In Progress": "bg-purple-50 text-purple-800 border-purple-200",
-  "Cancelled": "bg-red-50 text-red-700 border-red-200",
-  "Returned": "bg-neutral-100 text-neutral-700 border-neutral-300"
+  "Returned": "bg-neutral-100 text-neutral-700 border-neutral-300",
+  "Exchange In Progress": "bg-purple-50 text-purple-800 border-purple-200",
+  "Exchanged": "bg-emerald-50 text-emerald-800 border-emerald-200",
+  "Cancelled": "bg-red-50 text-red-700 border-red-200"
 };
 
 export default function AdminOrdersPage() {
@@ -644,6 +646,8 @@ export default function AdminOrdersPage() {
                   ))}
                   <option value="Return In Progress">Return In Progress</option>
                   <option value="Returned">Returned</option>
+                  <option value="Exchange In Progress">Exchange In Progress</option>
+                  <option value="Exchanged">Exchanged</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
@@ -728,7 +732,7 @@ export default function AdminOrdersPage() {
               return (
                 <div className="space-y-4">
                   <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
-                    Return & Exchange Requests ({returnRequestsList.length})
+                    {returnRequestsList.every(r => r.requestType === "exchange") ? "Exchange Requests" : "Return & Exchange Requests"} ({returnRequestsList.length})
                   </span>
 
                   {returnRequestsList.map((req, reqIndex) => {
@@ -800,7 +804,7 @@ export default function AdminOrdersPage() {
                         {req.requestedItems?.length > 0 && (
                           <div className="space-y-2 pt-2 border-t border-neutral-200/60">
                             <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
-                              Requested {isReturn ? "Return" : "Exchange"} Items:
+                              Items to {isReturn ? "Return" : "Exchange"} (Original):
                             </span>
                             <div className="space-y-1.5">
                               {req.requestedItems.map((ritem, idx) => (
@@ -814,6 +818,19 @@ export default function AdminOrdersPage() {
                                   </span>
                                 </div>
                               ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Requested Replacement Preference Box for Exchange */}
+                        {!isReturn && (
+                          <div className="bg-purple-50 p-3 rounded-xl border border-purple-200/80 space-y-1.5 text-xs text-purple-950">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">Requested Replacement Preference:</span>
+                            <div className="flex items-center justify-between font-medium">
+                              <span>Replacement Variant:</span>
+                              <span className="font-bold text-purple-900 bg-white px-2.5 py-0.5 rounded border border-purple-200">
+                                Size: {req.requestedSize || selectedOrder.returnExchange?.requestedSize || "N/A"}{(req.requestedColor || selectedOrder.returnExchange?.requestedColor) ? ` | Color: ${req.requestedColor || selectedOrder.returnExchange?.requestedColor}` : ""}
+                              </span>
                             </div>
                           </div>
                         )}
