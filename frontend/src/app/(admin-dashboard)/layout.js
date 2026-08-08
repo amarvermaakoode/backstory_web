@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { AdminAuthProvider, useAdminAuth } from "@/context/AdminAuthContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { usePathname, useRouter } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import {
@@ -119,11 +120,12 @@ function AdminLayoutShell({ children }) {
     </div>
   );
 }
-
 export default function AdminLayout({ children }) {
   return (
     <AdminAuthProvider>
-      <AdminLayoutShell>{children}</AdminLayoutShell>
+      <ToastProvider>
+        <AdminLayoutShell>{children}</AdminLayoutShell>
+      </ToastProvider>
     </AdminAuthProvider>
   );
 }
