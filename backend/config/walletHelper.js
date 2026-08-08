@@ -89,11 +89,11 @@ const syncUserWalletBalance = async (userId, userEmail, userPhone) => {
     if (userConditions.length > 0) {
       const userObj = await User.findOne({ $or: userConditions });
       if (userObj) {
-        userObj.walletBalance = netWalletBalance;
+        const updateData = { walletBalance: netWalletBalance };
         if (walletTxns.length > 0) {
-          userObj.walletTransactions = walletTxns;
+          updateData.walletTransactions = walletTxns;
         }
-        await userObj.save();
+        await User.findByIdAndUpdate(userObj._id, { $set: updateData });
         return netWalletBalance;
       }
     }

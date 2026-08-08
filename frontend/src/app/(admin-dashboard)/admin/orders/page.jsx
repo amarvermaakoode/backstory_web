@@ -25,6 +25,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
 
@@ -50,6 +51,7 @@ const STATUS_BADGE_STYLES = {
 
 export default function AdminOrdersPage() {
   const { adminFetch } = useAdminAuth();
+  const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -133,7 +135,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert(data.message || "Return request approved successfully!", "Success");
+        showToast(data.message || "Return request approved successfully!", "success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -141,11 +143,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        await customAlert(data.message || "Failed to approve return request.", "Error");
+        showToast(data.message || "Failed to approve return request.", "error");
       }
     } catch (error) {
       console.error("Error approving return request:", error);
-      await customAlert("Failed to approve return request.", "Error");
+      showToast("Failed to approve return request.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -165,7 +167,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert(data.message || "Product marked as received! You can now process the refund.", "Success");
+        showToast(data.message || "Product marked as received! You can now process the refund.", "success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -173,11 +175,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        await customAlert(data.message || "Failed to mark product received.", "Error");
+        showToast(data.message || "Failed to mark product received.", "error");
       }
     } catch (error) {
       console.error("Error marking product received:", error);
-      await customAlert("Failed to mark product received.", "Error");
+      showToast("Failed to mark product received.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -198,7 +200,7 @@ export default function AdminOrdersPage() {
       if (!paymentIdToSend) {
         const inputId = await customPrompt("Enter Razorpay Payment ID for this order:", "", "Razorpay Payment ID Required", "e.g. pay_TMzlj6hvnzLzle");
         if (!inputId || !inputId.trim()) {
-          await customAlert("Razorpay Payment ID is required to process refund.", "Payment ID Required");
+          showToast("Razorpay Payment ID is required to process refund.", "error");
           return;
         }
         paymentIdToSend = inputId.trim();
@@ -220,7 +222,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert(data.message || "Refund processed and completed successfully!", "Success");
+        showToast(data.message || "Refund processed and completed successfully!", "success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -228,11 +230,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        await customAlert(data.message || "Failed to process refund.", "Error");
+        showToast(data.message || "Failed to process refund.", "error");
       }
     } catch (error) {
       console.error("Error processing return refund:", error);
-      await customAlert("Failed to process return refund.", "Error");
+      showToast("Failed to process return refund.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -253,7 +255,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert("Refund marked as completed & credited successfully!", "Success");
+        showToast("Refund marked as completed & credited successfully!", "success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -261,11 +263,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        await customAlert(data.message || "Failed to update refund status.", "Error");
+        showToast(data.message || "Failed to update refund status.", "error");
       }
     } catch (error) {
       console.error("Error completing refund status:", error);
-      await customAlert("Failed to update refund status.", "Error");
+      showToast("Failed to update refund status.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -285,7 +287,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        await customAlert("Return request rejected successfully.", "Success");
+        showToast("Return request rejected successfully.", "success");
         if (data.data) {
           setOrders(prev => prev.map(o => (o._id === orderDbId || o.orderId === orderDbId ? data.data : o)));
           setSelectedOrder(data.data);
@@ -293,11 +295,11 @@ export default function AdminOrdersPage() {
           fetchOrders();
         }
       } else {
-        await customAlert(data.message || "Failed to reject return request.", "Error");
+        showToast(data.message || "Failed to reject return request.", "error");
       }
     } catch (error) {
       console.error("Error rejecting return request:", error);
-      await customAlert("Failed to reject return request.", "Error");
+      showToast("Failed to reject return request.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -314,16 +316,17 @@ export default function AdminOrdersPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        showToast("Order deleted successfully.", "success");
         setOrders(prev => prev.filter(o => o._id !== orderDbId && o.orderId !== orderDbId));
         if (selectedOrder && (selectedOrder._id === orderDbId || selectedOrder.orderId === orderDbId)) {
           setSelectedOrder(null);
         }
       } else {
-        await customAlert(data.message || "Failed to delete order.", "Error");
+        showToast(data.message || "Failed to delete order.", "error");
       }
     } catch (err) {
       console.error("Delete order error:", err);
-      await customAlert("Failed to delete order. Please try again.", "Error");
+      showToast("Failed to delete order. Please try again.", "error");
     }
   };
 
@@ -375,6 +378,7 @@ export default function AdminOrdersPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        showToast(`Order status updated to "${newStatus}"`, "success");
         setOrders(prev =>
           prev.map(o => (o._id === orderDbId ? { ...o, orderStatus: newStatus } : o))
         );
@@ -382,11 +386,11 @@ export default function AdminOrdersPage() {
           setSelectedOrder(prev => ({ ...prev, orderStatus: newStatus }));
         }
       } else {
-        alert(data.message || "Failed to update order status");
+        showToast(data.message || "Failed to update order status", "error");
       }
     } catch (error) {
       console.error("Error updating order status:", error);
-      alert("Error updating order status. Please try again.");
+      showToast("Error updating order status. Please try again.", "error");
     } finally {
       setUpdatingOrderId(null);
     }
