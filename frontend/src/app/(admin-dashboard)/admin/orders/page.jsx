@@ -945,11 +945,14 @@ export default function AdminOrdersPage() {
 
                           if (retStatus === "Refund Initiated") {
                             return (
-                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
-                                <span className="font-semibold text-amber-800 flex items-center gap-1.5">
-                                  <Clock className="w-4 h-4 text-amber-600" /> Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)
+                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3 text-xs">
+                                <span className="w-[50%] font-semibold text-amber-800 flex items-center gap-1.5">
+                                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                  <span>Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)</span>
                                 </span>
-                                <span className="bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase">Refund Processing</span>
+                                <span className="w-auto whitespace-nowrap bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase shrink-0">
+                                  Refund Processing
+                                </span>
                               </div>
                             );
                           }
