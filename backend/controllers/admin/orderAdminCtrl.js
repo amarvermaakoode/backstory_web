@@ -1,4 +1,38 @@
 const Order = require("../../models/Order");
+const QRCode = require("../../models/QRCode");
+
+// Helper to unclaim QR codes & delete story/profile data when a product return/exchange is completed
+const unclaimOrderQRCodes = async (orderId) => {
+  try {
+    if (!orderId) return;
+    const orderIdStr = orderId.toString().trim();
+    const qrs = await QRCode.find({
+      $or: [
+        { orderId: orderIdStr },
+        { orderId: orderIdStr.toUpperCase() }
+      ]
+    });
+
+    for (const qrDoc of qrs) {
+      qrDoc.status = "unlinked";
+      qrDoc.orderId = null;
+      qrDoc.linkedUser = null;
+      qrDoc.linkedAt = null;
+      qrDoc.profileData = {
+        title: "",
+        bio: "",
+        socialLinks: {},
+        avatarUrl: "",
+        coverUrl: "",
+        themeColor: "#000000",
+        customText: ""
+      };
+      await qrDoc.save();
+    }
+  } catch (err) {
+    console.error(`Error unclaiming QR codes for order ${orderId}:`, err);
+  }
+};
 
 const ALLOWED_STATUSES = [
   "Placed",
@@ -127,6 +161,7 @@ const syncRazorpayRefundStatus = async (order) => {
             });
           }
           await order.save();
+          await unclaimOrderQRCodes(order.orderId || order._id);
         }
       } else if (rzpRefund.status === "processed" || rzpRefund.status === "pending") {
         // Stage 6: Razorpay gateway processed -> Refund Initiated & Processing (5-7 working days for bank credit)
@@ -267,6 +302,10 @@ const updateOrderStatus = async (req, res) => {
 
     await order.save();
 
+    if (status === "Returned" || status === "Exchanged") {
+      await unclaimOrderQRCodes(order.orderId || order._id);
+    }
+
     // Sync wallet balance if payout method was BacStory Wallet
     const { syncUserWalletBalance } = require("../../config/walletHelper");
     const creditedWalletBalance = await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
@@ -330,6 +369,10 @@ const updateRefundStatus = async (req, res) => {
 
     order.refundDetails.updatedAt = new Date();
     await order.save();
+
+    if (refundStatus === "Refunded" || order.orderStatus === "Returned" || order.orderStatus === "Exchanged") {
+      await unclaimOrderQRCodes(order.orderId || order._id);
+    }
 
     // Sync wallet balance if payout method was BacStory Wallet
     const { syncUserWalletBalance } = require("../../config/walletHelper");
@@ -611,6 +654,7 @@ const processReturnRefund = async (req, res) => {
       }
 
       await order.save();
+      await unclaimOrderQRCodes(order.orderId || order._id);
 
       const { syncUserWalletBalance } = require("../../config/walletHelper");
       await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
@@ -825,6 +869,10 @@ const updateExchangeStatus = async (req, res) => {
     }
 
     await order.save();
+
+    if (status === "Exchange Completed") {
+      await unclaimOrderQRCodes(order.orderId || order._id);
+    }
 
     return res.status(200).json({
       success: true,

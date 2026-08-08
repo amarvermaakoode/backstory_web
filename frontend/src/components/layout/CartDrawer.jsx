@@ -82,9 +82,9 @@ export default function CartDrawer() {
                     <div className="flex items-center justify-center text-[10px] sm:text-xs font-medium tracking-wider text-neutral-400 uppercase w-full">
                         <div className="flex-grow border-t border-neutral-200"></div>
                         <span className="px-4">
-                            {cartSubtotal >= 2000 
+                            {cartSubtotal >= 999 
                                 ? "You qualify for Free Delivery!" 
-                                : `Free delivery above Rs 2,000`}
+                                : `Free delivery above Rs 999`}
                         </span>
                         <div className="flex-grow border-t border-neutral-200"></div>
                     </div>

@@ -398,24 +398,7 @@ export default function PublicQRCodePage() {
                               maxLength={50}
                               placeholder="Email or Mobile*"
                               value={email}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (!val) {
-                                  setEmail("");
-                                  return;
-                                }
-                                if (val.includes("@")) {
-                                  setEmail(val.toLowerCase().replace(/\s/g, "").slice(0, 50));
-                                } else {
-                                  const hasPlus = val.startsWith("+");
-                                  const digits = val.replace(/\D/g, "");
-                                  if (hasPlus) {
-                                    setEmail(`+${digits.slice(0, 12)}`);
-                                  } else {
-                                    setEmail(digits.slice(0, 10));
-                                  }
-                                }
-                              }}
+                              onChange={(e) => setEmail(e.target.value)}
                               className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
                             />
                           </div>

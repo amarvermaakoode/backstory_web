@@ -368,6 +368,7 @@ export default function CheckoutPage() {
 
     // Order & Payment state
     const [isOrderComplete, setIsOrderComplete] = useState(false);
+    const [completedOrderSummary, setCompletedOrderSummary] = useState(null);
     const [generatedOrderNum, setGeneratedOrderNum] = useState("");
     const [pinCodeError, setPinCodeError] = useState("");
     const [isFetchingPincode, setIsFetchingPincode] = useState(false);
@@ -711,6 +712,15 @@ export default function CheckoutPage() {
                 }
 
                 setGeneratedOrderNum(localOrderId);
+                setCompletedOrderSummary({
+                    orderNum: localOrderId,
+                    totalAmount: totalAmount,
+                    walletDeduction: walletDeduction,
+                    payableTotal: payableTotal,
+                    paymentMethod: "BacStory Wallet",
+                    recipientName: formData.firstName,
+                    email: formData.deliveryEmail || formData.contactEmail
+                });
                 setIsOrderComplete(true);
                 if (!isCartEmpty) {
                     clearCart();
@@ -880,6 +890,15 @@ export default function CheckoutPage() {
                             }
 
                             setGeneratedOrderNum(localOrderId);
+                            setCompletedOrderSummary({
+                                orderNum: localOrderId,
+                                totalAmount: totalAmount,
+                                walletDeduction: walletDeduction,
+                                payableTotal: payableTotal,
+                                paymentMethod: isWalletActive ? "BacStory Wallet + Razorpay" : "Razorpay Online",
+                                recipientName: formData.firstName,
+                                email: formData.deliveryEmail || formData.contactEmail
+                            });
                             setIsOrderComplete(true);
                             if (!isCartEmpty) {
                                 clearCart();
@@ -1580,13 +1599,13 @@ export default function CheckoutPage() {
                         </h2>
 
                         <p className="text-sm text-neutral-400 mt-2 font-medium">
-                            Thank you for shopping with us, {formData.firstName}.
+                            Thank you for shopping with us, {completedOrderSummary?.recipientName || formData.firstName}.
                         </p>
 
                         <div className="my-6 py-4 px-6 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-left space-y-2.5">
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Order Number:</span>
-                                <span className="font-bold text-black">{generatedOrderNum}</span>
+                                <span className="font-bold text-black">{completedOrderSummary?.orderNum || generatedOrderNum}</span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Payment Status:</span>
@@ -1595,44 +1614,49 @@ export default function CheckoutPage() {
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Payment Method:</span>
                                 <span className="font-semibold text-black">
-                                    {isWalletActive && payableTotal === 0
+                                    {completedOrderSummary?.paymentMethod || (isWalletActive && payableTotal === 0
                                         ? "BacStory Wallet"
                                         : isWalletActive
                                         ? "BacStory Wallet + Razorpay"
-                                        : "Razorpay Online"}
+                                        : "Razorpay Online")}
                                 </span>
                             </div>
 
                             <div className="flex justify-between text-xs sm:text-sm font-medium pt-1 border-t border-neutral-200/60">
                                 <span className="text-neutral-400">Order Total:</span>
-                                <span className="font-semibold text-black">Rs {totalAmount.toLocaleString()}</span>
+                                <span className="font-semibold text-black">Rs {(completedOrderSummary ? completedOrderSummary.totalAmount : totalAmount).toLocaleString()}</span>
                             </div>
 
-                            {walletDeduction > 0 && (
+                            {(completedOrderSummary ? completedOrderSummary.walletDeduction : walletDeduction) > 0 && (
                                 <div className="flex justify-between text-xs sm:text-sm font-medium text-emerald-700">
                                     <span>BacStory Wallet Credit:</span>
-                                    <span className="font-semibold">- Rs {walletDeduction.toLocaleString()}</span>
+                                    <span className="font-semibold">- Rs {(completedOrderSummary ? completedOrderSummary.walletDeduction : walletDeduction).toLocaleString()}</span>
                                 </div>
                             )}
 
                             <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-1">
                                 <span className="text-neutral-800 font-bold">
-                                    {payableTotal === 0 ? "Amount Paid via Wallet:" : "Amount Paid via Razorpay:"}
+                                    {(completedOrderSummary ? completedOrderSummary.payableTotal : payableTotal) === 0 ? "Amount Paid via Wallet:" : "Amount Paid via Razorpay:"}
                                 </span>
                                 <span className="font-bold text-black font-clashDisplay">
-                                    Rs {payableTotal === 0 ? totalAmount.toLocaleString() : payableTotal.toLocaleString()}
+                                    Rs {(completedOrderSummary
+                                        ? (completedOrderSummary.payableTotal === 0 ? completedOrderSummary.totalAmount : completedOrderSummary.payableTotal)
+                                        : (payableTotal === 0 ? totalAmount : payableTotal)).toLocaleString()}
                                 </span>
                             </div>
                         </div>
 
                         <p className="text-xs text-neutral-400 leading-relaxed px-4">
-                            A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{formData.deliveryEmail || formData.contactEmail}</span>.
+                            A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{completedOrderSummary?.email || formData.deliveryEmail || formData.contactEmail}</span>.
                         </p>
 
 
                         <Link
                             href="/"
-                            onClick={() => setIsOrderComplete(false)}
+                            onClick={() => {
+                                setIsOrderComplete(false);
+                                setCompletedOrderSummary(null);
+                            }}
                             className="w-full py-3.5 bg-black hover:bg-neutral-800 text-white rounded-full font-bold text-sm tracking-wide transition-colors mt-8 flex items-center justify-center gap-2 cursor-pointer shadow-md"
                         >
                             <span>Back to Homepage</span>
