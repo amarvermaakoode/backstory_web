@@ -653,60 +653,6 @@ export default function AccountOrdersPage() {
                                             </div>
                                         </>
                                     )}
-                                    {isReturnRequestedModal && (() => {
-                                        const reqReason = selectedTrackOrder.returnExchange?.reason || "";
-                                        const isFreeShippingReason = [
-                                            "Defective or damaged product",
-                                            "Received wrong item",
-                                            "Parcel received with missing items",
-                                            "Item damaged during transit",
-                                            "Item defective or damaged"
-                                        ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
-
-                                        const returnShippingFee = isFreeShippingReason
-                                            ? 0
-                                            : (typeof selectedTrackOrder.returnExchange?.returnShippingFee === "number"
-                                                ? selectedTrackOrder.returnExchange.returnShippingFee
-                                                : 99);
-
-                                        const orderTotal = selectedTrackOrder.totalAmount || selectedTrackOrder.subtotal || 0;
-                                        const netRefund = selectedTrackOrder.refundDetails?.refundAmount || Math.max(0, orderTotal - returnShippingFee);
-                                        const rawMethod = selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
-                                        const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
-                                        const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
-                                        const payoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
-
-                                        return (
-                                            <>
-                                                <div className="border-t border-neutral-200/50 pt-2 space-y-1.5">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-neutral-500 font-medium">Order Total:</span>
-                                                        <span className="font-semibold text-neutral-900">
-                                                            Rs {Number(orderTotal)?.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-neutral-500 font-medium">Return Shipping Fee:</span>
-                                                        <span className={returnShippingFee === 0 ? "font-semibold text-emerald-600" : "font-semibold text-amber-700"}>
-                                                            {returnShippingFee === 0 ? "Rs 0 (Free Return)" : `- Rs ${returnShippingFee}`}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between border-t border-neutral-200/80 pt-1.5">
-                                                        <span className="text-neutral-900 font-bold">Refund Amount:</span>
-                                                        <span className="font-bold text-neutral-900 text-xs sm:text-sm">
-                                                            Rs {Number(netRefund)?.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center justify-between border-t border-neutral-200/50 pt-2">
-                                                    <span className="text-neutral-500 font-medium">Payout Method:</span>
-                                                    <span className="font-semibold text-neutral-900">
-                                                        {payoutMethod}
-                                                    </span>
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
                                 </div>
                             );
                         })()}
@@ -785,7 +731,10 @@ export default function AccountOrdersPage() {
 
                                             const reqShippingFee = isFreeShippingReason ? 0 : (typeof req.returnShippingFee === "number" ? req.returnShippingFee : 99);
                                             const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
-                                            const reqPayoutMethod = req.refundMethod || selectedTrackOrder.refundDetails?.refundMethod || "Original Payment Method";
+                                            const rawMethod = req.refundMethod || selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
+                                            const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
+                                            const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
+                                            const reqPayoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
 
                                             const isApproved = reqStatus === "Return Approved" || reqStatus === "Approved" || reqStatus === "Product Received" || reqStatus === "Refund Initiated" || reqStatus === "Refunded";
                                             const isReceived = reqStatus === "Product Received" || reqStatus === "Refund Initiated" || reqStatus === "Refunded";
@@ -797,15 +746,15 @@ export default function AccountOrdersPage() {
                                                 { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
                                                 { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
                                                 { 
-                                        title: "Refund Initiated", 
-                                        desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", 
-                                        completed: isRefundInit 
-                                    },
+                                                    title: "Refund Initiated", 
+                                                    desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", 
+                                                    completed: isRefundInit 
+                                                },
                                                 { 
-                                        title: "Refunded", 
-                                        desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account", 
-                                        completed: isRefundedDone 
-                                    }
+                                                    title: "Refunded", 
+                                                    desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account", 
+                                                    completed: isRefundedDone 
+                                                }
                                             ];
 
                                             return (
