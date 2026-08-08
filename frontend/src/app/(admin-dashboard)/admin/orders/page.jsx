@@ -121,7 +121,7 @@ export default function AdminOrdersPage() {
     });
   };
 
-  const handleApproveReturn = async (orderDbId) => {
+  const handleApproveReturn = async (orderDbId, requestId = null) => {
     const confirmed = await customConfirm("Are you sure you want to approve this return request?", "Approve Return Request");
     if (!confirmed) {
       return;
@@ -130,7 +130,8 @@ export default function AdminOrdersPage() {
     try {
       const res = await adminFetch(`/orders/${orderDbId}/approve-return`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId })
       });
       const data = await res.json();
 
@@ -153,7 +154,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleMarkProductReceived = async (orderDbId) => {
+  const handleMarkProductReceived = async (orderDbId, requestId = null) => {
     const confirmed = await customConfirm("Confirm that the returned product has been picked up and received by seller?", "Mark Product Received");
     if (!confirmed) {
       return;
@@ -162,7 +163,8 @@ export default function AdminOrdersPage() {
     try {
       const res = await adminFetch(`/orders/${orderDbId}/product-received`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId })
       });
       const data = await res.json();
 
@@ -185,7 +187,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleProcessReturnRefund = async (orderDbId) => {
+  const handleProcessReturnRefund = async (orderDbId, requestId = null) => {
     const refundMethodStr = (selectedOrder?.refundDetails?.refundMethod || selectedOrder?.returnExchange?.refundMethod || "").toLowerCase();
     const isWalletRefund = refundMethodStr.includes("wallet");
     let paymentIdToSend = "";
@@ -217,7 +219,7 @@ export default function AdminOrdersPage() {
       const res = await adminFetch(`/orders/${orderDbId}/process-refund`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ razorpayPaymentId: paymentIdToSend })
+        body: JSON.stringify({ razorpayPaymentId: paymentIdToSend, requestId })
       });
       const data = await res.json();
 
@@ -273,7 +275,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const handleRejectReturn = async (orderDbId) => {
+  const handleRejectReturn = async (orderDbId, requestId = null) => {
     const reason = await customPrompt("Enter rejection reason for customer (optional):", "Request does not meet return policy criteria.", "Reject Return Request", "Rejection reason...");
     if (reason === null) return;
 
@@ -282,7 +284,7 @@ export default function AdminOrdersPage() {
       const res = await adminFetch(`/orders/${orderDbId}/reject-return`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rejectionReason: reason })
+        body: JSON.stringify({ rejectionReason: reason, requestId })
       });
       const data = await res.json();
 
@@ -746,6 +748,12 @@ export default function AdminOrdersPage() {
                     const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : 99;
                     const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
 
+                    const reqPayoutMethod = req.refundMethod || selectedOrder.refundDetails?.refundMethod || "Original Payment Method";
+                    const reqBankHolder = req.bankHolderName || selectedOrder.refundDetails?.bankHolderName || "";
+                    const reqAccountNumber = req.accountNumber || selectedOrder.refundDetails?.accountNumber || "";
+                    const reqIfscCode = req.ifscCode || selectedOrder.refundDetails?.ifscCode || "";
+                    const reqUpiId = req.upiId || selectedOrder.refundDetails?.upiId || "";
+
                     return (
                       <div key={req._id || req.requestId || reqIndex} className={`${isPendingAction ? "bg-purple-50/30 border border-purple-200/50" : "bg-neutral-50 border border-neutral-200/60"} p-4 rounded-2xl space-y-3 transition-colors`}>
                         <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
@@ -756,7 +764,7 @@ export default function AdminOrdersPage() {
                           {isPendingAction ? (
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId)}
+                                onClick={() => handleApproveReturn(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
                                 disabled={actionLoading}
                                 title="Approve Request"
                                 className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
@@ -764,7 +772,7 @@ export default function AdminOrdersPage() {
                                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[3] text-emerald-600" />}
                               </button>
                               <button
-                                onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId)}
+                                onClick={() => handleRejectReturn(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
                                 disabled={actionLoading}
                                 title="Reject Request"
                                 className="cursor-pointer hover:opacity-80 transition-opacity p-0.5"
@@ -831,11 +839,71 @@ export default function AdminOrdersPage() {
                             <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Uploaded Proof Photos:</span>
                             <div className="flex items-center gap-2 overflow-x-auto">
                               {req.proofPhotos.map((img, idx) => (
-                                <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer">
-                                  <img src={getImageUrl(img)} alt="Proof" className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80" />
+                                <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                  <img
+                                    src={getImageUrl(img)}
+                                    alt={`Proof photo ${idx + 1}`}
+                                    className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80 bg-neutral-100"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "/images/landing-page/coding-tshirt.png";
+                                    }}
+                                  />
                                 </a>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {/* Refund Details & Breakdown for this specific return request */}
+                        {isReturn && (
+                          <div className="bg-white p-3.5 rounded-xl border border-neutral-200/80 space-y-2 text-xs">
+                            <div className="border-b border-neutral-200/60 pb-1.5 flex items-center justify-between">
+                              <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase">
+                                Refund Details
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-600">
+                                Payout: <span className="text-neutral-900 font-medium">{reqPayoutMethod}</span>
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-neutral-600 font-medium">
+                              <span>Returned Items Subtotal</span>
+                              <span className="font-semibold text-neutral-900">
+                                Rs {reqItemsSubtotal.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-neutral-600 font-medium">
+                              <span>Return Shipping Fee</span>
+                              <span className="font-semibold text-neutral-900">
+                                {reqShippingFee === 0 ? "Rs 0 (Free Return)" : `- Rs ${reqShippingFee}`}
+                              </span>
+                            </div>
+
+                            <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-semibold text-neutral-900 text-xs sm:text-sm">
+                              <span className="font-semibold text-neutral-900">Net Refund Amount</span>
+                              <span className="font-semibold text-neutral-900 text-sm sm:text-base font-mono">
+                                Rs {reqNetRefund.toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Payout Credentials */}
+                            {(reqPayoutMethod === "Bank Transfer" || (reqBankHolder && reqAccountNumber)) && (
+                              <div className="pt-2 border-t border-neutral-200/60 text-xs text-neutral-700 space-y-1">
+                                <p className="font-semibold text-neutral-900 text-[11px] uppercase tracking-wider">Bank Details:</p>
+                                <p><strong>Account Holder:</strong> {reqBankHolder || "N/A"}</p>
+                                <p><strong>Account Number:</strong> {reqAccountNumber || "N/A"}</p>
+                                <p><strong>IFSC Code:</strong> {reqIfscCode || "N/A"}</p>
+                              </div>
+                            )}
+
+                            {(reqPayoutMethod === "UPI" || (reqUpiId && reqPayoutMethod !== "Bank Transfer")) && (
+                              <div className="pt-2 border-t border-neutral-200/60 text-xs text-neutral-700 space-y-1">
+                                <p className="font-semibold text-neutral-900 text-[11px] uppercase tracking-wider">UPI Details:</p>
+                                <p><strong>UPI ID:</strong> {reqUpiId || "N/A"}</p>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -848,7 +916,7 @@ export default function AdminOrdersPage() {
                               <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
                                 <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Product Pickup & Receipt</strong></span>
                                 <button
-                                  onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId)}
+                                  onClick={() => handleMarkProductReceived(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
                                   disabled={actionLoading}
                                   className="bg-neutral-900 hover:bg-black disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                                 >
@@ -864,7 +932,7 @@ export default function AdminOrdersPage() {
                               <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
                                 <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Refund Processing</strong></span>
                                 <button
-                                  onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId)}
+                                  onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
                                   disabled={actionLoading}
                                   className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                                 >
@@ -906,8 +974,8 @@ export default function AdminOrdersPage() {
               );
             })()}
 
-            {/* Refund Details & Calculation */}
-            {selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (() => {
+            {/* Standalone Refund Details & Calculation (when no return requests list exists) */}
+            {(!selectedOrder.returnRequestsHistory || selectedOrder.returnRequestsHistory.length === 0) && selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (() => {
               const isCancelled = selectedOrder.cancellation?.isCancelled || selectedOrder.orderStatus === "Cancelled";
               const reqReason = selectedOrder.returnExchange?.reason || "";
               const isFreeShippingReason = [

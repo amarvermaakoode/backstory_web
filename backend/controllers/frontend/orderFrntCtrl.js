@@ -218,6 +218,7 @@ const getTrackOrderStatus = async (req, res) => {
         shippingAddress: order.shippingAddress,
         cancellation: order.cancellation,
         returnExchange: order.returnExchange,
+        returnRequestsHistory: order.returnRequestsHistory || [],
         refundDetails: order.refundDetails,
       },
     });
