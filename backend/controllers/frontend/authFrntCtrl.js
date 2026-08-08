@@ -133,6 +133,8 @@ const verifyOtp = async (req, res) => {
         role: user.role,
         addresses: user.addresses || [],
         isDeactivated: user.isDeactivated || false,
+        walletBalance: user.walletBalance || 0,
+        walletTransactions: user.walletTransactions || [],
       },
     });
   } catch (error) {
@@ -147,10 +149,18 @@ const verifyOtp = async (req, res) => {
 // Get current user profile
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id || req.user._id).select("-password");
+    const userId = req.user.id || req.user._id;
+    let user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    // Auto-sync wallet balance from any refunded wallet orders
+    const { syncUserWalletBalance } = require("../../config/walletHelper");
+    await syncUserWalletBalance(user._id, user.email, user.phoneNumber);
+
+    // Re-fetch updated user record
+    user = await User.findById(userId).select("-password");
 
     return res.status(200).json({
       success: true,
@@ -164,6 +174,8 @@ const getCurrentUser = async (req, res) => {
         role: user.role,
         addresses: user.addresses || [],
         isDeactivated: user.isDeactivated || false,
+        walletBalance: user.walletBalance || 0,
+        walletTransactions: user.walletTransactions || [],
       },
     });
   } catch (error) {

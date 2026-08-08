@@ -15,6 +15,8 @@ const createOrderRecord = async (req, res) => {
       shippingCost,
       taxAmount,
       totalAmount,
+      walletDeduction,
+      paymentMethod,
     } = req.body;
 
     if (!orderId || !razorpayOrderId || !razorpayPaymentId || !items || !Array.isArray(items)) {
@@ -25,6 +27,33 @@ const createOrderRecord = async (req, res) => {
     }
 
     const userId = req.user ? (req.user.id || req.user._id) : null;
+
+    // Handle wallet deduction if wallet payment was used
+    if (walletDeduction && walletDeduction > 0) {
+      try {
+        const User = require("../../models/user");
+        let customer = null;
+        if (userId) customer = await User.findById(userId);
+        if (!customer && shippingAddress?.email) customer = await User.findOne({ email: shippingAddress.email.toLowerCase().trim() });
+        if (!customer && shippingAddress?.phoneNumber) customer = await User.findOne({ phoneNumber: shippingAddress.phoneNumber.trim() });
+
+        if (customer) {
+          const deductAmt = Math.min(customer.walletBalance || 0, Number(walletDeduction));
+          customer.walletBalance = Math.max(0, (customer.walletBalance || 0) - deductAmt);
+          if (!customer.walletTransactions) customer.walletTransactions = [];
+          customer.walletTransactions.push({
+            type: "debit",
+            amount: deductAmt,
+            description: `Payment for Order #${orderId}`,
+            orderId: orderId,
+            createdAt: new Date()
+          });
+          await customer.save();
+        }
+      } catch (wltErr) {
+        console.error("Error debiting user wallet balance:", wltErr);
+      }
+    }
 
     const newOrder = await Order.create({
       user: userId,
@@ -45,7 +74,7 @@ const createOrderRecord = async (req, res) => {
         quantity: item.quantity || 1,
         image: item.image || "",
         orderStatus: "Order Confirmed",
-        paymentStatus: "Confirmed",
+        paymentStatus: "Paid",
         deliveryDate: "Estimated Delivery: 3-5 Business Days",
       })),
       subtotal: subtotal || 0,
@@ -53,7 +82,9 @@ const createOrderRecord = async (req, res) => {
       shippingCost: shippingCost || 0,
       taxAmount: taxAmount || 0,
       totalAmount: totalAmount || 0,
-      paymentStatus: "Confirmed",
+      walletDeduction: Number(walletDeduction) || 0,
+      paymentMethod: paymentMethod || "Razorpay / Prepaid",
+      paymentStatus: "Paid",
       orderStatus: "Order Confirmed",
     });
 

@@ -239,13 +239,41 @@ const updateOrderStatus = async (req, res) => {
       order.paymentStatus = "Refunded";
       if (!order.refundDetails) order.refundDetails = {};
       order.refundDetails.refundStatus = "Refunded";
+
+      const returnFee = typeof order.returnExchange?.returnShippingFee === "number" ? order.returnExchange.returnShippingFee : 0;
+      const orderTotal = order.totalAmount || order.orderTotal || 0;
+      if (!order.refundDetails.refundAmount || order.refundDetails.refundAmount <= 0) {
+        order.refundDetails.refundAmount = Math.max(0, orderTotal - returnFee);
+      }
+
+      const method = (order.refundDetails?.refundMethod || order.returnExchange?.refundMethod || "").toLowerCase();
+      const originalWasWallet = (order.paymentMethod || "").toLowerCase().includes("wallet") || (order.walletDeduction && order.walletDeduction > 0);
+      const isWalletMethod = method.includes("wallet") || (method.includes("original") && originalWasWallet) || (method === "" && originalWasWallet);
+
+      if (isWalletMethod) {
+        order.refundDetails.refundMethod = "BacStory Wallet";
+        order.refundDetails.refundId = order.refundDetails.refundId || `WLT-${Math.floor(100000 + Math.random() * 900000)}`;
+        order.refundDetails.estimatedCreditWindow = "Instant Credit to BacStory Wallet";
+      }
     }
 
     await order.save();
 
+    // Sync wallet balance if payout method was BacStory Wallet
+    const { syncUserWalletBalance } = require("../../config/walletHelper");
+    const creditedWalletBalance = await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
+
+    const methodCheck = (order.refundDetails?.refundMethod || order.returnExchange?.refundMethod || "").toLowerCase();
+    const origCheck = (order.paymentMethod || "").toLowerCase().includes("wallet") || (order.walletDeduction && order.walletDeduction > 0);
+    const isWalletMethodFinal = methodCheck.includes("wallet") || (methodCheck.includes("original") && origCheck) || (methodCheck === "" && origCheck);
+
+    const successMsg = isWalletMethodFinal && status === "Returned"
+      ? `Order status updated to "Returned". Rs ${order.refundDetails.refundAmount.toLocaleString()} credited instantly to customer's BacStory Wallet (New Balance: Rs ${creditedWalletBalance.toLocaleString()})!`
+      : `Order status updated to "${status}"`;
+
     return res.status(200).json({
       success: true,
-      message: `Order status updated to "${status}"`,
+      message: successMsg,
       data: order,
     });
   } catch (error) {
@@ -294,6 +322,10 @@ const updateRefundStatus = async (req, res) => {
 
     order.refundDetails.updatedAt = new Date();
     await order.save();
+
+    // Sync wallet balance if payout method was BacStory Wallet
+    const { syncUserWalletBalance } = require("../../config/walletHelper");
+    await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
 
     return res.status(200).json({
       success: true,
@@ -485,7 +517,65 @@ const processReturnRefund = async (req, res) => {
     if (!order.refundDetails) order.refundDetails = {};
     order.refundDetails.refundAmount = refundAmountRs;
 
-    // Retrieve payment ID (from body or order schema)
+    // Check if customer selected BacStory Wallet payout or original payment method (when original was Wallet)
+    const refundMethodStr = (order.refundDetails?.refundMethod || order.returnExchange?.refundMethod || "").toLowerCase();
+    const originalWasWallet = (order.paymentMethod || "").toLowerCase().includes("wallet") || (order.walletDeduction && order.walletDeduction > 0);
+    const isWalletRefund = refundMethodStr.includes("wallet") || (refundMethodStr.includes("original") && originalWasWallet) || (refundMethodStr === "" && originalWasWallet);
+
+    if (isWalletRefund) {
+      const User = require("../../models/user");
+      let customer = null;
+      if (order.user) {
+        customer = await User.findById(order.user);
+      }
+      if (!customer && order.shippingAddress?.email) {
+        customer = await User.findOne({ email: order.shippingAddress.email.toLowerCase().trim() });
+      }
+
+      if (customer) {
+        customer.walletBalance = (customer.walletBalance || 0) + refundAmountRs;
+        if (!customer.walletTransactions) customer.walletTransactions = [];
+        customer.walletTransactions.push({
+          type: "credit",
+          amount: refundAmountRs,
+          description: `Refund credited for Order #${order.orderId}`,
+          orderId: order.orderId,
+          createdAt: new Date()
+        });
+        await customer.save();
+      }
+
+      const walletRefundId = `WLT-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      order.orderStatus = "Returned";
+      order.returnExchange.status = "Refunded";
+      order.paymentStatus = "Refunded";
+      order.refundDetails.refundStatus = "Refunded";
+      order.refundDetails.refundId = walletRefundId;
+      order.refundDetails.razorpayRefundId = walletRefundId;
+      order.refundDetails.estimatedCreditWindow = "Instant Credit to BacStory Wallet";
+      order.refundDetails.updatedAt = new Date();
+
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Returned";
+          item.paymentStatus = "Refunded";
+        });
+      }
+
+      await order.save();
+
+      const { syncUserWalletBalance } = require("../../config/walletHelper");
+      await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
+
+      return res.status(200).json({
+        success: true,
+        message: `Rs ${refundAmountRs.toLocaleString()} credited directly to customer's BacStory Wallet!`,
+        data: order
+      });
+    }
+
+    // Retrieve payment ID (from body or order schema) for Razorpay refunds
     let paymentId = req.body?.razorpayPaymentId || order.razorpayPaymentId || order.paymentInfo?.razorpayPaymentId || order.paymentDetails?.razorpay_payment_id;
 
     const keyId = process.env.RAZORPAY_KEY_ID;

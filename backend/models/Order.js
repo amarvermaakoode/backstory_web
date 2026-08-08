@@ -76,6 +76,8 @@ const orderSchema = new mongoose.Schema(
     shippingCost: { type: Number, default: 0 },
     taxAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true, default: 0 },
+    walletDeduction: { type: Number, default: 0 },
+    paymentMethod: { type: String, default: "Razorpay / Prepaid" },
     paymentStatus: {
       type: String,
       enum: [

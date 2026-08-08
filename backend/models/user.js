@@ -80,10 +80,40 @@ const userSchema = new mongoose.Schema(
         }
       }
     ],
+    walletBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    walletTransactions: [
+      {
+        type: {
+          type: String,
+          enum: ["credit", "debit"],
+          required: true,
+        },
+        amount: {
+          type: Number,
+          required: true,
+        },
+        description: {
+          type: String,
+          default: "",
+        },
+        orderId: {
+          type: String,
+          default: "",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);
