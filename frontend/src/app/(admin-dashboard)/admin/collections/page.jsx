@@ -15,6 +15,8 @@ import {
 import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
 
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+
 export default function CollectionsAdminPage() {
   const { adminFetch } = useAdminAuth();
   const [collections, setCollections] = useState([]);
@@ -22,6 +24,30 @@ export default function CollectionsAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -152,7 +178,13 @@ export default function CollectionsAdminPage() {
   };
 
   const handleDeleteCollection = async (id, collName) => {
-    if (!window.confirm(`Are you sure you want to delete the collection "${collName}"?`)) {
+    const confirmed = await customConfirm(
+      `Are you sure you want to delete the collection "${collName}"? This action cannot be undone.`,
+      "Delete Collection",
+      "Delete",
+      true
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -430,6 +462,8 @@ export default function CollectionsAdminPage() {
         </div>
       )}
 
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }

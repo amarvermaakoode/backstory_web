@@ -14,6 +14,7 @@ import {
   Coins
 } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 
 export default function PromoCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -22,6 +23,30 @@ export default function PromoCodesAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -139,7 +164,13 @@ export default function PromoCodesAdminPage() {
   };
 
   const handleDeletePromo = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this promo code?")) return;
+    const confirmed = await customConfirm(
+      "Are you sure you want to delete this promo code? This action cannot be undone.",
+      "Delete Promo Code",
+      "Delete",
+      true
+    );
+    if (!confirmed) return;
 
     try {
       setError("");
@@ -394,6 +425,9 @@ export default function PromoCodesAdminPage() {
           </div>
         </div>
       )}
+
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }

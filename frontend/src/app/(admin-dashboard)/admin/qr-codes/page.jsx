@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import CustomSelect from "@/components/ui/CustomSelect";
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 
 export default function QRCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -35,6 +36,30 @@ export default function QRCodesAdminPage() {
   const [pdfLoadingBatchId, setPdfLoadingBatchId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Filters for QR Codes tab
   const [statusFilter, setStatusFilter] = useState("all");
@@ -208,11 +233,13 @@ export default function QRCodesAdminPage() {
   };
 
   const handleDeleteBatch = async (batchId, batchNameText) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete '${batchNameText}'? All unlinked QR codes in this batch will be permanently removed.`
-      )
-    ) {
+    const confirmed = await customConfirm(
+      `Are you sure you want to delete '${batchNameText}'? All unlinked QR codes in this batch will be permanently removed.`,
+      "Delete QR Batch",
+      "Delete Batch",
+      true
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -790,6 +817,9 @@ export default function QRCodesAdminPage() {
           </div>
         </div>
       )}
+
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }

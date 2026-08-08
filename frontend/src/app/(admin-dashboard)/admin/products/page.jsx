@@ -17,9 +17,34 @@ import {
 import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 
 export default function ProductsAdminPage() {
   const { adminFetch } = useAdminAuth();
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   const slugify = (text) => {
     if (!text) return "";
@@ -377,7 +402,13 @@ export default function ProductsAdminPage() {
   };
 
   const handleDeleteProduct = async (id, prodTitle) => {
-    if (!window.confirm(`Are you sure you want to delete the product "${prodTitle}"?`)) {
+    const confirmed = await customConfirm(
+      `Are you sure you want to delete the product "${prodTitle}"? This action cannot be undone.`,
+      "Delete Product",
+      "Delete",
+      true
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -423,7 +454,13 @@ export default function ProductsAdminPage() {
   };
 
   const handleDeleteReview = async (reviewId) => {
-    if (!window.confirm("Are you sure you want to delete this review?")) {
+    const confirmed = await customConfirm(
+      "Are you sure you want to delete this review? This action cannot be undone.",
+      "Delete Review",
+      "Delete",
+      true
+    );
+    if (!confirmed) {
       return;
     }
     try {
@@ -1207,6 +1244,8 @@ export default function ProductsAdminPage() {
         </div>
       )}
 
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }

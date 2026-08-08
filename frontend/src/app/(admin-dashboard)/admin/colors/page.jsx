@@ -12,6 +12,8 @@ import {
   AlertTriangle
 } from "lucide-react";
 
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+
 export default function ColorsAdminPage() {
   const { adminFetch } = useAdminAuth();
   const [colors, setColors] = useState([]);
@@ -19,6 +21,30 @@ export default function ColorsAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,7 +155,13 @@ export default function ColorsAdminPage() {
   };
 
   const handleDeleteColor = async (id, colorName) => {
-    if (!window.confirm(`Are you sure you want to delete the color "${colorName}"?`)) {
+    const confirmed = await customConfirm(
+      `Are you sure you want to delete the color "${colorName}"? This action cannot be undone.`,
+      "Delete Color",
+      "Delete",
+      true
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -372,6 +404,8 @@ export default function ColorsAdminPage() {
         </div>
       )}
 
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }

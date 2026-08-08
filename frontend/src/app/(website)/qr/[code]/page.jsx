@@ -570,9 +570,9 @@ export default function PublicQRCodePage() {
           </div>
         )}
 
-        {/* CLAIM SUCCESS STATE / QR LINKED BUT NOT ACTIVATED */}
-        {(claimSuccess || (!loading && !errorMsg && qrData?.status !== "unlinked" && !qrData?.profileData?.customText && !qrData?.profileData?.bio)) && (
-          <div className="min-h-screen w-full bg-[#E7DCD3] bg-[url('/images/qr-about/bg.png')] bg-cover bg-center bg-no-repeat relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
+        {/* CLAIM SUCCESS STATE */}
+        {claimSuccess && (
+          <div className="min-h-screen w-full bg-[#E7DCD3] relative overflow-hidden flex flex-col justify-between mx-auto px-6 sm:px-10 pt-6 select-none animate-in fade-in duration-300">
             {/* Background Decorative Rings & Effects */}
 
             {/* Top Brand Logo */}
@@ -587,7 +587,7 @@ export default function PublicQRCodePage() {
             </div>
 
             {/* Main Center Card */}
-            <div className="w-full max-w-lg mx-auto my-auto bg-white rounded-3xl p-8 sm:p-11 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 relative z-10 my-10">
+            <div className="w-full max-w-lg mx-auto my-auto bg-white/30 backdrop-blur-xl rounded-3xl p-8 sm:p-11 shadow-[0_20px_50px_rgba(0,0,0,0.06)] border border-neutral-100/90 text-center space-y-6 relative z-10 my-10">
               {/* Green Circle Badge with Sparkles */}
               <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-pulse" />
@@ -646,8 +646,8 @@ export default function PublicQRCodePage() {
         )}
 
         {/* LINKED / ACTIVATED STATE: Display Public Story Profile (Matching Reference Design) */}
-        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (qrData?.profileData?.customText || qrData?.profileData?.bio || qrData?.profileData?.title) && (
-          <div className="min-h-screen w-full md:bg-[#E7DCD3] bg-[#E7DCD3]/40   lg:bg-[url('/images/qr-about/imageCopy.png')] bg-contain bg-start bg-no-repeat relative overflow-y-auto flex flex-col justify-between p-6 select-none animate-in fade-in duration-300">
+        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (
+          <div className="min-h-screen w-full md:bg-[#E7DCD3] bg-[#E7DCD3]/40   lg:bg-[url('/images/qr-about/imageCopy.png')] bg-cover bg-no-repeat relative overflow-y-auto flex flex-col justify-between p-6 select-none animate-in fade-in duration-300">
             {/* Top Brand Header & Navigation Bar */}
             <div className="w-full max-w-full mx-auto z-20 md:pb-6 pb-0">
               <Link href="/" className="inline-block cursor-pointer">

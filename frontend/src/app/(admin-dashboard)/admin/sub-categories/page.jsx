@@ -15,6 +15,7 @@ import {
 import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
+import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 
 export default function SubCategoriesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -24,6 +25,30 @@ export default function SubCategoriesAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Custom Popup Modal State
+  const [popupModal, setPopupModal] = useState(null);
+
+  const customConfirm = (message, title = "Confirm Action", confirmText = "Confirm", isDanger = false) => {
+    return new Promise((resolve) => {
+      setPopupModal({
+        type: "confirm",
+        title,
+        message,
+        confirmText,
+        cancelText: "Cancel",
+        isDanger,
+        onConfirm: () => {
+          setPopupModal(null);
+          resolve(true);
+        },
+        onCancel: () => {
+          setPopupModal(null);
+          resolve(false);
+        }
+      });
+    });
+  };
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -175,7 +200,13 @@ export default function SubCategoriesAdminPage() {
   };
 
   const handleDeleteSubCategory = async (id, subName) => {
-    if (!window.confirm(`Are you sure you want to delete the sub-category "${subName}"?`)) {
+    const confirmed = await customConfirm(
+      `Are you sure you want to delete the sub-category "${subName}"? This action cannot be undone.`,
+      "Delete Sub-Category",
+      "Delete",
+      true
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -482,6 +513,8 @@ export default function SubCategoriesAdminPage() {
         </div>
       )}
 
+      {/* Custom Popup Modal */}
+      <CustomConfirmModal modalData={popupModal} />
     </div>
   );
 }
