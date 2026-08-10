@@ -137,17 +137,7 @@ export default function FAQPage() {
                             ))}
                         </div>
 
-                        {/* Search Input Bar */}
-                        <div className="relative w-full md:w-80">
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#EAE8E4]/70 border border-neutral-300/80 rounded-full pl-5 pr-10 py-2.5 text-sm text-black placeholder-neutral-400 focus:outline-none focus:border-black transition-colors"
-                            />
-                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
-                        </div>
+
                     </div>
 
                     {/* Accordion Questions List */}

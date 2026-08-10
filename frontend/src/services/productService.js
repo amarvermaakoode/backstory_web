@@ -42,6 +42,62 @@ export const mapProductItem = (item) => {
     };
 };
 
+// In-memory cache for catalog listing data
+let cachedListingData = null;
+let fetchListingPromise = null;
+
+export async function fetchListingData(forceRefresh = false) {
+    if (cachedListingData && !forceRefresh) {
+        return cachedListingData;
+    }
+    if (fetchListingPromise && !forceRefresh) {
+        return fetchListingPromise;
+    }
+
+    fetchListingPromise = (async () => {
+        try {
+            const [catRes, colRes, subRes, prodRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/frontend/categories`),
+                fetch(`${API_BASE_URL}/frontend/collections`),
+                fetch(`${API_BASE_URL}/frontend/sub-categories`),
+                fetch(`${API_BASE_URL}/frontend/products`)
+            ]);
+
+            const [catData, colData, subData, prodData] = await Promise.all([
+                catRes.json().catch(() => ({})),
+                colRes.json().catch(() => ({})),
+                subRes.json().catch(() => ({})),
+                prodRes.json().catch(() => ({}))
+            ]);
+
+            const categories = catData?.success && Array.isArray(catData.data) ? catData.data : [];
+            const collections = colData?.success && Array.isArray(colData.data) ? colData.data : [];
+            const subCategories = subData?.success && Array.isArray(subData.data) ? subData.data : [];
+            const products = prodData?.success && Array.isArray(prodData.data) ? prodData.data.map(mapProductItem) : [];
+
+            cachedListingData = {
+                categories,
+                collections,
+                subCategories,
+                products
+            };
+
+            return cachedListingData;
+        } catch (err) {
+            console.error("Error fetching listing data:", err);
+            return cachedListingData || { categories: [], collections: [], subCategories: [], products: [] };
+        } finally {
+            fetchListingPromise = null;
+        }
+    })();
+
+    return fetchListingPromise;
+}
+
+export function getCachedListingData() {
+    return cachedListingData;
+}
+
 // Fetch all products
 export async function getProducts() {
     try {
@@ -112,3 +168,4 @@ export async function getProductByIdOrSlug(idOrSlug) {
         return null;
     }
 }
+

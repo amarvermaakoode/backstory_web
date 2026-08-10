@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { API_BASE_URL } from "@/lib/api";
-import { mapProductItem } from "@/services/productService";
+import { mapProductItem, fetchListingData, getCachedListingData } from "@/services/productService";
 
 export default function ProductsListing({
     categorySlug, 
@@ -26,11 +26,13 @@ export default function ProductsListing({
     const isCollectionPage = !!collectionSlug;
     const isSubCategoryPage = !!subCategorySlug;
 
+    const cached = getCachedListingData();
+
     // Page, filter, and sort states
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [collectionsList, setCollectionsList] = useState([]);
-    const [subCategoriesList, setSubCategoriesList] = useState([]);
+    const [products, setProducts] = useState(cached?.products || []);
+    const [categories, setCategories] = useState(cached?.categories || []);
+    const [collectionsList, setCollectionsList] = useState(cached?.collections || []);
+    const [subCategoriesList, setSubCategoriesList] = useState(cached?.subCategories || []);
     const [selectedCategory, setSelectedCategory] = useState("ALL");
     const [selectedCollection, setSelectedCollection] = useState("ALL");
     const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
@@ -46,7 +48,7 @@ export default function ProductsListing({
         colors: []
     });
     const [currentPage, setCurrentPage] = useState(1);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!cached);
     const sortDropdownRef = useRef(null);
 
     // Sync selectedCategory
@@ -90,58 +92,24 @@ export default function ProductsListing({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Fetch dynamic catalogs and products
+    // Fetch dynamic catalogs and products in parallel with caching
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch categories
-                const catRes = await fetch(`${API_BASE_URL}/frontend/categories`);
-                const catData = await catRes.json();
-                if (catData && catData.success && Array.isArray(catData.data) && catData.data.length > 0) {
-                    setCategories(catData.data);
-                } else {
-                    setCategories([]);
-                }
+        let isMounted = true;
 
-                // Fetch collections
-                const colRes = await fetch(`${API_BASE_URL}/frontend/collections`);
-                const colData = await colRes.json();
-                if (colData && colData.success && Array.isArray(colData.data) && colData.data.length > 0) {
-                    setCollectionsList(colData.data);
-                } else {
-                    setCollectionsList([]);
-                }
-
-                // Fetch subcategories
-                const subRes = await fetch(`${API_BASE_URL}/frontend/sub-categories`);
-                const subData = await subRes.json();
-                if (subData && subData.success && Array.isArray(subData.data) && subData.data.length > 0) {
-                    setSubCategoriesList(subData.data);
-                } else {
-                    setSubCategoriesList([]);
-                }
-
-                // Fetch products
-                const prodRes = await fetch(`${API_BASE_URL}/frontend/products`);
-                const prodData = await prodRes.json();
-                if (prodData && prodData.success && Array.isArray(prodData.data) && prodData.data.length > 0) {
-                    const mapped = prodData.data.map(mapProductItem);
-                    setProducts(mapped);
-                } else {
-                    setProducts([]);
-                }
-            } catch (err) {
-                console.error("Failed to fetch products or catalogs:", err);
-                setProducts([]);
-                setCategories([]);
-                setCollectionsList([]);
-                setSubCategoriesList([]);
-            } finally {
-                setLoading(false);
+        fetchListingData().then((data) => {
+            if (!isMounted) return;
+            if (data) {
+                setCategories(data.categories || []);
+                setCollectionsList(data.collections || []);
+                setSubCategoriesList(data.subCategories || []);
+                setProducts(data.products || []);
             }
-        };
+            setLoading(false);
+        });
 
-        fetchData();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const getActiveTitle = () => {
@@ -237,20 +205,40 @@ export default function ProductsListing({
     const startIndex = (activePage - 1) * ITEMS_PER_PAGE;
     const displayedProducts = sortedProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    if (loading) {
+    // Product Grid rendering
+    const renderProductGrid = () => {
+        if (displayedProducts.length > 0) {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-4 gap-y-12 md:gap-y-16 mt-10">
+                    {displayedProducts.map((product) => (
+                        <div key={product.id} className="w-full">
+                            <ProductCard product={product} isHome={false} isSmall={true} />
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (loading) {
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-4 gap-y-12 md:gap-y-16 mt-10">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="w-full space-y-3 animate-pulse">
+                            <div className="w-full aspect-[4/5] bg-neutral-100 rounded-xl"></div>
+                            <div className="h-4 bg-neutral-100 rounded w-3/4"></div>
+                            <div className="h-4 bg-neutral-100 rounded w-1/4"></div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
         return (
-            <div className="min-h-screen bg-white text-black flex flex-col font-sans">
-                <Navbar solid={true} light={true} />
-                <main className="flex-1 w-full pt-28 pb-20 px-6 sm:px-10 md:px-12 flex items-center justify-center">
-                    <div className="text-center space-y-4">
-                        <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
-                        <p className="text-neutral-500 font-semibold">Loading collection...</p>
-                    </div>
-                </main>
-                <Footer />
+            <div className="py-20 text-center">
+                <p className="text-neutral-500 text-base">No products found matching your selection.</p>
             </div>
         );
-    }
+    };
 
     // Determine active tab context and list
     const pillsList = isCategoryPage
@@ -413,19 +401,7 @@ export default function ProductsListing({
                     </div>
 
                     {/* Product Grid */}
-                    {displayedProducts.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 sm:gap-x-4 gap-y-12 md:gap-y-16 mt-10">
-                            {displayedProducts.map((product) => (
-                                <div key={product.id} className="w-full">
-                                    <ProductCard product={product} isHome={false} isSmall={true} />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-20 text-center">
-                            <p className="text-neutral-500 text-base">No products found matching your selection.</p>
-                        </div>
-                    )}
+                    {renderProductGrid()}
 
                     {/* Pagination Controls */}
                     {totalPages > 1 && (

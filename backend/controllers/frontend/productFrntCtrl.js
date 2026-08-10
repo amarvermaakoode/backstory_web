@@ -169,9 +169,12 @@ const getProductById = async (req, res) => {
 
     const productObj = product.toObject();
     productObj.reviews = reviews.map(r => ({
+      id: r._id,
       author: r.author,
       rating: r.rating,
       text: r.text,
+      photos: r.photos || [],
+      videos: r.videos || [],
       date: new Date(r.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
     }));
     productObj.rating = rating;

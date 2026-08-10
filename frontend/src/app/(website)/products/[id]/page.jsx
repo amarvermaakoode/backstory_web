@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Plus, Minus, Star, ChevronDown, X, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Heart, Plus, Minus, Star, ChevronDown, X, AlertCircle, CheckCircle2, XCircle, Camera, Video, Trash2, Play } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -65,7 +65,15 @@ const mapProductDetail = (dbProd) => ({
         images: c.images || []
     })),
     sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || [],
-    reviews: dbProd.reviews || [],
+    reviews: (dbProd.reviews || []).map(r => ({
+        id: r.id || r._id,
+        author: r.author,
+        rating: r.rating,
+        text: r.text,
+        photos: r.photos || r.images || [],
+        videos: r.videos || [],
+        date: r.date || "Recently"
+    })),
     faqs: dbProd.faqs || [],
     variantStock: dbProd.variantStock || {}
 });
@@ -118,12 +126,27 @@ export default function ProductDetailPage({ params }) {
 
     const { user } = useUserAuth();
 
+    // States for custom popup
+    const [popup, setPopup] = useState({ isOpen: false, type: "success", title: "", message: "" });
+
+    const showPopup = (message, type = "success", title = "") => {
+        setPopup({
+            isOpen: true,
+            type,
+            title: title || (type === "success" ? "Success" : type === "error" ? "Notice" : "Information"),
+            message
+        });
+    };
+
     // States for reviews
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [reviewAuthor, setReviewAuthor] = useState("");
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewText, setReviewText] = useState("");
+    const [reviewPhotos, setReviewPhotos] = useState([]); // [{ file, previewUrl }]
+    const [reviewVideos, setReviewVideos] = useState([]); // [{ file, previewUrl }]
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [uploadingMedia, setUploadingMedia] = useState(false);
     const [hasPurchased, setHasPurchased] = useState(false);
 
     useEffect(() => {
@@ -146,59 +169,138 @@ export default function ProductDetailPage({ params }) {
                     }
                 });
                 const json = await res.json();
-                if (json.success && json.hasPurchased) {
+                if (json.success && (json.hasPurchased || json.canReview)) {
                     setHasPurchased(true);
                 } else {
                     setHasPurchased(false);
                 }
             } catch (err) {
+                console.error("Error checking purchase eligibility:", err);
                 setHasPurchased(false);
             }
         };
         checkPurchaseStatus();
     }, [user, product?.id]);
 
+    const handlePhotoSelect = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const newPhotos = files.map(file => ({
+            file,
+            previewUrl: URL.createObjectURL(file)
+        }));
+
+        setReviewPhotos(prev => [...prev, ...newPhotos]);
+    };
+
+    const handleVideoSelect = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        const newVideos = files.map(file => ({
+            file,
+            previewUrl: URL.createObjectURL(file)
+        }));
+
+        setReviewVideos(prev => [...prev, ...newVideos]);
+    };
+
+    const handlePhotoRemove = (index) => {
+        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleVideoRemove = (index) => {
+        setReviewVideos(prev => prev.filter((_, i) => i !== index));
+    };
+
     const isFavorite = isInWishlist(product?.id || "");
 
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
-        if (!reviewAuthor.trim() || !reviewText.trim()) return;
+        if (!reviewText.trim()) {
+            showPopup("Please enter review text.", "error");
+            return;
+        }
 
         try {
             setReviewSubmitting(true);
             const token = localStorage.getItem("userToken");
+            if (!token) {
+                showPopup("Please log in to submit a review.", "error");
+                setReviewSubmitting(false);
+                return;
+            }
+
+            let photoUrls = [];
+            let videoUrls = [];
+
+            // Upload media files if present
+            if (reviewPhotos.length > 0 || reviewVideos.length > 0) {
+                setUploadingMedia(true);
+                const formData = new FormData();
+                reviewPhotos.forEach(item => formData.append("files", item.file));
+                reviewVideos.forEach(item => formData.append("files", item.file));
+
+                const uploadRes = await fetch(`${API_BASE_URL}/frontend/reviews/upload-media`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const uploadJson = await uploadRes.json();
+                if (!uploadJson.success || !Array.isArray(uploadJson.data)) {
+                    showPopup(uploadJson.message || "Failed to upload review photos/videos.", "error");
+                    setReviewSubmitting(false);
+                    setUploadingMedia(false);
+                    return;
+                }
+
+                uploadJson.data.forEach(item => {
+                    if (item.type === "video") {
+                        videoUrls.push(item.url);
+                    } else {
+                        photoUrls.push(item.url);
+                    }
+                });
+                setUploadingMedia(false);
+            }
+
+            // Submit review payload to backend
             const res = await fetch(`${API_BASE_URL}/frontend/reviews`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(token && { "Authorization": `Bearer ${token}` }),
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     product: product.id,
-                    author: reviewAuthor,
+                    author: reviewAuthor.trim() || user?.name || "Verified Purchaser",
                     rating: reviewRating,
-                    text: reviewText,
+                    text: reviewText.trim(),
+                    photos: photoUrls,
+                    videos: videoUrls,
                 }),
             });
 
             const json = await res.json();
             if (json.success) {
-                alert("Thank you! Your review has been submitted successfully.");
+                showPopup("Thank you! Your review has been submitted successfully.", "success", "Review Submitted");
                 setIsReviewModalOpen(false);
-                setReviewAuthor("");
                 setReviewRating(5);
                 setReviewText("");
+                setReviewPhotos([]);
+                setReviewVideos([]);
 
-                // Reload product data dynamically by fetching again
+                // Reload product data dynamically
                 const fetchUpdatedProductData = async () => {
                     try {
-                        const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
-                        if (isMongoId) {
-                            const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
-                            const json = await res.json();
-                            if (json.success && json.data) {
-                                setProduct(mapProductDetail(json.data));
-                            }
+                        const res = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
+                        const json = await res.json();
+                        if (json.success && json.data) {
+                            setProduct(mapProductDetail(json.data));
                         }
                     } catch (err) {
                         console.error(err);
@@ -206,13 +308,14 @@ export default function ProductDetailPage({ params }) {
                 };
                 fetchUpdatedProductData();
             } else {
-                alert(json.message || "Failed to submit review.");
+                showPopup(json.message || "Failed to submit review.", "error");
             }
         } catch (err) {
             console.error("Error submitting review:", err);
-            alert("Error submitting review. Please try again.");
+            showPopup("Error submitting review. Please try again.", "error");
         } finally {
             setReviewSubmitting(false);
+            setUploadingMedia(false);
         }
     };
 
@@ -594,10 +697,10 @@ export default function ProductDetailPage({ params }) {
                                                                 setQuantity(1);
                                                             }}
                                                             className={`min-w-[48px] h-10 px-5 rounded-full border text-xs font-semibold tracking-wider transition-all duration-200 relative ${isSizeOutOfStock
-                                                                    ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-not-allowed"
-                                                                    : isSelected
-                                                                        ? "bg-black border-black text-white shadow-xs cursor-pointer"
-                                                                        : "border-neutral-200 text-black hover:border-black bg-white cursor-pointer"
+                                                                ? "bg-neutral-100 text-neutral-400 border-neutral-200 line-through opacity-60 cursor-not-allowed"
+                                                                : isSelected
+                                                                    ? "bg-black border-black text-white shadow-xs cursor-pointer"
+                                                                    : "border-neutral-200 text-black hover:border-black bg-white cursor-pointer"
                                                                 }`}
                                                         >
                                                             <span>{size}</span>
@@ -625,8 +728,8 @@ export default function ProductDetailPage({ params }) {
                                                                 setQuantity(1);
                                                             }}
                                                             className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all cursor-pointer ${selectedColor.name === color.name
-                                                                    ? "border-black ring-2 ring-offset-1 ring-black"
-                                                                    : "border-transparent"
+                                                                ? "border-black ring-2 ring-offset-1 ring-black"
+                                                                : "border-transparent"
                                                                 }`}
                                                         >
                                                             <span
@@ -669,15 +772,15 @@ export default function ProductDetailPage({ params }) {
                                                 disabled={isDetailOutOfStock}
                                                 onClick={() => {
                                                     if (!selectedSize) {
-                                                        alert("Please select a size.");
+                                                        showPopup("Please select a size.", "info", "Select Size");
                                                         return;
                                                     }
                                                     if (isDetailOutOfStock) return;
                                                     addToCart(product, quantity, selectedSize, selectedColor);
                                                 }}
                                                 className={`flex-1 h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${isDetailOutOfStock
-                                                        ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
-                                                        : "bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] cursor-pointer"
+                                                    ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                                                    : "bg-[#C5B9AC] text-black hover:bg-[#D4C9BD] cursor-pointer"
                                                     }`}
                                             >
                                                 {isDetailOutOfStock ? "Out of Stock" : "Add to Cart"}
@@ -689,15 +792,15 @@ export default function ProductDetailPage({ params }) {
                                             disabled={isDetailOutOfStock}
                                             onClick={() => {
                                                 if (!selectedSize) {
-                                                    alert("Please select a size.");
+                                                    showPopup("Please select a size.", "info", "Select Size");
                                                     return;
                                                 }
                                                 if (isDetailOutOfStock) return;
                                                 addToCart(product, quantity, selectedSize, selectedColor);
                                             }}
                                             className={`w-full h-14 rounded-full font-medium text-sm md:text-[1vw] tracking-wide transition-colors ${isDetailOutOfStock
-                                                    ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
-                                                    : "bg-black text-white hover:bg-neutral-800 cursor-pointer"
+                                                ? "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                                                : "bg-black text-white hover:bg-neutral-800 cursor-pointer"
                                                 }`}
                                         >
                                             {isDetailOutOfStock ? "Out of Stock" : "Buy Now"}
@@ -745,10 +848,10 @@ export default function ProductDetailPage({ params }) {
                             <h2 className="heading-sub text-black">
                                 Reviews
                             </h2>
-                            {product.reviews && product.reviews.length > 0 && hasPurchased && (
+                            {hasPurchased && product.reviews && product.reviews.length > 0 && (
                                 <button
                                     onClick={() => setIsReviewModalOpen(true)}
-                                    className="px-5 py-2 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold cursor-pointer"
+                                    className="px-5 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs sm:text-sm font-semibold cursor-pointer"
                                 >
                                     Write a Review
                                 </button>
@@ -768,7 +871,7 @@ export default function ProductDetailPage({ params }) {
                                                 {renderStars(product.rating)}
                                             </div>
                                             <p className="text-xs md:text-sm text-neutral-400 mt-1">
-                                                Based on {product.reviewsCount} reviews
+                                                Based on {product.reviewsCount} {product.reviewsCount === 1 ? "review" : "reviews"}
                                             </p>
                                         </div>
 
@@ -809,8 +912,8 @@ export default function ProductDetailPage({ params }) {
                                                     </div>
                                                     <span className="text-neutral-400">{rev.date}</span>
                                                 </div>
-                                                <div className="flex flex-row gap-2">
-                                                    <div className="flex text-[#FFB800] space-x-0.5 ">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex text-[#FFB800] space-x-0.5">
                                                         {Array.from({ length: 5 }).map((_, i) => (
                                                             <Star
                                                                 key={i}
@@ -819,69 +922,77 @@ export default function ProductDetailPage({ params }) {
                                                             />
                                                         ))}
                                                     </div>
-                                                    <span className="text-[10px] md:text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">
-                                                        Verified Purchase
-                                                    </span>
+
                                                 </div>
-                                                {rev.images && rev.images.length > 0 && (
-                                                    <div className="flex gap-2.5 pt-1.5 pb-1">
-                                                        {rev.images.map((imgUrl, imgIdx) => (
-                                                            <div key={imgIdx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-neutral-50 border border-neutral-200 cursor-pointer transition-transform duration-200 hover:scale-105">
+
+                                                <p className="text-sm md:text-base font-normal text-neutral-700 leading-snug font-sans pt-1">
+                                                    {rev.text}
+                                                </p>
+
+                                                {/* Photos & Videos attachments */}
+                                                {((rev.photos && rev.photos.length > 0) || (rev.videos && rev.videos.length > 0)) && (
+                                                    <div className="flex flex-wrap gap-3 pt-2">
+                                                        {/* Photos */}
+                                                        {rev.photos && rev.photos.map((imgUrl, imgIdx) => (
+                                                            <div key={`photo-${imgIdx}`} className="relative w-24 h-24 rounded-xl overflow-hidden bg-neutral-50 border border-neutral-200 group">
                                                                 <Image
-                                                                    src={imgUrl}
-                                                                    alt={`Review attachment ${imgIdx + 1}`}
+                                                                    src={getImageUrl(imgUrl)}
+                                                                    alt={`Review photo ${imgIdx + 1}`}
                                                                     fill
-                                                                    sizes="80px"
-                                                                    className="object-cover select-none"
+                                                                    sizes="96px"
+                                                                    className="object-cover select-none transition-transform duration-300 group-hover:scale-105"
+                                                                    unoptimized
+                                                                />
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Videos */}
+                                                        {rev.videos && rev.videos.map((vidUrl, vidIdx) => (
+                                                            <div key={`video-${vidIdx}`} className="relative h-24 rounded-xl overflow-hidden bg-black border border-neutral-200">
+                                                                <video
+                                                                    src={getImageUrl(vidUrl)}
+                                                                    controls
+                                                                    preload="metadata"
+                                                                    className="h-24 w-auto max-w-[200px] object-cover rounded-xl"
                                                                 />
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
-                                                <p className="text-sm md:text-base font-normal text-neutral-600 leading-snug font-sans pt-1">
-                                                    {rev.text}
-                                                </p>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* Bottom Row */}
-                                {hasPurchased && (
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 bg-neutral-50 rounded-2xl p-6 border border-neutral-100">
-                                        <div>
-                                            <h4 className="font-clashDisplay text-lg font-semibold text-black">Bought this piece?</h4>
-                                            <p className="text-sm text-neutral-500 mt-0.5">Share your story with the community.</p>
-                                        </div>
-                                        <button
-                                            onClick={() => setIsReviewModalOpen(true)}
-                                            className="px-6 py-2.5 border border-black hover:bg-black hover:text-white rounded-full text-sm font-semibold transition-colors duration-300 cursor-pointer bg-white"
-                                        >
-                                            Write a Review
-                                        </button>
-                                    </div>
-                                )}
                             </>
                         ) : (
-                            /* Empty State UI matching Wishlist/Cart */
+                            /* Empty State UI */
                             <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center bg-[#FAF9F6] rounded-3xl border border-neutral-200/60 mt-8 px-6">
                                 <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400 mb-4">
                                     <Star className="w-7 h-7 stroke-[1.25]" />
                                 </div>
                                 <h3 className="font-sans text-lg sm:text-xl font-bold text-black">No reviews yet</h3>
-                                <p className="text-xs sm:text-sm text-neutral-400 max-w-[320px] mt-2 leading-relaxed">
+                                <p className="text-xs sm:text-sm text-neutral-400 max-w-[360px] mt-2 leading-relaxed">
                                     {hasPurchased
-                                        ? "Be the first to share your experience and review this piece."
-                                        : ""}
+                                        ? "Be the first verified buyer to share your thoughts and review this piece."
+                                        : !user
+                                            ? "Log in to write a review if you've purchased this product."
+                                            : "You can review this product after purchasing it."}
                                 </p>
-                                {hasPurchased && (
+                                {hasPurchased ? (
                                     <button
                                         onClick={() => setIsReviewModalOpen(true)}
                                         className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs sm:text-sm font-semibold cursor-pointer"
                                     >
                                         Write a Review
                                     </button>
-                                )}
+                                ) : !user ? (
+                                    <Link
+                                        href="/login"
+                                        className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs sm:text-sm font-semibold cursor-pointer"
+                                    >
+                                        Log In to Review
+                                    </Link>
+                                ) : null}
                             </div>
                         )}
                     </section>
@@ -934,8 +1045,8 @@ export default function ProductDetailPage({ params }) {
 
                     {/* Review Submission Modal */}
                     {isReviewModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                            <div className="bg-white text-black w-full max-w-lg mx-4 rounded-3xl p-8 border border-neutral-100 shadow-2xl relative animate-scaleUp">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+                            <div className="bg-white text-black w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-neutral-100 shadow-2xl relative animate-scaleUp my-8 max-h-[90vh] overflow-y-auto">
                                 {/* Close button */}
                                 <button
                                     onClick={() => setIsReviewModalOpen(false)}
@@ -944,26 +1055,26 @@ export default function ProductDetailPage({ params }) {
                                     <X className="w-6 h-6" />
                                 </button>
 
-                                <h3 className="heading-sub mb-2">Share Your Story</h3>
-                                <p className="text-sm text-neutral-500 mb-6">Let other buyers know your thoughts on this piece.</p>
+                                <h3 className="heading-sub mb-1">Share Your Story</h3>
+                                <p className="text-sm text-neutral-500 mb-5">Verified Purchaser Review for {product.name}</p>
 
                                 <form onSubmit={handleReviewSubmit} className="space-y-5">
                                     {/* Author Name */}
                                     <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Your Name</label>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-neutral-600">Your Name</label>
                                         <input
                                             type="text"
                                             required
                                             value={reviewAuthor}
                                             onChange={(e) => setReviewAuthor(e.target.value)}
                                             placeholder="e.g. John Doe"
-                                            className="w-full h-12 px-4 rounded-xl border border-neutral-200 focus:border-black focus:outline-none transition-colors text-sm font-sans"
+                                            className="w-full h-11 px-4 rounded-xl border border-neutral-200 focus:border-black focus:outline-none transition-colors text-sm font-sans"
                                         />
                                     </div>
 
                                     {/* Rating Stars Selection */}
                                     <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Rating</label>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-neutral-600">Rating</label>
                                         <div className="flex gap-2">
                                             {[1, 2, 3, 4, 5].map((star) => (
                                                 <button
@@ -973,7 +1084,7 @@ export default function ProductDetailPage({ params }) {
                                                     className="text-neutral-300 hover:scale-110 transition-transform cursor-pointer"
                                                 >
                                                     <Star
-                                                        className={`w-8 h-8 ${star <= reviewRating ? "text-[#FFB800] fill-[#FFB800]" : "text-neutral-200"}`}
+                                                        className={`w-7 h-7 ${star <= reviewRating ? "text-[#FFB800] fill-[#FFB800]" : "text-neutral-200"}`}
                                                     />
                                                 </button>
                                             ))}
@@ -982,24 +1093,115 @@ export default function ProductDetailPage({ params }) {
 
                                     {/* Review Text */}
                                     <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-600">Review</label>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-neutral-600">Review Text</label>
                                         <textarea
                                             required
                                             rows={4}
                                             value={reviewText}
                                             onChange={(e) => setReviewText(e.target.value)}
-                                            placeholder="Tell us about the fit, material, and how it feels..."
+                                            placeholder="Tell us about the fit, quality, material, and your experience..."
                                             className="w-full p-4 rounded-xl border border-neutral-200 focus:border-black focus:outline-none transition-colors text-sm font-sans resize-none"
                                         />
+                                    </div>
+
+                                    {/* Photos Attachment */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
+                                                <Camera className="w-4 h-4 text-neutral-500" />
+                                                Add Photos
+                                            </label>
+                                            <span className="text-[11px] text-neutral-400">JPG, PNG, WEBP</span>
+                                        </div>
+                                        <label className="flex items-center justify-center gap-2 w-full h-12 rounded-xl border border-dashed border-neutral-300 hover:border-black transition-colors cursor-pointer bg-neutral-50 hover:bg-neutral-100/60 text-xs font-medium text-neutral-700">
+                                            <Camera className="w-4 h-4 text-neutral-500" />
+                                            <span>Upload Photos</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={handlePhotoSelect}
+                                                className="hidden"
+                                            />
+                                        </label>
+
+                                        {/* Photo Previews */}
+                                        {reviewPhotos.length > 0 && (
+                                            <div className="flex flex-wrap gap-2.5 mt-3">
+                                                {reviewPhotos.map((item, idx) => (
+                                                    <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-200 group">
+                                                        <Image
+                                                            src={item.previewUrl}
+                                                            alt={`Preview ${idx + 1}`}
+                                                            fill
+                                                            className="object-cover"
+                                                            unoptimized
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handlePhotoRemove(idx)}
+                                                            className="absolute top-1 right-1 bg-black/70 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                                                            title="Remove photo"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Videos Attachment */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-xs font-semibold uppercase tracking-wider text-neutral-600 flex items-center gap-1.5">
+                                                <Video className="w-4 h-4 text-neutral-500" />
+                                                Add Videos
+                                            </label>
+                                            <span className="text-[11px] text-neutral-400">MP4, WEBM, MOV (Max 50MB)</span>
+                                        </div>
+                                        <label className="flex items-center justify-center gap-2 w-full h-12 rounded-xl border border-dashed border-neutral-300 hover:border-black transition-colors cursor-pointer bg-neutral-50 hover:bg-neutral-100/60 text-xs font-medium text-neutral-700">
+                                            <Video className="w-4 h-4 text-neutral-500" />
+                                            <span>Upload Videos</span>
+                                            <input
+                                                type="file"
+                                                accept="video/*"
+                                                multiple
+                                                onChange={handleVideoSelect}
+                                                className="hidden"
+                                            />
+                                        </label>
+
+                                        {/* Video Previews */}
+                                        {reviewVideos.length > 0 && (
+                                            <div className="flex flex-wrap gap-2.5 mt-3">
+                                                {reviewVideos.map((item, idx) => (
+                                                    <div key={idx} className="relative h-16 w-24 rounded-lg overflow-hidden border border-neutral-200 bg-black group flex items-center justify-center">
+                                                        <video
+                                                            src={item.previewUrl}
+                                                            className="h-16 w-auto object-cover opacity-80"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleVideoRemove(idx)}
+                                                            className="absolute top-1 right-1 z-10 bg-black/70 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                                                            title="Remove video"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Submit Button */}
                                     <button
                                         type="submit"
-                                        disabled={reviewSubmitting}
-                                        className="w-full h-14 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-sm tracking-wide cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                                        disabled={reviewSubmitting || uploadingMedia}
+                                        className="w-full h-13 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-sm tracking-wide cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                                     >
-                                        {reviewSubmitting ? "Submitting..." : "Submit Review"}
+                                        {uploadingMedia ? "Uploading Media..." : reviewSubmitting ? "Submitting Review..." : "Submit Review"}
                                     </button>
                                 </form>
                             </div>
@@ -1035,6 +1237,44 @@ export default function ProductDetailPage({ params }) {
 
                 </div>
             </main>
+
+            {/* Custom Notification Popup Modal */}
+            {popup.isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+                    <div className="bg-white text-black w-full max-w-sm rounded-3xl p-6 border border-neutral-100 shadow-2xl relative animate-scaleUp text-center space-y-4">
+                        <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center ${popup.type === "success"
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : popup.type === "error"
+                                    ? "bg-red-50 text-red-600 border border-red-200"
+                                    : "bg-neutral-100 text-neutral-800 border border-neutral-200"
+                            }`}>
+                            {popup.type === "success" ? (
+                                <CheckCircle2 className="w-7 h-7 stroke-[2]" />
+                            ) : popup.type === "error" ? (
+                                <XCircle className="w-7 h-7 stroke-[2]" />
+                            ) : (
+                                <AlertCircle className="w-7 h-7 stroke-[2]" />
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <h3 className="font-clashDisplay text-lg font-semibold text-black">
+                                {popup.title}
+                            </h3>
+                            <p className="text-sm text-neutral-500 leading-relaxed font-sans">
+                                {popup.message}
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setPopup({ ...popup, isOpen: false })}
+                            className="w-full h-11 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full font-medium text-xs tracking-wider uppercase cursor-pointer"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <Footer />
         </div>

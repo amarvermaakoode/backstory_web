@@ -7,6 +7,11 @@ const reviewSchema = new mongoose.Schema(
       ref: "Product",
       required: [true, "Product reference is required"],
     },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "User reference is required"],
+    },
     author: {
       type: String,
       required: [true, "Author name is required"],
@@ -23,6 +28,16 @@ const reviewSchema = new mongoose.Schema(
       required: [true, "Review text is required"],
       trim: true,
     },
+    photos: [
+      {
+        type: String,
+      },
+    ],
+    videos: [
+      {
+        type: String,
+      },
+    ],
     status: {
       type: Boolean,
       default: true,

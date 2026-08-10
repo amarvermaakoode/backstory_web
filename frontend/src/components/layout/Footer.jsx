@@ -12,14 +12,12 @@ export default function Footer() {
     ];
 
     const shopLinks = [
-        { name: "Shop All", href: "/product-list" },
         { name: "New Arrivals", href: "/product-list" },
-        { name: "Collection", href: "/product-list" },
-        { name: "Tribes", href: "/product-list" },
+        { name: "Tribes", href: "/product-list/tribe/all" },
     ];
 
     const supportLinks = [
-        { name: "Customer Support", href: "#" },
+        { name: "Customer Support", href: "/account/support" },
         { name: "Track Order", href: "#" },
         { name: "Return & Exchange", href: "/return-and-exchange" },
         { name: "FAQs", href: "/faq" },
@@ -76,7 +74,7 @@ export default function Footer() {
                         </div>
 
                         {/* Copyright Details */}
-                        <div className="flex items-start gap-8 sm:gap-14 text-sm md:text-base text-white font-sans">
+                        <div className="flex items-end gap-8 sm:gap-14 text-sm md:text-base text-white font-sans">
                             <a
                                 href="https://www.akoode.com"
                                 target="_blank"

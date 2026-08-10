@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useUserAuth } from "@/context/UserAuthContext";
+import { fetchListingData } from "@/services/productService";
 
 const userMenuItems = [
     { label: "Account", href: "/account", icon: User },
@@ -44,6 +45,9 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     };
 
     useEffect(() => {
+        // Pre-fetch listing data in background for instant navigation
+        fetchListingData().catch(() => { });
+
         const handleScroll = () => {
             setScrolled(window.scrollY > 20);
         };
@@ -93,7 +97,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
 
                 {/* Navigation (Desktop) */}
                 <nav className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
-                    <Link href="/#tribe" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
+                    <Link href="/product-list/tribe/all" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Tribe
                     </Link>
                     <Link href="/about-us#philosophy" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
@@ -220,7 +224,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     }`}>
                     <nav className="flex flex-col p-6 space-y-4 text-center font-clashDisplay text-lg font-medium">
                         <Link
-                            href="/#tribe"
+                            href="/product-list/tribe/all"
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`transition-colors py-2 ${light ? "text-neutral-800 hover:text-black" : "text-white hover:text-[#dfd7cc]"}`}
                         >
