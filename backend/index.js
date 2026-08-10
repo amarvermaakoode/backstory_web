@@ -21,6 +21,7 @@ const frontendCollectionRoutes = require("./routes/frontend/collectionFrntRoutes
 const frontendColorRoutes = require("./routes/frontend/colorFrntRoutes");
 const frontendSizeGuideRoutes = require("./routes/frontend/sizeGuideFrntRoutes");
 const frontendProductRoutes = require("./routes/frontend/productFrntRoutes");
+const frontendSearchRoutes = require("./routes/frontend/searchFrntRoutes");
 const frontendReviewRoutes = require("./routes/frontend/reviewFrntRoutes");
 const frontendAuthRoutes = require("./routes/frontend/authFrntRoutes");
 const frontendWishlistRoutes = require("./routes/frontend/wishlistFrntRoutes");
@@ -90,6 +91,7 @@ app.use("/api/frontend/collections", frontendCollectionRoutes);
 app.use("/api/frontend/colors", frontendColorRoutes);
 app.use("/api/frontend/size-guides", frontendSizeGuideRoutes);
 app.use("/api/frontend/products", frontendProductRoutes);
+app.use("/api/frontend/search", frontendSearchRoutes);
 app.use("/api/frontend/reviews", frontendReviewRoutes);
 app.use("/api/frontend/auth", frontendAuthRoutes);
 app.use("/api/frontend/wishlist", frontendWishlistRoutes);

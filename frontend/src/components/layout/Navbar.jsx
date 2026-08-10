@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X, User, Package, Heart, Tag, Scan, Headphones, LogOut } from "lucide-react";
@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { fetchListingData } from "@/services/productService";
+import SearchOverlay from "@/components/layout/SearchOverlay";
 
 const userMenuItems = [
     { label: "Account", href: "/account", icon: User },
@@ -22,11 +23,16 @@ const userMenuItems = [
 export default function Navbar({ onSearchClick, solid = false, light = false }) {
     const [scrolled, setScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
     const { cartCount, openCart } = useCart();
     const { wishlistCount, openWishlist } = useWishlist();
     const { user, logout } = useUserAuth();
+
+    // Opens the built-in search overlay unless a custom handler is supplied
+    const handleSearchClick = onSearchClick || (() => setIsSearchOpen(true));
+    const closeSearch = useCallback(() => setIsSearchOpen(false), []);
 
     const handleWishlistClick = () => {
         if (pathname === "/" && wishlistCount > 0) {
@@ -59,6 +65,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     }, []);
 
     return (
+        <>
         <header
             className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${light
                 ? "bg-[#FAF9F6] text-black border-b border-neutral-200/60"
@@ -114,7 +121,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                 {/* Header Action Icons */}
                 <div className={`flex items-center gap-4 ${light ? "text-neutral-700" : "text-white/90"}`}>
                     <button
-                        onClick={onSearchClick}
+                        onClick={handleSearchClick}
                         className={`hidden md:block transition-colors cursor-pointer ${light ? "hover:text-black" : "hover:text-white"}`}
                         aria-label="Search"
                     >
@@ -309,5 +316,8 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                 </div>
             )}
         </header>
+
+        <SearchOverlay isOpen={isSearchOpen} onClose={closeSearch} />
+        </>
     );
 }
