@@ -7,32 +7,7 @@ import { useToast } from "@/context/ToastContext";
 
 export default function AccountCouponsPage() {
     const { showToast } = useToast();
-    const [coupons, setCoupons] = useState([
-        {
-            _id: "1",
-            code: "WELCOME10",
-            discountType: "percentage",
-            discountValue: 10,
-            minOrderAmount: 1000,
-            status: true,
-        },
-        {
-            _id: "2",
-            code: "BACSTORY15",
-            discountType: "percentage",
-            discountValue: 15,
-            minOrderAmount: 2000,
-            status: true,
-        },
-        {
-            _id: "3",
-            code: "FLAT500",
-            discountType: "flat",
-            discountValue: 500,
-            minOrderAmount: 3000,
-            status: true,
-        },
-    ]);
+    const [coupons, setCoupons] = useState([]);
     const [copiedCode, setCopiedCode] = useState(null);
     const [loading, setLoading] = useState(true);
 

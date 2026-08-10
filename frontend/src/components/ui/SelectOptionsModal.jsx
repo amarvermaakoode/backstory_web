@@ -66,32 +66,32 @@ export default function SelectOptionsModal({ isOpen, onClose, product, onConfirm
                     setAvailableColors(finalColors);
                     setActiveProduct(dbProd);
 
-                    const initialColor = finalColors[0] || { name: "Default", hex: "#000000" };
+                    const initialColor = finalColors[0] || null;
                     setSelectedColor(initialColor);
 
-                    const firstInStock = finalSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, dbProd) > 0) || finalSizes[0] || "M";
+                    const firstInStock = finalSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, dbProd) > 0) || finalSizes[0] || "";
                     setSelectedSize(firstInStock);
                 } else {
-                    applyFallbacks();
+                    usePropProduct();
                 }
             } catch (err) {
                 console.error("Failed to fetch product details for modal:", err);
-                applyFallbacks();
+                usePropProduct();
             } finally {
                 setLoading(false);
             }
         };
 
-        const applyFallbacks = () => {
-            const defaultSizes = sizes.length > 0 ? sizes : [];
-            const defaultColors = colors.length > 0 ? colors : [{ name: "Default", hex: "#000000" }];
+        const usePropProduct = () => {
+            const defaultSizes = product.sizes || [];
+            const defaultColors = product.colors || [];
             setAvailableSizes(defaultSizes);
             setAvailableColors(defaultColors);
 
-            const initialColor = defaultColors[0];
+            const initialColor = defaultColors[0] || null;
             setSelectedColor(initialColor);
 
-            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || defaultSizes[0] || "M";
+            const firstInStock = defaultSizes.find((sz) => getStockForSizeAndColor(sz, initialColor, product) > 0) || defaultSizes[0] || "";
             setSelectedSize(firstInStock);
         };
 

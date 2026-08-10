@@ -41,7 +41,7 @@ export default function ProductCard({
 
     // Calculate visibilities dynamically with fallback to defaults
     const shouldShowTag = showTag !== null ? showTag : !isHome;
-    const shouldShowRating = showRating !== null ? showRating : !isHome;
+    const shouldShowRating = showRating !== null ? showRating : true;
     const shouldShowSwatches = showSwatches !== null ? showSwatches : !isHome;
 
     return (
@@ -95,15 +95,12 @@ export default function ProductCard({
                     </button>
 
                     {/* Rating badge on bottom-left */}
-                    {shouldShowRating && product.rating && (
-                        <div className="absolute bottom-3 left-3 z-10 bg-white/70 backdrop-blur-xs text-[8px] sm:text-[10px] font-medium text-black px-2 py-0.5 rounded-full flex items-center gap-1 border border-black/10">
-                            <span className="text-black">★</span>
-                            <span>{product.rating}</span>
-                            {product.reviewsCount !== undefined && (
-                                <span className="text-neutral-500">({product.reviewsCount})</span>
-                            )}
-                            {product.reviews !== undefined && product.reviewsCount === undefined && (
-                                <span className="text-neutral-500">({product.reviews})</span>
+                    {shouldShowRating && (
+                        <div className="absolute bottom-3 left-3 z-10 bg-white/80 backdrop-blur-xs text-[9px] sm:text-[11px] font-semibold text-black px-2.5 py-1 rounded-full flex items-center gap-1 border border-black/10 shadow-xs">
+                            <span className="text-amber-500 fill-amber-500 font-bold">★</span>
+                            <span>{product.rating || "5.0"}</span>
+                            {product.reviewsCount !== undefined && product.reviewsCount > 0 && (
+                                <span className="text-neutral-500 font-normal">({product.reviewsCount})</span>
                             )}
                         </div>
                     )}

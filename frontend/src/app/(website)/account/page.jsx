@@ -104,7 +104,7 @@ export default function AccountProfilePage() {
                     }
                 }
             } catch (err) {
-                console.log("Fetch user data (mock fallback):", err);
+                console.error("Fetch user profile error:", err);
             }
         };
 

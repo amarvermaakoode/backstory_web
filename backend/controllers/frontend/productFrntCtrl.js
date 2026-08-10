@@ -83,6 +83,8 @@ const getProducts = async (req, res) => {
       }
     }
 
+    const Review = require("../../models/review");
+
     const products = await Product.find(query)
       .populate("category", "Name image slug")
       .populate("subCategory", "name image slug")
@@ -91,10 +93,26 @@ const getProducts = async (req, res) => {
       .populate("colors.color", "name hexCode")
       .sort({ createdAt: -1 });
 
+    const productsWithRatings = await Promise.all(
+      products.map(async (p) => {
+        const reviews = await Review.find({ product: p._id, status: true });
+        let rating = "5.0";
+        let reviewsCount = reviews.length;
+        if (reviews.length > 0) {
+          const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+          rating = (sum / reviews.length).toFixed(1);
+        }
+        const pObj = p.toObject();
+        pObj.rating = rating;
+        pObj.reviewsCount = reviewsCount;
+        return pObj;
+      })
+    );
+
     return res.status(200).json({
       success: true,
-      count: products.length,
-      data: products,
+      count: productsWithRatings.length,
+      data: productsWithRatings,
     });
   } catch (error) {
     return res.status(500).json({

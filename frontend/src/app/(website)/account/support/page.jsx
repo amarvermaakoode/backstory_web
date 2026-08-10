@@ -64,23 +64,26 @@ export default function AccountSupportPage() {
                     }),
                 });
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.data) {
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (data.data) {
                         setMyTickets((prev) => [data.data, ...prev]);
                     }
+                    setSupportSent(true);
+                    showToast(data.message || "Your support ticket has been submitted!", "success");
+                    setTimeout(() => {
+                        setSupportSent(false);
+                        setSupportForm({ subject: "Order Status", message: "" });
+                    }, 4000);
+                } else {
+                    showToast(data.message || "Failed to submit support ticket.", "error");
                 }
             }
         } catch (err) {
-            console.log("Submit support ticket API error (mock fallback):", err);
+            console.error("Submit support ticket API error:", err);
+            showToast(err.message || "Could not submit support ticket.", "error");
         } finally {
             setSubmitting(false);
-            setSupportSent(true);
-            showToast("Your support ticket has been submitted!", "success");
-            setTimeout(() => {
-                setSupportSent(false);
-                setSupportForm({ subject: "Order Status", message: "" });
-            }, 4000);
         }
     };
 

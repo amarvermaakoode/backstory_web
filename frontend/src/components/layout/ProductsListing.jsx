@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -13,11 +13,14 @@ import { API_BASE_URL } from "@/lib/api";
 import { mapProductItem, fetchListingData, getCachedListingData } from "@/services/productService";
 
 export default function ProductsListing({
-    categorySlug, 
-    collectionSlug, 
-    subCategorySlug 
+    categorySlug = null,
+    collectionSlug = null,
+    subCategorySlug = null
 }) {
     const searchParams = useSearchParams();
+    const cached = getCachedListingData();
+
+    // Context / Prop slugs takes precedence, fallback to URL searchParams
     const urlCategory = categorySlug || searchParams.get("category");
     const urlCollection = collectionSlug || searchParams.get("collection");
     const urlSubCategory = subCategorySlug || searchParams.get("subCategory");
@@ -26,13 +29,11 @@ export default function ProductsListing({
     const isCollectionPage = !!collectionSlug;
     const isSubCategoryPage = !!subCategorySlug;
 
-    const cached = getCachedListingData();
-
-    // Page, filter, and sort states
-    const [products, setProducts] = useState(cached?.products || []);
+    // Dynamic catalogs and product list
     const [categories, setCategories] = useState(cached?.categories || []);
     const [collectionsList, setCollectionsList] = useState(cached?.collections || []);
     const [subCategoriesList, setSubCategoriesList] = useState(cached?.subCategories || []);
+    const [products, setProducts] = useState(cached?.products || []);
     const [selectedCategory, setSelectedCategory] = useState("ALL");
     const [selectedCollection, setSelectedCollection] = useState("ALL");
     const [selectedSubCategory, setSelectedSubCategory] = useState("ALL");
@@ -41,7 +42,7 @@ export default function ProductsListing({
     const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
     const [drawerFilters, setDrawerFilters] = useState({
         minPrice: 0,
-        maxPrice: 10000,
+        maxPrice: Infinity,
         gender: "ALL",
         sizes: [],
         series: [],
@@ -50,6 +51,64 @@ export default function ProductsListing({
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(!cached);
     const sortDropdownRef = useRef(null);
+
+    // Compute dynamic maximum catalog price from available products
+    const maxCatalogPrice = useMemo(() => {
+        if (!products || products.length === 0) return 10000;
+        const prices = products.map(p => {
+            if (typeof p.priceNum === "number" && !isNaN(p.priceNum)) return p.priceNum;
+            if (typeof p.price === "string") {
+                const cleaned = p.price.replace(/[^\d.]/g, "");
+                return parseFloat(cleaned) || 0;
+            }
+            if (typeof p.price === "number") return p.price;
+            return 0;
+        });
+        const highest = Math.max(...prices);
+        return highest > 0 ? Math.ceil(highest) : 10000;
+    }, [products]);
+
+    // Extract unique available colors from actual catalog products
+    const availableColors = useMemo(() => {
+        if (!products || products.length === 0) return [];
+        const colorMap = new Map();
+        products.forEach(p => {
+            if (p.colors && Array.isArray(p.colors)) {
+                p.colors.forEach(c => {
+                    if (c.hex && !colorMap.has(c.hex)) {
+                        colorMap.set(c.hex, {
+                            name: c.name || "Color",
+                            hex: c.hex
+                        });
+                    }
+                });
+            }
+        });
+        return Array.from(colorMap.values());
+    }, [products]);
+
+    // Extract unique available sizes from actual catalog products
+    const availableSizes = useMemo(() => {
+        if (!products || products.length === 0) return [];
+        const sizeSet = new Set();
+        products.forEach(p => {
+            if (p.sizes && Array.isArray(p.sizes)) {
+                p.sizes.forEach(sz => {
+                    if (sz) sizeSet.add(sz.toUpperCase());
+                });
+            }
+        });
+        const standardOrder = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+        const extracted = Array.from(sizeSet);
+        return extracted.sort((a, b) => {
+            const ia = standardOrder.indexOf(a);
+            const ib = standardOrder.indexOf(b);
+            if (ia !== -1 && ib !== -1) return ia - ib;
+            if (ia !== -1) return -1;
+            if (ib !== -1) return 1;
+            return a.localeCompare(b);
+        });
+    }, [products]);
 
     // Sync selectedCategory
     useEffect(() => {
@@ -80,6 +139,11 @@ export default function ProductsListing({
         }
         setCurrentPage(1);
     }, [urlSubCategory, subCategorySlug]);
+
+    // Scroll to top whenever pagination page changes
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, [currentPage]);
 
     // Close sort dropdown when clicking outside
     useEffect(() => {
@@ -163,12 +227,15 @@ export default function ProductsListing({
 
         // Drawer filters
         const priceNum = Number(product.priceNum) || 0;
-        const matchesPrice = priceNum >= drawerFilters.minPrice && priceNum <= drawerFilters.maxPrice;
+        const effectiveMaxPrice = (drawerFilters.maxPrice && drawerFilters.maxPrice !== 10000 && drawerFilters.maxPrice !== Infinity)
+            ? drawerFilters.maxPrice
+            : (maxCatalogPrice || Infinity);
+        const matchesPrice = priceNum >= (drawerFilters.minPrice || 0) && priceNum <= effectiveMaxPrice;
 
         const matchesGender = drawerFilters.gender === "ALL" || 
             !product.gender || 
             product.gender.toUpperCase() === drawerFilters.gender.toUpperCase() ||
-            drawerFilters.gender === "Unisex";
+            (product.gender?.toUpperCase() === "UNISEX");
 
         const matchesSizes = drawerFilters.sizes.length === 0 ||
             (product.sizes && product.sizes.some(sz => drawerFilters.sizes.includes(sz)));
@@ -182,7 +249,10 @@ export default function ProductsListing({
         const matchesColors = drawerFilters.colors.length === 0 ||
             (product.colors && product.colors.some(c => drawerFilters.colors.includes(c.hex)));
 
-        return matchesCategory && matchesCollection && matchesSubCategory && matchesPrice && matchesGender && matchesSizes && matchesSeries && matchesColors;
+        const matchesRating = !drawerFilters.minRating || 
+            parseFloat(product.rating || 5.0) >= parseFloat(drawerFilters.minRating);
+
+        return matchesCategory && matchesCollection && matchesSubCategory && matchesPrice && matchesGender && matchesSizes && matchesSeries && matchesColors && matchesRating;
     });
 
     // Sort products
@@ -451,6 +521,9 @@ export default function ProductsListing({
                 isOpen={isFilterDrawerOpen}
                 onClose={() => setIsFilterDrawerOpen(false)}
                 initialFilters={drawerFilters}
+                maxCatalogPrice={maxCatalogPrice}
+                availableColors={availableColors}
+                availableSizes={availableSizes}
                 onApplyFilters={(filters) => {
                     setDrawerFilters(filters);
                     setCurrentPage(1);

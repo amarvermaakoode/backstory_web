@@ -2,22 +2,68 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function FilterDrawer({
     isOpen,
     onClose,
     onApplyFilters,
-    initialFilters = {}
+    initialFilters = {},
+    maxCatalogPrice = 10000,
+    availableColors = [],
+    availableSizes = []
 }) {
+    const maxLimit = maxCatalogPrice > 0 ? maxCatalogPrice : 10000;
     const [minPrice, setMinPrice] = useState(initialFilters.minPrice || 0);
-    const [maxPrice, setMaxPrice] = useState(initialFilters.maxPrice || 10000);
+    const [maxPrice, setMaxPrice] = useState(
+        initialFilters.maxPrice !== undefined && initialFilters.maxPrice !== 10000 && initialFilters.maxPrice !== Infinity
+            ? initialFilters.maxPrice
+            : maxLimit
+    );
     const [selectedGender, setSelectedGender] = useState(initialFilters.gender || "ALL");
     const [selectedSizes, setSelectedSizes] = useState(initialFilters.sizes || []);
     const [selectedSeries, setSelectedSeries] = useState(initialFilters.series || []);
     const [selectedColors, setSelectedColors] = useState(initialFilters.colors || []);
+    const [showAllColors, setShowAllColors] = useState(false);
+
+    const [fetchedColors, setFetchedColors] = useState([]);
+    const [fetchedSizes, setFetchedSizes] = useState([]);
+
+    // Fetch catalog colors directly from backend if availableColors is empty
+    useEffect(() => {
+        if (!availableColors || availableColors.length === 0) {
+            fetch(`${API_BASE_URL}/frontend/colors`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && Array.isArray(data.data)) {
+                        setFetchedColors(data.data.map(c => ({ name: c.name, hex: c.hexCode || "#CCCCCC" })));
+                    }
+                })
+                .catch(err => console.error("Error fetching frontend colors:", err));
+        }
+    }, [availableColors]);
+
+    // Fetch catalog size guides directly from backend DB
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/frontend/size-guides`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.sizes)) {
+                    setFetchedSizes(data.sizes);
+                }
+            })
+            .catch(err => console.error("Error fetching frontend size guides:", err));
+    }, []);
+
+    // Sync max limit when catalog max price changes
+    useEffect(() => {
+        if (initialFilters.maxPrice === undefined || initialFilters.maxPrice === 10000 || initialFilters.maxPrice === Infinity) {
+            setMaxPrice(maxLimit);
+        }
+    }, [maxLimit, initialFilters.maxPrice]);
 
     const genderOptions = ["Men", "Women", "Unisex"];
-    const sizeOptions = ["XS", "S", "M", "L", "XL", "XXL"];
+    const activeSizes = (availableSizes && availableSizes.length > 0) ? availableSizes : fetchedSizes;
     const seriesOptions = [
         "Travel Series",
         "Coder Series",
@@ -26,27 +72,10 @@ export default function FilterDrawer({
         "Nomad Series"
     ];
 
-    const colorOptions = [
-        { name: "Red", hex: "#E53E3E" },
-        { name: "Light Green", hex: "#9AE6B4" },
-        { name: "Dark Brown", hex: "#2D1A10" },
-        { name: "Purple", hex: "#805AD5" },
-        { name: "Tan", hex: "#D69E2E" },
-        { name: "Pink", hex: "#ED64A6" },
-        { name: "Blue", hex: "#3182CE" },
-        { name: "Dark Green", hex: "#22543D" },
-        { name: "Black", hex: "#1A202C" },
-        { name: "Violet", hex: "#6B46C1" },
-        { name: "Indigo", hex: "#4C51BF" },
-        { name: "Sage", hex: "#81E6D9" },
-        { name: "Sand", hex: "#E2E8F0" },
-        { name: "Crimson", hex: "#C53030" }
-    ];
-
     // Compute active filters count
     const getActiveCount = () => {
         let count = 0;
-        if (minPrice > 0 || maxPrice < 10000) count++;
+        if (minPrice > 0 || maxPrice < maxLimit) count++;
         if (selectedGender !== "ALL") count++;
         if (selectedSizes.length > 0) count += selectedSizes.length;
         if (selectedSeries.length > 0) count += selectedSeries.length;
@@ -80,14 +109,15 @@ export default function FilterDrawer({
 
     const handleClear = () => {
         setMinPrice(0);
-        setMaxPrice(10000);
+        setMaxPrice(maxLimit);
         setSelectedGender("ALL");
         setSelectedSizes([]);
         setSelectedSeries([]);
         setSelectedColors([]);
+        setShowAllColors(false);
         onApplyFilters({
             minPrice: 0,
-            maxPrice: 10000,
+            maxPrice: maxLimit,
             gender: "ALL",
             sizes: [],
             series: [],
@@ -105,6 +135,33 @@ export default function FilterDrawer({
             colors: selectedColors
         });
         onClose();
+    };
+
+    // Convert slider position (0-100) to actual price value
+    const sliderToPrice = (val, maxP) => {
+        if (maxP <= 10000) {
+            return Math.round((val / 100) * maxP / 100) * 100;
+        }
+        if (val <= 50) {
+            return Math.round(((val / 50) * 10000) / 100) * 100;
+        } else {
+            const ratio = (val - 50) / 50;
+            const extra = Math.pow(ratio, 2) * (maxP - 10000);
+            return Math.round((10000 + extra) / 500) * 500;
+        }
+    };
+
+    // Convert actual price value to slider position (0-100)
+    const priceToSlider = (price, maxP) => {
+        if (maxP <= 10000) {
+            return Math.min(100, Math.max(0, (price / maxP) * 100));
+        }
+        if (price <= 10000) {
+            return Math.min(50, Math.max(0, (price / 10000) * 50));
+        } else {
+            const ratio = Math.sqrt(Math.max(0, price - 10000) / Math.max(1, maxP - 10000));
+            return Math.min(100, Math.max(50, 50 + ratio * 50));
+        }
     };
 
     if (!isOpen) return null;
@@ -155,28 +212,100 @@ export default function FilterDrawer({
                     {/* Section 1: Price Range */}
                     <div className="bg-white/80 rounded-2xl p-5 shadow-xs space-y-3">
                         <div className="flex justify-between items-center text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                            <span>Price</span>
+                            <span>Price Range</span>
                         </div>
-                        <div className="flex justify-between items-center text-xs font-medium text-black pt-1">
+
+                        {/* Preset Price Pills */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                            {[
+                                { label: "All Prices", min: 0, max: maxLimit },
+                                { label: "< Rs 1k", min: 0, max: 1000 },
+                                { label: "Rs 1k-3k", min: 1000, max: 3000 },
+                                { label: "Rs 3k-5k", min: 3000, max: 5000 },
+                                { label: "Rs 5k-10k", min: 5000, max: 10000 },
+                                { label: "> Rs 10k", min: 10000, max: maxLimit },
+                            ].map((preset) => {
+                                const isPresetActive = minPrice === preset.min && maxPrice === preset.max;
+                                return (
+                                    <button
+                                        key={preset.label}
+                                        type="button"
+                                        onClick={() => {
+                                            setMinPrice(preset.min);
+                                            setMaxPrice(preset.max);
+                                        }}
+                                        className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
+                                            isPresetActive
+                                                ? "bg-black text-white border-black"
+                                                : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                        }`}
+                                    >
+                                        {preset.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Numeric Inputs */}
+                        <div className="grid grid-cols-2 gap-3 pt-2">
                             <div>
-                                <span className="text-[10px] text-neutral-400 block">Min</span>
-                                <span className="font-semibold text-sm">Rs {minPrice.toLocaleString()}</span>
+                                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">
+                                    Min Price (Rs)
+                                </label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={maxPrice}
+                                    value={minPrice}
+                                    onChange={(e) => {
+                                        const v = Math.max(0, Number(e.target.value) || 0);
+                                        setMinPrice(v);
+                                    }}
+                                    className="w-full bg-[#F4F0EA]/60 border border-neutral-200 focus:border-black rounded-xl px-3 py-1.5 text-xs font-semibold outline-none transition-colors"
+                                />
                             </div>
-                            <div className="text-right">
-                                <span className="text-[10px] text-neutral-400 block">Max</span>
-                                <span className="font-semibold text-sm">Rs {maxPrice.toLocaleString()}</span>
+                            <div>
+                                <label className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider block mb-1">
+                                    Max Price (Rs)
+                                </label>
+                                <input
+                                    type="number"
+                                    min={minPrice}
+                                    max={maxLimit}
+                                    value={maxPrice}
+                                    onChange={(e) => {
+                                        const valStr = e.target.value;
+                                        if (valStr === "") {
+                                            setMaxPrice(0);
+                                        } else {
+                                            const v = Math.max(minPrice, Number(valStr) || 0);
+                                            setMaxPrice(v);
+                                        }
+                                    }}
+                                    className="w-full bg-[#F4F0EA]/60 border border-neutral-200 focus:border-black rounded-xl px-3 py-1.5 text-xs font-semibold outline-none transition-colors"
+                                />
                             </div>
                         </div>
-                        <div className="space-y-2 pt-2">
+
+                        {/* Smooth Slider */}
+                        <div className="space-y-1 pt-2">
                             <input
                                 type="range"
                                 min={0}
-                                max={10000}
-                                step={100}
-                                value={maxPrice}
-                                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                                max={100}
+                                step={0.5}
+                                value={priceToSlider(maxPrice, maxLimit)}
+                                onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    const calculatedPrice = sliderToPrice(val, maxLimit);
+                                    setMaxPrice(calculatedPrice);
+                                }}
                                 className="w-full accent-black cursor-pointer bg-neutral-200 h-1.5 rounded-lg"
                             />
+                            <div className="flex justify-between text-[10px] text-neutral-400 font-medium pt-1">
+                                <span>Rs {minPrice.toLocaleString()}</span>
+                                <span>Rs {maxPrice.toLocaleString()}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -184,18 +313,23 @@ export default function FilterDrawer({
                     <div className="bg-white/80 rounded-2xl p-5 shadow-xs space-y-3">
                         <h3 className="text-sm font-semibold text-black">Gender</h3>
                         <div className="flex flex-wrap gap-2 pt-1">
-                            {genderOptions.map((g) => {
-                                const isSelected = selectedGender === g;
+                            {[
+                                { label: "All", value: "ALL" },
+                                { label: "Men", value: "Men" },
+                                { label: "Women", value: "Women" },
+                                { label: "Unisex", value: "Unisex" }
+                            ].map((g) => {
+                                const isSelected = selectedGender === g.value;
                                 return (
                                     <button
-                                        key={g}
-                                        onClick={() => setSelectedGender(isSelected ? "ALL" : g)}
+                                        key={g.value}
+                                        onClick={() => setSelectedGender(g.value)}
                                         className={`px-5 py-2 rounded-full text-xs font-medium border transition-all cursor-pointer ${isSelected
-                                                ? "bg-black text-white border-black"
-                                                : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                            ? "bg-black text-white border-black"
+                                            : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
                                             }`}
                                     >
-                                        {g}
+                                        {g.label}
                                     </button>
                                 );
                             })}
@@ -206,15 +340,25 @@ export default function FilterDrawer({
                     <div className="bg-white/80 rounded-2xl p-5 shadow-xs space-y-3">
                         <h3 className="text-sm font-semibold text-black">Size</h3>
                         <div className="flex flex-wrap gap-2.5 pt-1">
-                            {sizeOptions.map((sz) => {
+                            <button
+                                type="button"
+                                onClick={() => setSelectedSizes([])}
+                                className={`h-11 px-4 rounded-full text-xs font-medium border flex items-center justify-center transition-all cursor-pointer ${selectedSizes.length === 0
+                                    ? "bg-black text-white border-black"
+                                    : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                    }`}
+                            >
+                                All
+                            </button>
+                            {activeSizes.map((sz) => {
                                 const isSelected = selectedSizes.includes(sz);
                                 return (
                                     <button
                                         key={sz}
                                         onClick={() => toggleSize(sz)}
                                         className={`w-11 h-11 rounded-full text-xs font-medium border flex items-center justify-center transition-all cursor-pointer ${isSelected
-                                                ? "bg-black text-white border-black"
-                                                : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                            ? "bg-black text-white border-black"
+                                            : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
                                             }`}
                                     >
                                         {sz}
@@ -228,6 +372,16 @@ export default function FilterDrawer({
                     <div className="bg-white/80 rounded-2xl p-5 shadow-xs space-y-3">
                         <h3 className="text-sm font-semibold text-black">Category</h3>
                         <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedSeries([])}
+                                className={`px-4 py-2 rounded-full text-xs font-medium border transition-all cursor-pointer ${selectedSeries.length === 0
+                                    ? "bg-black text-white border-black"
+                                    : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                    }`}
+                            >
+                                All
+                            </button>
                             {seriesOptions.map((series) => {
                                 const isSelected = selectedSeries.includes(series);
                                 return (
@@ -235,8 +389,8 @@ export default function FilterDrawer({
                                         key={series}
                                         onClick={() => toggleSeries(series)}
                                         className={`px-4 py-2 rounded-full text-xs font-medium border transition-all cursor-pointer ${isSelected
-                                                ? "bg-black text-white border-black"
-                                                : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
+                                            ? "bg-black text-white border-black"
+                                            : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
                                             }`}
                                     >
                                         {series}
@@ -248,21 +402,57 @@ export default function FilterDrawer({
 
                     {/* Section 5: Colours */}
                     <div className="bg-white/80 rounded-2xl p-5 shadow-xs space-y-3">
-                        <h3 className="text-sm font-semibold text-black">Colours</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-black">Colours</h3>
+                            {availableColors && availableColors.length > 8 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllColors(!showAllColors)}
+                                    className="text-xs text-neutral-500 hover:text-black font-medium transition-colors cursor-pointer"
+                                >
+                                    {showAllColors ? "Show Less" : `View All (${availableColors.length})`}
+                                </button>
+                            )}
+                        </div>
                         <div className="flex flex-wrap gap-3 pt-1">
-                            {colorOptions.map((c, i) => {
-                                const isSelected = selectedColors.includes(c.hex);
+                            {(() => {
+                                const list = (availableColors && availableColors.length > 0) ? availableColors : fetchedColors;
+                                const hasMoreThan8 = list.length > 8;
+                                const displayedList = (hasMoreThan8 && !showAllColors) ? list.slice(0, 8) : list;
+
                                 return (
-                                    <button
-                                        key={i}
-                                        onClick={() => toggleColor(c.hex)}
-                                        style={{ backgroundColor: c.hex }}
-                                        className={`w-7 h-7 rounded-full transition-transform cursor-pointer relative ${isSelected ? "scale-110 ring-2 ring-black ring-offset-2" : "hover:scale-105"
-                                            }`}
-                                        title={c.name}
-                                    />
+                                    <>
+                                        {/* All Colors Swatch Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedColors([])}
+                                            className={`w-7 h-7 rounded-full overflow-hidden transition-transform cursor-pointer relative grid grid-cols-2 grid-rows-2 border border-neutral-300 ${selectedColors.length === 0 ? "scale-110 ring-2 ring-black ring-offset-2" : "hover:scale-105 opacity-80 hover:opacity-100"
+                                                }`}
+                                            title="All Colors"
+                                        >
+                                            <span className="bg-[#E53E3E]" />
+                                            <span className="bg-[#ED8936]" />
+                                            <span className="bg-[#3182CE]" />
+                                            <span className="bg-[#38A169]" />
+                                        </button>
+
+                                        {displayedList.map((c, i) => {
+                                            const isSelected = selectedColors.includes(c.hex);
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => toggleColor(c.hex)}
+                                                    style={{ backgroundColor: c.hex }}
+                                                    className={`w-7 h-7 rounded-full transition-transform cursor-pointer relative ${isSelected ? "scale-110 ring-2 ring-black ring-offset-2" : "hover:scale-105"
+                                                        }`}
+                                                    title={c.name}
+                                                />
+                                            );
+                                        })}
+                                    </>
                                 );
-                            })}
+                            })()}
                         </div>
                     </div>
                 </div>

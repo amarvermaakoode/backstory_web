@@ -11,34 +11,6 @@ import Button from "@/components/ui/Button";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 import { COUNTRIES, getCountryByNameOrCode, validatePhoneNumber } from "@/lib/countryPhoneValidation";
 
-// Fallback items matching the mockup exactly
-const mockCheckoutItems = [
-    {
-        id: "lost-on-purpose-1-xl-cream",
-        productId: "lost-on-purpose-1",
-        name: "Lost on Purpose",
-        price: "Rs 1,100",
-        priceNum: 1100,
-        image: "/images/landing-page/featured3.png",
-        tag: "Biker Series",
-        size: "XL",
-        color: { name: "Raw Cream", hex: "#EADCC9" },
-        quantity: 1
-    },
-    {
-        id: "built-in-public-1-xl-white",
-        productId: "built-in-public-1",
-        name: "Built in Public",
-        price: "Rs 1,500",
-        priceNum: 1500,
-        image: "/images/landing-page/featured11.png",
-        tag: "Coding Series",
-        size: "XL",
-        color: { name: "Off White", hex: "#FAF8F5" },
-        quantity: 1
-    }
-];
-
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
     const { user, userFetch, refreshUser } = useUserAuth();
@@ -71,13 +43,11 @@ export default function CheckoutPage() {
         isDefault: true
     });
 
-    // Check if the cart has items; if not, use mock items for visual exactness
+    // Real cart items from CartContext
     const isCartEmpty = cartItems.length === 0;
-    const activeItems = isCartEmpty ? mockCheckoutItems : cartItems;
-    const activeCount = isCartEmpty ? mockCheckoutItems.reduce((acc, item) => acc + item.quantity, 0) : cartCount;
-    const activeSubtotal = isCartEmpty
-        ? mockCheckoutItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0)
-        : cartSubtotal;
+    const activeItems = cartItems;
+    const activeCount = cartCount;
+    const activeSubtotal = cartSubtotal;
 
     // Contact and Delivery Forms State
     const [formData, setFormData] = useState({

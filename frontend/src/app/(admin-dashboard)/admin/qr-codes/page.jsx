@@ -24,6 +24,7 @@ import {
 
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 export default function QRCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -36,6 +37,19 @@ export default function QRCodesAdminPage() {
   const [pdfLoadingBatchId, setPdfLoadingBatchId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Pagination state
+  const [batchesPage, setBatchesPage] = useState(1);
+  const [qrsPage, setQrsPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  const totalBatchesPages = Math.ceil(batches.length / ITEMS_PER_PAGE);
+  const activeBatchesPage = batchesPage > totalBatchesPages && totalBatchesPages > 0 ? totalBatchesPages : batchesPage;
+  const paginatedBatches = batches.slice((activeBatchesPage - 1) * ITEMS_PER_PAGE, activeBatchesPage * ITEMS_PER_PAGE);
+
+  const totalQrsPages = Math.ceil(qrCodes.length / ITEMS_PER_PAGE);
+  const activeQrsPage = qrsPage > totalQrsPages && totalQrsPages > 0 ? totalQrsPages : qrsPage;
+  const paginatedQRs = qrCodes.slice((activeQrsPage - 1) * ITEMS_PER_PAGE, activeQrsPage * ITEMS_PER_PAGE);
 
   // Custom Popup Modal State
   const [popupModal, setPopupModal] = useState(null);
@@ -456,7 +470,7 @@ export default function QRCodesAdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {batches.map((batch) => {
+                    {paginatedBatches.map((batch) => {
                       const linked = batch.linkedCount || 0;
                       const total = batch.totalQuantity || 0;
                       const percent = total > 0 ? Math.round((linked / total) * 100) : 0;
@@ -539,6 +553,13 @@ export default function QRCodesAdminPage() {
                 </table>
               </div>
             )}
+            <AdminPagination
+              currentPage={activeBatchesPage}
+              totalPages={totalBatchesPages}
+              onPageChange={setBatchesPage}
+              totalItems={batches.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </div>
         )}
 
@@ -568,7 +589,7 @@ export default function QRCodesAdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100">
-                    {qrCodes.map((qr) => (
+                    {paginatedQRs.map((qr) => (
                       <tr key={qr._id} className="hover:bg-neutral-50/60 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-semibold text-neutral-900">
                           {qr.code}
@@ -579,32 +600,32 @@ export default function QRCodesAdminPage() {
                         </td>
 
                         <td className="py-3.5 px-4">
-                          {qr.status === "unlinked" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="w-3 h-3" /> Unlinked
-                            </span>
-                          )}
-                          {qr.status === "claimed" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                              <CheckCircle2 className="w-3 h-3" /> Claimed
-                            </span>
-                          )}
-                          {qr.status === "active" && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3" /> Active
-                            </span>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                            qr.claimedAt
+                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                              : qr.orderId
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              qr.claimedAt ? "bg-purple-500" : qr.orderId ? "bg-emerald-500" : "bg-neutral-400"
+                            }`} />
+                            {qr.claimedAt ? "Claimed" : qr.orderId ? "Active (Linked)" : "Unlinked"}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 font-mono text-xs text-neutral-600">
+                          {qr.orderId ? (
+                            <span className="font-semibold text-neutral-900">{qr.orderId.orderId || qr.orderId}</span>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
                           )}
                         </td>
 
-                        <td className="py-3.5 px-4 text-xs font-mono text-neutral-600">
-                          {qr.orderId || "—"}
-                        </td>
-
-                        <td className="py-3.5 px-4 text-xs">
-                          {qr.linkedUser ? (
-                            <div>
-                              <div className="font-semibold text-neutral-800">{qr.linkedUser.name}</div>
-                              <div className="text-neutral-500">{qr.linkedUser.email}</div>
+                        <td className="py-3.5 px-4 text-xs text-neutral-600">
+                          {qr.claimedBy ? (
+                            <div className="font-medium text-neutral-900">
+                              {qr.claimedBy.name || qr.claimedBy.email || "User"}
                             </div>
                           ) : (
                             <span className="text-neutral-400">—</span>
@@ -647,6 +668,13 @@ export default function QRCodesAdminPage() {
                 </table>
               </div>
             )}
+            <AdminPagination
+              currentPage={activeQrsPage}
+              totalPages={totalQrsPages}
+              onPageChange={setQrsPage}
+              totalItems={qrCodes.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </div>
         )}
       </div>

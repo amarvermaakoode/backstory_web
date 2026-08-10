@@ -22,6 +22,7 @@ const createProduct = async (req, res) => {
       care,
       status,
       featured,
+      gender,
       variantStock,
     } = req.body;
 
@@ -191,6 +192,7 @@ const createProduct = async (req, res) => {
       care: care ? care.trim() : undefined,
       status: status === undefined ? true : status,
       featured: featured === 'true' || featured === true,
+      gender: gender ? gender.trim() : "Unisex",
       variantStock: variantStock ? (typeof variantStock === 'string' ? JSON.parse(variantStock) : variantStock) : {},
     });
 
@@ -303,6 +305,7 @@ const updateProduct = async (req, res) => {
       care,
       status,
       featured,
+      gender,
       variantStock,
     } = req.body;
 
@@ -444,6 +447,10 @@ const updateProduct = async (req, res) => {
 
     if (featured !== undefined) {
       product.featured = featured === 'true' || featured === true;
+    }
+
+    if (gender !== undefined) {
+      product.gender = gender.trim();
     }
 
     if (variantStock !== undefined) {

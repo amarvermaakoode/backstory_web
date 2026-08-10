@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 export default function SizeGuidesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -21,6 +22,13 @@ export default function SizeGuidesAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(sizeGuides.length / ITEMS_PER_PAGE);
+  const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : currentPage;
+  const paginatedSizeGuides = sizeGuides.slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE);
 
   // Custom Popup Modal State
   const [popupModal, setPopupModal] = useState(null);
@@ -291,7 +299,7 @@ export default function SizeGuidesAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {sizeGuides.map((guide) => (
+                {paginatedSizeGuides.map((guide) => (
                   <tr key={guide._id} className="hover:bg-neutral-50/50 transition-colors">
                     <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/4 font-semibold text-neutral-900 text-sm">
                       {guide.name}
@@ -332,6 +340,15 @@ export default function SizeGuidesAdminPage() {
             </table>
           </div>
         )}
+        <div className="px-6 pb-6">
+          <AdminPagination
+            currentPage={activePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={sizeGuides.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
 
       {/* Modal - Create/Edit */}
@@ -413,11 +430,10 @@ export default function SizeGuidesAdminPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-neutral-200 bg-neutral-100/60 text-neutral-500 text-[10px] font-semibold uppercase tracking-wider">
-                        <th className="py-2.5 px-4 w-24">Size Label *</th>
-                        <th className="py-2.5 px-4">Chest (in/cm)</th>
-                        <th className="py-2.5 px-4">Length (in/cm)</th>
-                        <th className="py-2.5 px-4">Shoulder (in/cm)</th>
-                        <th className="py-2.5 px-4 text-center w-16">Remove</th>
+                        <th className="py-2.5 px-4 w-24 whitespace-nowrap">Size Label *</th>
+                        <th className="py-2.5 px-4 whitespace-nowrap">Chest (in/cm)</th>
+                        <th className="py-2.5 px-4 whitespace-nowrap">Length (in/cm)</th>
+                        <th className="py-2.5 px-4 whitespace-nowrap">Shoulder (in/cm)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-200">

@@ -18,6 +18,7 @@ import Image from "next/image";
 import { getImageUrl } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 export default function ProductsAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -103,7 +104,15 @@ export default function ProductsAdminPage() {
   const [care, setCare] = useState("");
   const [status, setStatus] = useState(true);
   const [featured, setFeatured] = useState(false);
+  const [gender, setGender] = useState("Unisex");
   const [variantStock, setVariantStock] = useState({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
+  const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : currentPage;
+  const paginatedProducts = products.slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE);
 
   // Selected colors with local image previews and files
   // Structure: { colorId: string, name: string, hexCode: string, existingImages: [string], newFiles: [File], newPreviews: [string] }
@@ -182,6 +191,7 @@ export default function ProductsAdminPage() {
     setCare("");
     setStatus(true);
     setFeatured(false);
+    setGender("Unisex");
     setVariantStock({});
     setProductColors([]);
     setFaqs([]);
@@ -219,6 +229,7 @@ export default function ProductsAdminPage() {
     setCare(product.care || "");
     setStatus(product.status === undefined ? true : product.status);
     setFeatured(product.featured === undefined ? false : product.featured);
+    setGender(product.gender || "Unisex");
     setVariantStock(product.variantStock || {});
 
     // Map existing colors
@@ -353,6 +364,7 @@ export default function ProductsAdminPage() {
       formData.append("care", care.trim());
       formData.append("status", status);
       formData.append("featured", featured);
+      formData.append("gender", gender);
       formData.append("variantStock", JSON.stringify(variantStock));
 
       // Serialize colors array mapping color references & existing images
@@ -537,6 +549,7 @@ export default function ProductsAdminPage() {
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Product Title</th>
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Category/Sub</th>
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Price</th>
+                  <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Gender</th>
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Colors</th>
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Featured</th>
                   <th className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">Status</th>
@@ -544,7 +557,7 @@ export default function ProductsAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 whitespace-nowrap">
-                {products.map((product) => {
+                {paginatedProducts.map((product) => {
                   // Grab first image of first color to render as main thumbnail
                   const defaultImg = product.colors?.[0]?.images?.[0] || "";
 
@@ -579,6 +592,11 @@ export default function ProductsAdminPage() {
                       </td>
                       <td className="py-2.5 px-1.5 md:py-4 md:px-6 text-center font-semibold text-neutral-900 text-sm whitespace-nowrap">
                         Rs {Number(product.price)}
+                      </td>
+                      <td className="py-2.5 px-1.5 md:py-4 md:px-6 text-center whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-neutral-100 text-neutral-700 border border-neutral-200">
+                          {product.gender || "Unisex"}
+                        </span>
                       </td>
 
                       <td className="py-2.5 px-1.5 md:py-4 md:px-6 whitespace-nowrap text-center">
@@ -643,6 +661,15 @@ export default function ProductsAdminPage() {
             </table>
           </div>
         )}
+        <div className="px-6 pb-6">
+          <AdminPagination
+            currentPage={activePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={products.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
 
       {/* Modal - Create/Edit */}
@@ -782,6 +809,24 @@ export default function ProductsAdminPage() {
                     onChange={(e) => setSelectedSizeGuide(e.target.value)}
                     placeholder="Select Size Guide"
                     options={sizeGuides.map((sg) => ({ value: sg._id, label: sg.name }))}
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-neutral-500 mb-2 font-semibold">
+                    Gender *
+                  </label>
+                  <CustomSelect
+                    required
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    placeholder="Select Gender"
+                    options={[
+                      { value: "Men", label: "Men" },
+                      { value: "Women", label: "Women" },
+                      { value: "Unisex", label: "Unisex" },
+                    ]}
                   />
                 </div>
 

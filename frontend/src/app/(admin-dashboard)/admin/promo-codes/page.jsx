@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 export default function PromoCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -23,6 +24,13 @@ export default function PromoCodesAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(promoCodes.length / ITEMS_PER_PAGE);
+  const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : currentPage;
+  const paginatedPromoCodes = promoCodes.slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE);
 
   // Custom Popup Modal State
   const [popupModal, setPopupModal] = useState(null);
@@ -247,7 +255,7 @@ export default function PromoCodesAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {promoCodes.map((promo) => (
+                {paginatedPromoCodes.map((promo) => (
                   <tr key={promo._id} className="hover:bg-neutral-50/50 transition-colors">
                     <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/6 font-clashDisplay font-semibold text-neutral-900 text-sm tracking-wide">
                       {promo.code}
@@ -303,6 +311,15 @@ export default function PromoCodesAdminPage() {
             </table>
           </div>
         )}
+        <div className="px-6 pb-6">
+          <AdminPagination
+            currentPage={activePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={promoCodes.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
 
       {/* Modal - Create/Edit */}

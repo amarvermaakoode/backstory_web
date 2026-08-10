@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 export default function ColorsAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -21,6 +22,13 @@ export default function ColorsAdminPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(colors.length / ITEMS_PER_PAGE);
+  const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : currentPage;
+  const paginatedColors = colors.slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE);
 
   // Custom Popup Modal State
   const [popupModal, setPopupModal] = useState(null);
@@ -245,7 +253,7 @@ export default function ColorsAdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {colors.map((color) => (
+                {paginatedColors.map((color) => (
                   <tr key={color._id} className="hover:bg-neutral-50/50 transition-colors">
                     <td className="py-2.5 px-3 md:py-4 md:px-6 text-center w-1/5">
                       <div
@@ -292,6 +300,15 @@ export default function ColorsAdminPage() {
             </table>
           </div>
         )}
+        <div className="px-6 pb-6">
+          <AdminPagination
+            currentPage={activePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={colors.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
 
       {/* Modal - Create/Edit */}

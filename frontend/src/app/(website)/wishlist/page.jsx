@@ -19,6 +19,11 @@ export default function WishlistPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
+    // Scroll to top on page change
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, [currentPage]);
+
     // Categorize wishlist items
     const categorizeItem = (item) => {
         const name = item.name.toLowerCase();

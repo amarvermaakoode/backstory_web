@@ -30,6 +30,7 @@ import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
+import AdminPagination from "@/components/ui/AdminPagination";
 
 const ORDER_STATUS_STEPS = [
   "Order Confirmed",
@@ -63,6 +64,13 @@ export default function AdminOrdersPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : currentPage;
+  const paginatedOrders = orders.slice((activePage - 1) * ITEMS_PER_PAGE, activePage * ITEMS_PER_PAGE);
 
   // Custom Popup Modal State & Promise Helpers
   const [popupModal, setPopupModal] = useState(null);
@@ -516,7 +524,7 @@ export default function AdminOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {orders.map((order) => {
+                {paginatedOrders.map((order) => {
                   const currentStatus = order.orderStatus || "Order Confirmed";
                   const addr = order.shippingAddress || {};
                   const isUpdating = updatingOrderId === order._id;
@@ -630,6 +638,15 @@ export default function AdminOrdersPage() {
             </table>
           </div>
         )}
+        <div className="px-6 pb-6">
+          <AdminPagination
+            currentPage={activePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={orders.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
 
       {/* Order Detail Modal */}

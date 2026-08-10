@@ -20,6 +20,7 @@ export const mapProductItem = (item) => {
         name: item.title,
         price: `Rs ${item.price}`,
         priceNum: Number(item.price),
+        gender: item.gender || "Unisex",
         image: mainImg,
         hoverImage: hoverImg,
         sizes: sizesList,
