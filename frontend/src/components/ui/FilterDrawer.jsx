@@ -215,36 +215,7 @@ export default function FilterDrawer({
                             <span>Price Range</span>
                         </div>
 
-                        {/* Preset Price Pills */}
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                            {[
-                                { label: "All Prices", min: 0, max: maxLimit },
-                                { label: "< Rs 1k", min: 0, max: 1000 },
-                                { label: "Rs 1k-3k", min: 1000, max: 3000 },
-                                { label: "Rs 3k-5k", min: 3000, max: 5000 },
-                                { label: "Rs 5k-10k", min: 5000, max: 10000 },
-                                { label: "> Rs 10k", min: 10000, max: maxLimit },
-                            ].map((preset) => {
-                                const isPresetActive = minPrice === preset.min && maxPrice === preset.max;
-                                return (
-                                    <button
-                                        key={preset.label}
-                                        type="button"
-                                        onClick={() => {
-                                            setMinPrice(preset.min);
-                                            setMaxPrice(preset.max);
-                                        }}
-                                        className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
-                                            isPresetActive
-                                                ? "bg-black text-white border-black"
-                                                : "bg-[#F4F0EA]/60 border-neutral-300/80 text-black hover:border-black"
-                                        }`}
-                                    >
-                                        {preset.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
+
 
                         {/* Numeric Inputs */}
                         <div className="grid grid-cols-2 gap-3 pt-2">
