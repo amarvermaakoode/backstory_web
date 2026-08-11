@@ -107,11 +107,20 @@ export default function AboutUsSection() {
 
         {/* Content Wrapper */}
         <div className="relative z-10 w-full max-w-[100%] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-16">
-          <div className="w-full max-w-full sm:max-w-[85%] md:max-w-[40%] text-left space-y-3 sm:space-y-4 md:space-y-6 self-center md:self-center ml-auto">
-            <h1 className="font-clashDisplay text-3xl sm:text-5xl md:text-6xl lg:text-[4.5vw] font-semibold text-white tracking-tight leading-[1.08] drop-shadow-lg">
+          <div className="relative w-full max-w-full sm:max-w-[85%] md:max-w-[45%] text-left space-y-3 sm:space-y-4 md:space-y-6 self-center md:self-center ml-auto p-4 sm:p-6">
+            {/* Soft Black Radial Shadow directly behind text */}
+            <div
+              className="absolute -inset-8 sm:-inset-14 rounded-full pointer-events-none -z-10"
+              style={{
+                background: "radial-gradient(ellipse at center, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.65) 45%, rgba(0, 0, 0, 0) 75%)",
+                filter: "blur(16px)"
+              }}
+            />
+
+            <h1 className="font-clashDisplay text-3xl sm:text-5xl md:text-6xl lg:text-[4.5vw] font-semibold text-white tracking-tight leading-[1.08] drop-shadow-[0_4px_16px_rgba(0,0,0,1)]">
               We don&apos;t make clothes.
             </h1>
-            <p className="font-sans text-base sm:text-xl md:text-2xl lg:text-[1.8vw] font-normal text-neutral-200/90 tracking-wide">
+            <p className="font-sans text-base sm:text-xl md:text-2xl lg:text-[1.8vw] font-medium text-white tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,1)]">
               We make something worth belonging to.
             </p>
           </div>
