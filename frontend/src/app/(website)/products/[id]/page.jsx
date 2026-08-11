@@ -103,6 +103,40 @@ const mapRelatedProduct = (item) => {
     };
 };
 
+// Group gallery images into alternating square layout rows:
+// Row 1: 1 Big image (100% width, square)
+// Row 2: 2 Small images (50% width each in 2-col grid, square)
+// Row 3: 1 Big image (100% width, square)
+// Row 4: 2 Small images (50% width each in 2-col grid, square)...
+// If only 1 image remains when expecting a small pair, it renders as 1 Big image.
+const getImageGalleryRows = (images) => {
+    const rows = [];
+    let currentIndex = 0;
+    let isBigRow = true;
+
+    while (currentIndex < images.length) {
+        const remaining = images.length - currentIndex;
+        if (isBigRow || remaining === 1) {
+            rows.push({
+                type: "big",
+                images: [images[currentIndex]],
+                startIndex: currentIndex
+            });
+            currentIndex += 1;
+        } else {
+            rows.push({
+                type: "small",
+                images: [images[currentIndex], images[currentIndex + 1]],
+                startIndex: currentIndex
+            });
+            currentIndex += 2;
+        }
+        isBigRow = !isBigRow;
+    }
+
+    return rows;
+};
+
 export default function ProductDetailPage({ params }) {
     // Unwrap route parameter safely whether params is a Promise or an Object
     const resolvedParams = params && typeof params.then === "function" ? use(params) : (params || {});
@@ -120,6 +154,16 @@ export default function ProductDetailPage({ params }) {
     const [selectedColor, setSelectedColor] = useState(null);
     const [quantity, setQuantity] = useState(1);
     const [expandedFaq, setExpandedFaq] = useState(null);
+    const [activeMobileSlide, setActiveMobileSlide] = useState(0);
+
+    const handleMobileScroll = (e) => {
+        const scrollPosition = e.target.scrollLeft;
+        const width = e.target.clientWidth;
+        if (width > 0) {
+            const index = Math.round(scrollPosition / width);
+            setActiveMobileSlide(index);
+        }
+    };
 
     // States for size guide
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -413,7 +457,7 @@ export default function ProductDetailPage({ params }) {
                         <div className="h-4 bg-neutral-200 rounded w-1/4 mb-8"></div>
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
                             <div className="lg:col-span-7 flex flex-col gap-4">
-                                <div className="w-full aspect-[4/3] bg-neutral-200 rounded-lg"></div>
+                                <div className="w-full aspect-square bg-neutral-200 rounded-lg"></div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="aspect-square bg-neutral-200 rounded-lg"></div>
                                     <div className="aspect-square bg-neutral-200 rounded-lg"></div>
@@ -512,89 +556,88 @@ export default function ProductDetailPage({ params }) {
                     {/* Top Detail Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 mt-8">
 
-                        {/* Left: Stacked Image Gallery */}
-                        <div className="lg:col-span-7 flex flex-col gap-4 w-full">
-                            {/* Main Image */}
-                            <div className="w-full aspect-[4/3] bg-[#F4F0EA] flex items-center justify-center overflow-hidden">
-                                <div className="relative w-[80%] h-[80%]">
-                                    <Image
-                                        src={getImageUrl(productImages[0])}
-                                        alt={product.name}
-                                        fill
-                                        sizes="(max-width: 1024px) 100vw, 60vw"
-                                        className="object-contain select-none"
-                                        priority
-                                        unoptimized
-                                    />
+                        {/* Left: Image Gallery (Mobile Horizontal Scroll, Desktop Stacked Grid) */}
+                        <div className="lg:col-span-7 w-full flex flex-col gap-4">
+                            {/* Mobile View: Horizontal Scrollable Slider */}
+                            <div className="lg:hidden w-full relative">
+                                <div
+                                    onScroll={handleMobileScroll}
+                                    className="flex overflow-x-auto snap-x snap-mandatory gap-3 w-full scrollbar-none pb-2"
+                                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                                >
+                                    {productImages.map((img, index) => (
+                                        <div
+                                            key={index}
+                                            className="w-full shrink-0 snap-center aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden relative"
+                                        >
+                                            <Image
+                                                src={getImageUrl(img)}
+                                                alt={`${product.name} detail ${index + 1}`}
+                                                fill
+                                                sizes="100vw"
+                                                className="object-contain select-none"
+                                                priority={index === 0}
+                                                unoptimized
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
+
+                                {/* Mobile Indicator Badge */}
+                                {productImages.length > 1 && (
+                                    <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white text-[11px] px-2.5 py-1 rounded-full font-medium pointer-events-none tracking-wider select-none">
+                                        {activeMobileSlide + 1} / {productImages.length}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Additional images */}
-                            {productImages.length > 1 && (
-                                <>
-                                    {productImages.length >= 3 ? (
-                                        <>
-                                            {/* Row 2: Side-by-side split */}
-                                            <div className="grid grid-cols-2 gap-4 w-full">
-                                                <div className="aspect-square flex items-center justify-center overflow-hidden">
-                                                    <div className="relative w-full h-full">
-                                                        <Image
-                                                            src={getImageUrl(productImages[1])}
-                                                            alt={`${product.name} detail 1`}
-                                                            fill
-                                                            sizes="(max-width: 1024px) 50vw, 30vw"
-                                                            className="object-cover select-none"
-                                                            unoptimized
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="aspect-square flex items-center justify-center overflow-hidden">
-                                                    <div className="relative w-full h-full">
-                                                        <Image
-                                                            src={getImageUrl(productImages[2])}
-                                                            alt={`${product.name} detail 2`}
-                                                            fill
-                                                            sizes="(max-width: 1024px) 50vw, 30vw"
-                                                            className="object-cover select-none"
-                                                            unoptimized
-                                                        />
-                                                    </div>
+                            {/* Desktop View: Stacked 1-Big 2-Small Grid Layout */}
+                            <div className="hidden lg:flex lg:flex-col lg:gap-4 lg:w-full">
+                                {getImageGalleryRows(productImages).map((row, rowIdx) => {
+                                    if (row.type === "big") {
+                                        return (
+                                            <div
+                                                key={rowIdx}
+                                                className="w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden"
+                                            >
+                                                <div className="relative w-full h-full">
+                                                    <Image
+                                                        src={getImageUrl(row.images[0])}
+                                                        alt={`${product.name} detail ${row.startIndex + 1}`}
+                                                        fill
+                                                        sizes="(max-width: 1024px) 100vw, 60vw"
+                                                        className="object-contain select-none"
+                                                        priority={row.startIndex === 0}
+                                                        unoptimized
+                                                    />
                                                 </div>
                                             </div>
-
-                                            {/* Row 3: Remainder full width images */}
-                                            {productImages.slice(3).map((img, index) => (
-                                                <div key={index} className="w-full aspect-[2/1] flex items-center justify-center overflow-hidden">
-                                                    <div className="relative w-full h-full">
-                                                        <Image
-                                                            src={getImageUrl(img)}
-                                                            alt={`${product.name} detail ${index + 3}`}
-                                                            fill
-                                                            sizes="(max-width: 1024px) 100vw, 60vw"
-                                                            className="object-cover select-none"
-                                                            unoptimized
-                                                        />
+                                        );
+                                    } else {
+                                        return (
+                                            <div key={rowIdx} className="grid grid-cols-2 gap-4 w-full">
+                                                {row.images.map((img, imgIdx) => (
+                                                    <div
+                                                        key={imgIdx}
+                                                        className="aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden"
+                                                    >
+                                                        <div className="relative w-full h-full">
+                                                            <Image
+                                                                src={getImageUrl(img)}
+                                                                alt={`${product.name} detail ${row.startIndex + imgIdx + 1}`}
+                                                                fill
+                                                                sizes="(max-width: 1024px) 50vw, 30vw"
+                                                                className="object-contain select-none"
+                                                                unoptimized
+                                                            />
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </>
-                                    ) : (
-                                        // Fallback for exactly 2 images: render second full width
-                                        <div className="w-full aspect-[4/5] flex items-center justify-center overflow-hidden">
-                                            <div className="relative w-full h-full">
-                                                <Image
-                                                    src={getImageUrl(productImages[1])}
-                                                    alt={`${product.name} detail 1`}
-                                                    fill
-                                                    sizes="(max-width: 1024px) 100vw, 60vw"
-                                                    className="object-cover select-none"
-                                                    unoptimized
-                                                />
+                                                ))}
                                             </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
+                                        );
+                                    }
+                                })}
+                            </div>
                         </div>
 
                         {/* Right: Info panel (Sticky on Desktop) */}
