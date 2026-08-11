@@ -92,7 +92,7 @@ export default function AboutUsSection() {
       {/* ==========================================
           PART 1: Denim Hero Banner (Sticky Top)
       ========================================== */}
-      <section className="sticky top-0 z-10 h-[50vh] sm:h-[70vh] md:h-screen md:min-h-screen w-full overflow-hidden flex items-center justify-between px-5 sm:px-12 md:px-16 lg:px-24">
+      <section className="sticky top-0 z-10 h-screen h-[100dvh] min-h-screen w-full overflow-hidden flex items-center justify-between px-5 sm:px-12 md:px-16 lg:px-24">
         {/* Background Denim Image */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -107,7 +107,7 @@ export default function AboutUsSection() {
 
         {/* Content Wrapper */}
         <div className="relative z-10 w-full max-w-[100%] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-16">
-          <div className="w-full max-w-full sm:max-w-[85%] md:max-w-[40%] text-left space-y-3 sm:space-y-4 md:space-y-6 self-center md:self-center ml-auto bg-black/45 backdrop-blur-sm p-5 sm:p-6 rounded-2xl border border-white/10 md:border-none md:bg-transparent md:p-0 md:backdrop-blur-none md:rounded-none">
+          <div className="w-full max-w-full sm:max-w-[85%] md:max-w-[40%] text-left space-y-3 sm:space-y-4 md:space-y-6 self-center md:self-center ml-auto">
             <h1 className="font-clashDisplay text-3xl sm:text-5xl md:text-6xl lg:text-[4.5vw] font-semibold text-white tracking-tight leading-[1.08] drop-shadow-lg">
               We don&apos;t make clothes.
             </h1>
