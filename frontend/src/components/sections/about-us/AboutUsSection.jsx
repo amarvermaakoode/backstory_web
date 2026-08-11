@@ -92,7 +92,7 @@ export default function AboutUsSection() {
       {/* ==========================================
           PART 1: Denim Hero Banner (Sticky Top)
       ========================================== */}
-      <section className="sticky top-0 z-10 h-screen w-full overflow-hidden flex items-center justify-between px-6 sm:px-12 md:px-16 lg:px-24">
+      <section className="sticky top-0 z-10 h-screen h-[100dvh] min-h-screen w-full overflow-hidden flex items-center justify-between px-5 sm:px-12 md:px-16 lg:px-24">
         {/* Background Denim Image */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -106,12 +106,12 @@ export default function AboutUsSection() {
         </div>
 
         {/* Content Wrapper */}
-        <div className="relative z-10 w-full max-w-[100%] mx-auto flex flex-col md:flex-row items-center justify-between gap-10 md:gap-16">
-          <div className="max-w-[40%] text-left space-y-4 md:space-y-6 self-end md:self-center ml-auto">
-            <h1 className="font-clashDisplay text-4xl sm:text-5xl md:text-6xl lg:text-[4.5vw] font-semibold text-white tracking-tight leading-[1.08] drop-shadow-lg">
+        <div className="relative z-10 w-full max-w-[100%] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 md:gap-16">
+          <div className="w-full max-w-full sm:max-w-[85%] md:max-w-[40%] text-left space-y-3 sm:space-y-4 md:space-y-6 self-center md:self-center ml-auto">
+            <h1 className="font-clashDisplay text-3xl sm:text-5xl md:text-6xl lg:text-[4.5vw] font-semibold text-white tracking-tight leading-[1.08] drop-shadow-lg">
               We don&apos;t make clothes.
             </h1>
-            <p className="font-sans text-lg sm:text-xl md:text-2xl lg:text-[1.8vw] font-normal text-neutral-200/90 tracking-wide">
+            <p className="font-sans text-base sm:text-xl md:text-2xl lg:text-[1.8vw] font-normal text-neutral-200/90 tracking-wide">
               We make something worth belonging to.
             </p>
           </div>
@@ -121,12 +121,12 @@ export default function AboutUsSection() {
       {/* ==========================================
           PART 2: Tilted Cards & Brand Core
       ========================================== */}
-      <section className="relative z-20 bg-[#050505] text-white h-auto flex items-center justify-center py-24 px-6 md:px-20 border-t border-white/10">
-        <div className="w-full max-w-[1600px] mx-auto flex flex-col lg:flex-row items-center justify-between">
+      <section className="relative z-20 bg-[#050505] text-white h-auto flex items-center justify-center py-14 sm:py-20 lg:py-24 px-5 sm:px-8 md:px-20 border-t border-white/10">
+        <div className="w-full max-w-[1600px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-0">
           {/* Left Tilted Card */}
-          <div className="w-full max-w-[280px] sm:max-w-[320px] shrink-0 flex justify-center lg:justify-start">
+          <div className="w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] shrink-0 flex justify-center lg:justify-start">
             <div className="relative transform -rotate-6">
-              <div className="relative h-[40vh] w-[15vw]">
+              <div className="relative h-[280px] sm:h-[340px] lg:h-[40vh] w-[180px] sm:w-[220px] lg:w-[15vw]">
                 <Image
                   src="/images/landing-page/first.png"
                   alt="BacStory Tribe Streetwear Model"
@@ -140,8 +140,8 @@ export default function AboutUsSection() {
           </div>
 
           {/* Center Brand Text */}
-          <div className="flex-1 max-w-[42%] text-center space-y-6 px-2 sm:px-4">
-            <p className="font-sans text-2xl sm:text-3xl lg:text-[2.2vw] font-medium text-white leading-tight tracking-tight">
+          <div className="flex-1 w-full max-w-full lg:max-w-[42%] text-center space-y-4 sm:space-y-6 px-2 sm:px-4">
+            <p className="font-sans text-lg sm:text-2xl lg:text-[2.2vw] font-medium text-white leading-relaxed sm:leading-tight tracking-tight">
               BacStory exists for people who see clothing as more than fabric.
               Every piece is an invitation into a tribe, a conversation, and a story
               that continues long after it&apos;s worn.
@@ -149,9 +149,9 @@ export default function AboutUsSection() {
           </div>
 
           {/* Right Tilted Card */}
-          <div className="w-full max-w-[280px] sm:max-w-[320px] shrink-0 flex justify-center lg:justify-end">
+          <div className="w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[320px] shrink-0 flex justify-center lg:justify-end">
             <div className="relative transform rotate-6">
-              <div className="relative h-[40vh] w-[15vw]">
+              <div className="relative h-[280px] sm:h-[340px] lg:h-[40vh] w-[180px] sm:w-[220px] lg:w-[15vw]">
                 <Image
                   src="/images/women.png"
                   alt="BacStory Identity Model"
@@ -171,18 +171,18 @@ export default function AboutUsSection() {
       ========================================== */}
       <section
         id="philosophy"
-        className="relative z-30 bg-[#F3F4F5] text-black py-20 px-6 sm:px-12"
+        className="relative z-30 bg-[#F3F4F5] text-black py-12 sm:py-16 md:py-20 px-5 sm:px-12"
       >
-        <div className="w-full max-w-[100%] mx-auto space-y-12">
+        <div className="w-full max-w-[100%] mx-auto space-y-8 sm:space-y-12">
           <div>
-            <h2 className="font-clashDisplay text-4xl sm:text-[3vw] font-semibold tracking-tight text-black">
+            <h2 className="font-clashDisplay text-3xl sm:text-4xl md:text-[3vw] font-semibold tracking-tight text-black">
               Our Philosophy
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 md:gap-16">
             {philosophyItems.map((item, idx) => (
-              <div key={idx} className="flex flex-col space-y-4">
+              <div key={idx} className="flex flex-col space-y-3 sm:space-y-4">
                 <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-start">
                   <Image
                     src={item.icon}
@@ -193,10 +193,10 @@ export default function AboutUsSection() {
                     className="w-7 h-7 md:w-9 md:h-9 object-contain"
                   />
                 </div>
-                <h3 className="font-clashDisplay text-xl md:text-[2vw] font-semibold tracking-wide text-black">
+                <h3 className="font-clashDisplay text-lg sm:text-xl md:text-[2vw] font-semibold tracking-wide text-black">
                   {item.title}
                 </h3>
-                <p className="font-sans text-sm md:text-[1.5vw] text-black leading-tight font-semibold">
+                <p className="font-sans text-sm sm:text-base md:text-[1.5vw] text-black leading-snug font-medium sm:font-semibold">
                   {item.description}
                 </p>
               </div>
@@ -210,27 +210,27 @@ export default function AboutUsSection() {
       ========================================== */}
       <section
         id="qr-concept"
-        className="relative z-30 bg-[#050505] text-white py-20 px-6 sm:px-12 border-t border-white/10"
+        className="relative z-30 bg-[#050505] text-white py-12 sm:py-16 md:py-20 px-5 sm:px-12 border-t border-white/10"
       >
-        <div className="w-full max-w-[100%] mx-auto space-y-12">
+        <div className="w-full max-w-[100%] mx-auto space-y-8 sm:space-y-12">
           {/* Header */}
           <div>
-            <h2 className="font-clashDisplay text-4xl sm:text-[3vw] font-semibold tracking-tight text-white">
+            <h2 className="font-clashDisplay text-2xl sm:text-4xl md:text-[3vw] font-semibold tracking-tight text-white">
               How Your Garment&apos;s QR Identity Works
             </h2>
           </div>
 
           {/* 4 Feature Columns matching Philosophy layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 md:gap-16">
             {qrSteps.map((item, idx) => (
-              <div key={idx} className="flex flex-col space-y-4">
-                <span className="font-clashDisplay text-xl md:text-[2vw] font-semibold text-neutral-500">
+              <div key={idx} className="flex flex-col space-y-3 sm:space-y-4">
+                <span className="font-clashDisplay text-lg sm:text-xl md:text-[2vw] font-semibold text-neutral-500">
                   {item.step}
                 </span>
-                <h3 className="font-clashDisplay text-xl md:text-[2vw] font-semibold tracking-wide text-white">
+                <h3 className="font-clashDisplay text-lg sm:text-xl md:text-[2vw] font-semibold tracking-wide text-white">
                   {item.title}
                 </h3>
-                <p className="font-sans text-sm md:text-[1.5vw] text-neutral-300 leading-tight font-semibold">
+                <p className="font-sans text-sm sm:text-base md:text-[1.5vw] text-neutral-300 leading-snug font-medium sm:font-semibold">
                   {item.description}
                 </p>
               </div>
@@ -244,18 +244,18 @@ export default function AboutUsSection() {
       ========================================== */}
       <section
         id="team"
-        className="relative z-40 bg-white text-black pt-14 border-t border-neutral-200 border-b border-white"
+        className="relative z-40 bg-white text-black pt-10 sm:pt-14 border-t border-neutral-200 border-b border-white"
       >
-        <div className="w-full space-y-12">
+        <div className="w-full space-y-8 sm:space-y-12">
           {/* Header Row */}
-          <div className="px-auto max-w-[100%] flex flex-col md:flex-row items-center justify-center gap-20">
-            <div>
-              <h3 className="font-clashDisplay text-4xl sm:text-5xl lg:text-[3vw] font-semibold text-black leading-[1.1] tracking-tight">
-                The People behind<br />BacStory
+          <div className="px-5 sm:px-12 md:px-16 max-w-full flex flex-col md:flex-row items-start md:items-center justify-center gap-6 sm:gap-10 md:gap-20">
+            <div className="w-full md:w-auto">
+              <h3 className="font-clashDisplay text-3xl sm:text-5xl lg:text-[3vw] font-semibold text-black leading-[1.1] tracking-tight">
+                The People behind<br className="hidden sm:inline" />BacStory
               </h3>
             </div>
-            <div className="max-w-[35%]">
-              <p className="font-sans text-xl sm:text-2xl lg:text-[1.8vw] font-semibold text-black leading-tight">
+            <div className="w-full max-w-full md:max-w-[35%]">
+              <p className="font-sans text-base sm:text-2xl lg:text-[1.8vw] font-medium sm:font-semibold text-black leading-snug sm:leading-tight">
                 We didn&apos;t set out to build another clothing brand. We wanted to build something people could belong to.
               </p>
             </div>
@@ -263,7 +263,7 @@ export default function AboutUsSection() {
 
           {/* Image + Story Details Split Box */}
           <div className="w-full flex flex-col lg:flex-row overflow-hidden">
-            <div className="relative aspect-[4/3] lg:aspect-auto lg:min-h-[500px] lg:w-[53%] shrink-0 bg-neutral-900">
+            <div className="relative aspect-[4/3] sm:aspect-[16/9] lg:aspect-auto min-h-[260px] sm:min-h-[380px] lg:min-h-[500px] lg:w-[53%] shrink-0 bg-neutral-900">
               <Image
                 src="/images/women.png"
                 alt="The People behind BacStory"
@@ -273,11 +273,11 @@ export default function AboutUsSection() {
               />
             </div>
 
-            <div className="lg:w-[47%] bg-[#EFECE6] p-8 sm:p-12 md:p-14 lg:p-30 flex flex-col justify-center gap-6 md:gap-8 text-neutral-900">
-              <p className="font-sans text-base sm:text-lg md:text-xl font-medium leading-tight text-black tracking-tight">
+            <div className="lg:w-[47%] bg-[#EFECE6] p-6 sm:p-12 md:p-14 lg:p-24 flex flex-col justify-center gap-4 sm:gap-6 md:gap-8 text-neutral-900">
+              <p className="font-sans text-sm sm:text-lg md:text-xl font-medium leading-relaxed sm:leading-tight text-black tracking-tight">
                 What started as shared ideas slowly became a shared vision: to create clothing that carries meaning, celebrates individuality, and brings people together through stories worth wearing.
               </p>
-              <p className="font-sans text-base sm:text-lg md:text-xl font-medium leading-tight text-black tracking-tight">
+              <p className="font-sans text-sm sm:text-lg md:text-xl font-medium leading-relaxed sm:leading-tight text-black tracking-tight">
                 Today, that vision continues to shape every decision we make—from the communities we collaborate with to the details woven into every collection.
               </p>
             </div>

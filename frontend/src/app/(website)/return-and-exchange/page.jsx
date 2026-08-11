@@ -1517,10 +1517,10 @@ export default function ReturnAndExchangePage() {
                                                     {paymentMode === "original"
                                                         ? "Original Payment Method"
                                                         : paymentMode === "bank"
-                                                        ? "Bank Transfer"
-                                                        : paymentMode === "upi"
-                                                        ? "UPI"
-                                                        : "BacStory Wallet"}
+                                                            ? "Bank Transfer"
+                                                            : paymentMode === "upi"
+                                                                ? "UPI"
+                                                                : "BacStory Wallet"}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
