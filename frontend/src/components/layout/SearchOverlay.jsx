@@ -16,7 +16,7 @@ export default function SearchOverlay({ isOpen, onClose }) {
     const { results, total, loading, error } = useSearchSuggestions(isOpen ? query : "");
 
     const trimmedQuery = query.trim();
-    const hasQuery = trimmedQuery.length >= 2;
+    const hasQuery = trimmedQuery.length >= 1;
 
     // Close on Escape key press
     useEffect(() => {
@@ -111,29 +111,12 @@ export default function SearchOverlay({ isOpen, onClose }) {
                                 className="flex-1 bg-transparent outline-none text-sm sm:text-base text-black placeholder:text-neutral-400"
                                 aria-label="Search products"
                             />
-                            {trimmedQuery && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setQuery("");
-                                        inputRef.current?.focus();
-                                    }}
-                                    className="text-neutral-400 hover:text-black transition-colors cursor-pointer shrink-0"
-                                    aria-label="Clear search"
-                                >
-                                    <X className="w-4 h-4 stroke-[2]" />
-                                </button>
-                            )}
                         </div>
                     </form>
 
                     {/* Results Area */}
                     <div className="mt-5 max-h-[55vh] overflow-y-auto">
-                        {!hasQuery && (
-                            <p className="text-xs sm:text-sm text-neutral-400 py-6 text-center">
-                                Type at least 2 characters to search the collection.
-                            </p>
-                        )}
+
 
                         {hasQuery && loading && (
                             <div className="space-y-3 py-2">

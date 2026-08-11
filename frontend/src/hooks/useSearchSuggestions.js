@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { searchProducts } from "@/services/searchService";
 
-const MIN_QUERY_LENGTH = 2;
+const MIN_QUERY_LENGTH = 1;
 const EMPTY_STATE = { results: [], total: 0, loading: false, error: null };
 
 /**
