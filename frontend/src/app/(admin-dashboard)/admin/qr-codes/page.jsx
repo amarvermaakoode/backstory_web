@@ -25,6 +25,7 @@ import {
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 import AdminPagination from "@/components/ui/AdminPagination";
+import QRCodeCard from "@/components/qr/QRCodeCard";
 
 export default function QRCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -32,6 +33,7 @@ export default function QRCodesAdminPage() {
   const [activeTab, setActiveTab] = useState("batches"); // "batches" or "qrcodes"
   const [batches, setBatches] = useState([]);
   const [qrCodes, setQrCodes] = useState([]);
+  const [previewQR, setPreviewQR] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [pdfLoadingBatchId, setPdfLoadingBatchId] = useState(null);
@@ -651,6 +653,14 @@ export default function QRCodesAdminPage() {
                               )}
                             </button>
 
+                            <button
+                              onClick={() => setPreviewQR(qr)}
+                              className="p-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-all cursor-pointer"
+                              title="Preview QR Identity Card"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+
                             <a
                               href={`/qr/${qr.code}`}
                               target="_blank"
@@ -831,12 +841,22 @@ export default function QRCodesAdminPage() {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleCopyLink(qr.code)}
-                        className="px-2.5 py-1 text-xs border border-neutral-200 bg-white hover:bg-neutral-100 rounded-lg text-neutral-700 font-medium cursor-pointer"
-                      >
-                        {copiedCode === qr.code ? "Copied" : "Copy Link"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPreviewQR(qr)}
+                          className="px-2.5 py-1 text-xs border border-neutral-200 bg-white hover:bg-neutral-100 rounded-lg text-neutral-700 font-medium cursor-pointer flex items-center gap-1.5"
+                          title="Preview Card"
+                        >
+                          <QrCode className="w-3.5 h-3.5" />
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleCopyLink(qr.code)}
+                          className="px-2.5 py-1 text-xs border border-neutral-200 bg-white hover:bg-neutral-100 rounded-lg text-neutral-700 font-medium cursor-pointer"
+                        >
+                          {copiedCode === qr.code ? "Copied" : "Copy Link"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -848,6 +868,38 @@ export default function QRCodesAdminPage() {
 
       {/* Custom Popup Modal */}
       <CustomConfirmModal modalData={popupModal} />
+
+      {/* QR Identity Card Preview Modal */}
+      {previewQR && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-neutral-200 animate-in fade-in zoom-in duration-200 relative flex flex-col items-center">
+            <div className="w-full flex justify-between items-center mb-5 pb-3 border-b border-neutral-100">
+              <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                <Shirt className="w-4 h-4 text-neutral-700" />
+                QR Identity Card Preview
+              </h3>
+              <button
+                onClick={() => setPreviewQR(null)}
+                className="text-neutral-400 hover:text-neutral-700 cursor-pointer p-1 rounded-lg hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <QRCodeCard code={previewQR.code} size="normal" className="w-full" />
+
+            <div className="w-full mt-5 pt-3.5 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+              <span>Status: <strong className="text-neutral-800 capitalize">{previewQR.status || "unlinked"}</strong></span>
+              <button
+                onClick={() => handleCopyLink(previewQR.code)}
+                className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-medium cursor-pointer text-xs flex items-center gap-1.5 transition-colors"
+              >
+                {copiedCode === previewQR.code ? "Copied Link" : "Copy Target Link"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

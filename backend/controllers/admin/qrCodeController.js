@@ -2,6 +2,9 @@ const QRCodeBatch = require("../../models/QRCodeBatch");
 const QRCodeModel = require("../../models/QRCode");
 const QRCode = require("qrcode");
 const PDFDocument = require("pdfkit");
+const SVGtoPDF = require("svg-to-pdfkit");
+const fs = require("fs");
+const path = require("path");
 const crypto = require("crypto");
 
 // Helper to generate unique QR code string
@@ -244,54 +247,67 @@ exports.downloadBatchPDF = async (req, res) => {
       // Draw dashed card border for easy cut guide
       doc
         .save()
-        .rect(x + 5, y + 5, cellWidth - 10, cellHeight - 10)
+        .rect(x + 4, y + 4, cellWidth - 8, cellHeight - 8)
         .dash(3, { space: 3 })
-        .strokeColor("#cccccc")
-        .lineWidth(0.8)
+        .strokeColor("#d1d5db")
+        .lineWidth(0.6)
         .stroke()
         .restore();
-
-      // Card Header / Brand
-      doc
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .fillColor("#111111")
-        .text("BACSTORY", x, y + 16, {
-          width: cellWidth,
-          align: "center",
-        });
 
       // Target scan URL
       const scanUrl = `${frontendUrl}/qr/${qrItem.code}`;
 
-      // Generate QR Code Buffer
+      // Generate QR Code Buffer with Error Correction Level M (15%) for clean, spacious Version 2 (25x25) matrix grid
       const qrBuffer = await QRCode.toBuffer(scanUrl, {
-        errorCorrectionLevel: "H",
+        errorCorrectionLevel: "M",
         type: "png",
-        margin: 1,
-        width: 120,
+        margin: 4,
+        width: 350,
         color: {
           dark: "#000000",
           light: "#FFFFFF",
         },
       });
 
-      // Embed QR image centered in cell (Clean QR Code only)
-      const qrSize = 130;
+      // Embed QR image perfectly centered in cell
+      const qrSize = 110;
       const qrX = x + (cellWidth - qrSize) / 2;
-      const qrY = y + 25;
+      const qrY = y + (cellHeight - qrSize) / 2;
 
       doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
 
-      // Micro instruction text below QR
+      // Embed centered BACSTORY logo overlay (~14% of QR size)
+      const logoSize = qrSize * 0.14;
+      const bgSize = logoSize + 3;
+      const centerX = qrX + qrSize / 2;
+      const centerY = qrY + qrSize / 2;
+
+      const bgX = centerX - bgSize / 2;
+      const bgY = centerY - bgSize / 2;
+      const logoX = centerX - logoSize / 2;
+      const logoY = centerY - logoSize / 2;
+
+      // Draw white protective background square with rounded corners
       doc
-        .fontSize(7)
-        .font("Helvetica")
-        .fillColor("#666666")
-        .text("Scan to view BACSTORY", x, qrY + qrSize + 8, {
-          width: cellWidth,
-          align: "center",
-        });
+        .save()
+        .roundedRect(bgX, bgY, bgSize, bgSize, 2.5)
+        .fill("#FFFFFF")
+        .restore();
+
+      // Render BACSTORY logo SVG in exact mathematical center
+      const svgPath = path.join(__dirname, "../../../frontend/public/images/light-theme-icon.svg");
+      if (fs.existsSync(svgPath)) {
+        try {
+          const svgString = fs.readFileSync(svgPath, "utf8");
+          SVGtoPDF(doc, svgString, logoX, logoY, {
+            width: logoSize,
+            height: logoSize,
+            preserveAspectRatio: "xMidYMid meet",
+          });
+        } catch (e) {
+          console.error("Error drawing SVG logo on PDF:", e);
+        }
+      }
     }
 
     doc.end();

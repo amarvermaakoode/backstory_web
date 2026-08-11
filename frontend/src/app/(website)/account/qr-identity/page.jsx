@@ -6,6 +6,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getMyQRCodes, updateQRProfile } from "@/services/qrService";
 import CustomSelect from "@/components/ui/CustomSelect";
+import QRCodeCard from "@/components/qr/QRCodeCard";
 import { Scan, QrCode, ExternalLink, Pencil, Loader2, X, Sparkles, ShieldCheck, Upload, User, Trash2, Plus } from "lucide-react";
 
 const ALL_PLATFORMS = [
@@ -36,6 +37,7 @@ export default function AccountQrIdentityPage() {
 
   // Edit Story Modal State
   const [editingQR, setEditingQR] = useState(null);
+  const [previewPassQR, setPreviewPassQR] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -201,6 +203,14 @@ export default function AccountQrIdentityPage() {
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     {qr.profileData?.title ? "Edit Story" : "Add Story & Details"}
+                  </button>
+
+                  <button
+                    onClick={() => setPreviewPassQR(qr)}
+                    className="p-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-xl text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                    title="View QR Identity Pass"
+                  >
+                    <QrCode className="w-4 h-4 text-neutral-800" />
                   </button>
 
                   <Link
@@ -465,6 +475,39 @@ export default function AccountQrIdentityPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* QR Pass Card Preview Modal */}
+      {previewPassQR && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-neutral-200 animate-in fade-in zoom-in duration-200 relative flex flex-col items-center">
+            <div className="w-full flex justify-between items-center mb-5 pb-3 border-b border-neutral-100">
+              <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                <Scan className="w-4 h-4 text-neutral-800" />
+                Garment QR Identity Card
+              </h3>
+              <button
+                onClick={() => setPreviewPassQR(null)}
+                className="text-neutral-400 hover:text-neutral-700 cursor-pointer p-1 rounded-lg hover:bg-neutral-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <QRCodeCard code={previewPassQR.code} size="normal" className="w-full" />
+
+            <div className="w-full mt-5 pt-3.5 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+              <span>Status: <strong className="text-neutral-800 capitalize">{previewPassQR.status || "active"}</strong></span>
+              <Link
+                href={`/qr/${previewPassQR.code}`}
+                target="_blank"
+                className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl font-medium cursor-pointer text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View Public Page
+              </Link>
+            </div>
           </div>
         </div>
       )}
