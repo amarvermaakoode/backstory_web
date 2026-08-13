@@ -6,7 +6,7 @@ import { useToast } from "@/context/ToastContext";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import CountrySelect from "@/components/ui/CountrySelect";
-import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode } from "@/lib/countryPhoneValidation";
+import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, fetchPostalCodeDetails, fetchIndiaPincodeDetails } from "@/lib/countryPhoneValidation";
 import {
     Pencil,
     Trash2,
@@ -176,9 +176,7 @@ export default function AccountProfilePage() {
     const handlePincodeChange = async (e) => {
         const raw = e.target.value;
         const postalRule = getPostalRule(newAddress.country);
-        const pin = postalRule.isIndia
-            ? raw.replace(/\D/g, "").slice(0, postalRule.maxLength)
-            : raw.slice(0, postalRule.maxLength);
+        const pin = raw.slice(0, postalRule.maxLength);
 
         setNewAddress((prev) => ({
             ...prev,
@@ -192,23 +190,19 @@ export default function AccountProfilePage() {
             setPincodeError("");
         }
 
-        if (postalRule.isIndia && pin.length === 6 && /^\d{6}$/.test(pin)) {
+        if (pin && validatePostalCode(pin, newAddress.country).isValid) {
             setPincodeLoading(true);
             try {
-                const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
-                        const po = data[0].PostOffice[0];
-                        const locationStr = `${po.District || po.Name}, ${po.State}`;
-                        setNewAddress((prev) => ({
-                            ...prev,
-                            pincode: pin,
-                            cityStatePin: locationStr,
-                        }));
-                        setPincodeError("");
-                        showToast(`Location fetched: ${locationStr}`, "success");
-                    }
+                const details = await fetchPostalCodeDetails(newAddress.country, pin);
+                if (details && (details.city || details.state)) {
+                    const locationStr = [details.city, details.state].filter(Boolean).join(", ");
+                    setNewAddress((prev) => ({
+                        ...prev,
+                        pincode: pin,
+                        cityStatePin: locationStr,
+                    }));
+                    setPincodeError("");
+                    showToast(`Location fetched: ${locationStr}`, "success");
                 }
             } catch (err) {
                 console.log("Pincode lookup error:", err);
@@ -229,7 +223,7 @@ export default function AccountProfilePage() {
             addressLine2: "",
             pincode: "",
             cityStatePin: "",
-            phone: profile.phone ? profile.phone.replace(/\D/g, "").slice(0, 10) : "",
+            phone: profile.phone ? profile.phone.replace(/\D/g, "") : "",
             country: "India",
         });
         setIsAddAddressOpen(true);
@@ -819,9 +813,10 @@ export default function AccountProfilePage() {
                                                 )}
                                                 <input
                                                     type="tel"
+                                                    maxLength={countryObj.phoneMaxLength || 15}
                                                     value={newAddress.phone}
                                                     onChange={(e) => {
-                                                        const rawDigits = e.target.value.replace(/\D/g, "").slice(0, countryObj.maxLength);
+                                                        const rawDigits = e.target.value.replace(/\D/g, "").slice(0, countryObj.phoneMaxLength || 15);
                                                         setNewAddress((prev) => ({ ...prev, phone: rawDigits }));
                                                         if (rawDigits) {
                                                             const check = validatePhoneNumber(rawDigits, newAddress.country);

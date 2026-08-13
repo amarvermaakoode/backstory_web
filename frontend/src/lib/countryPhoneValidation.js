@@ -1,127 +1,42 @@
 import { countries } from "countries-list";
-import { isValidPhoneNumber, getCountryCallingCode } from "libphonenumber-js";
+import { isValidPhoneNumber, getCountryCallingCode, getExampleNumber } from "libphonenumber-js";
+import examples from "libphonenumber-js/mobile/examples";
 import PostalCodes from "postal-codes-js";
 
-// Countries that do not use or require postal/ZIP codes
-const NO_POSTAL_CODE_COUNTRIES = new Set([
-    "HK", // Hong Kong
-    "MO", // Macao
-    "AE", // United Arab Emirates
-    "QA", // Qatar
-    "KW", // Kuwait
-    "BH", // Bahrain
-    "OM", // Oman
-    "MC", // Monaco
-    "AW", // Aruba
-    "AG", // Antigua and Barbuda
-    "BS", // Bahamas
-    "BZ", // Belize
-    "BJ", // Benin
-    "BW", // Botswana
-    "BF", // Burkina Faso
-    "BI", // Burundi
-    "CM", // Cameroon
-    "CF", // Central African Republic
-    "KM", // Comoros
-    "CG", // Congo
-    "CD", // Congo (DRC)
-    "DJ", // Djibouti
-    "DM", // Dominica
-    "GQ", // Equatorial Guinea
-    "ER", // Eritrea
-    "FJ", // Fiji
-    "GA", // Gabon
-    "GM", // Gambia
-    "GH", // Ghana
-    "GD", // Grenada
-    "GN", // Guinea
-    "GW", // Guinea-Bissau
-    "GY", // Guyana
-    "CI", // Ivory Coast
-    "JM", // Jamaica
-    "KI", // Kiribati
-    "KP", // North Korea
-    "LY", // Libya
-    "MW", // Malawi
-    "ML", // Mali
-    "MR", // Mauritania
-    "MU", // Mauritius
-    "NR", // Nauru
-    "NU", // Niue
-    "RW", // Rwanda
-    "KN", // Saint Kitts and Nevis
-    "LC", // Saint Lucia
-    "VC", // Saint Vincent and the Grenadines
-    "WS", // Samoa
-    "ST", // Sao Tome and Principe
-    "SC", // Seychelles
-    "SL", // Sierra Leone
-    "SB", // Solomon Islands
-    "SO", // Somalia
-    "SS", // South Sudan
-    "SR", // Suriname
-    "SY", // Syria
-    "TL", // Timor-Leste
-    "TG", // Togo
-    "TO", // Tonga
-    "TT", // Trinidad and Tobago
-    "TV", // Tuvalu
-    "UG", // Uganda
-    "VU", // Vanuatu
-    "YE", // Yemen
-    "ZW", // Zimbabwe
-]);
+/**
+ * Dynamically derives national phone number max length for any ISO country code using `libphonenumber-js`.
+ */
+export function getPhoneMaxLength(code) {
+    if (!code) return 15;
+    try {
+        const example = getExampleNumber(code, examples);
+        if (example && example.nationalNumber) {
+            return example.nationalNumber.length;
+        }
+    } catch (e) {}
+    return 15;
+}
 
-// Department & Numerical postal code range boundaries for known countries
-const POSTAL_RANGES = {
-    // Honduras: 18 departments, valid postal codes range strictly between 11101 and 54203
-    HN: { min: 11101, max: 54203 },
-    // Guatemala: 22 departments, valid postal codes range between 01001 and 22000
-    GT: { min: 1001, max: 22000 },
-    // El Salvador: valid postal codes range between 1101 and 3401
-    SV: { min: 1101, max: 3401 },
-    // Nicaragua: valid postal codes range between 10000 and 52000
-    NI: { min: 10000, max: 52000 },
-    // Costa Rica: 7 provinces, 10101 to 70604
-    CR: { min: 10101, max: 70604 },
-    // Panama: 0801 to 1212
-    PA: { min: 801, max: 1212 },
-    // India: PIN codes range strictly from 110001 to 855999
-    IN: { min: 110001, max: 855999 },
-    // United States: 00501 to 99950
-    US: { min: 501, max: 99950 },
-};
+/**
+ * Dynamically derives maximum postal code length for any ISO country code using `postal-codes-js`.
+ */
+export function getPostalMaxLength(code) {
+    if (!code) return 12;
+    for (let l = 12; l >= 1; l--) {
+        const testNumeric = "1".repeat(l);
+        if (PostalCodes.validate(code, testNumeric) === true) {
+            return l;
+        }
+    }
+    if (PostalCodes.validate(code, "SW1A 1AA") === true) return 8;
+    if (PostalCodes.validate(code, "K1A 0B1") === true) return 7;
+    return 12;
+}
 
-// Custom phone validation rules for key countries
-const PHONE_RULES = {
-    IN: { minLength: 10, maxLength: 10, pattern: /^[6-9]\d{9}$/, placeholder: "98765 43210" },
-    US: { minLength: 10, maxLength: 10, pattern: /^\d{10}$/, placeholder: "555 000 0000" },
-    GB: { minLength: 10, maxLength: 11, pattern: /^\d{10,11}$/, placeholder: "7911 123456" },
-    CA: { minLength: 10, maxLength: 10, pattern: /^\d{10}$/, placeholder: "555 000 0000" },
-    AU: { minLength: 9, maxLength: 10, pattern: /^\d{9,10}$/, placeholder: "412 345 678" },
-    HK: { minLength: 8, maxLength: 8, pattern: /^\d{8}$/, placeholder: "9123 4567" },
-    AE: { minLength: 9, maxLength: 9, pattern: /^\d{9}$/, placeholder: "50 123 4567" },
-    SG: { minLength: 8, maxLength: 8, pattern: /^\d{8}$/, placeholder: "8123 4567" },
-    DE: { minLength: 10, maxLength: 11, pattern: /^\d{10,11}$/, placeholder: "151 12345678" },
-    FR: { minLength: 9, maxLength: 9, pattern: /^\d{9}$/, placeholder: "6 12 34 56 78" },
-    HN: { minLength: 8, maxLength: 8, pattern: /^\d{8}$/, placeholder: "9900 1234" },
-};
-
-// Custom postal/pin code validation rules per ISO country code
-const POSTAL_RULES = {
-    IN: { maxLength: 6, pattern: /^[1-9]\d{5}$/, placeholder: "Pin Code*", error: "Enter a valid PIN code.", isIndia: true },
-    US: { maxLength: 10, pattern: /^\d{5}(-\d{4})?$/, placeholder: "ZIP Code*", error: "Enter a valid ZIP code.", isIndia: false },
-    GB: { maxLength: 8, pattern: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i, placeholder: "Postcode*", error: "Enter a valid UK postcode.", isIndia: false },
-    CA: { maxLength: 7, pattern: /^[A-Za-z]\d[A-Za-z] ?\d[A-Za-z]\d$/, placeholder: "Postal Code*", error: "Enter a valid Canadian postal code.", isIndia: false },
-    AU: { maxLength: 4, pattern: /^\d{4}$/, placeholder: "Postcode*", error: "Enter a valid 4-digit postcode.", isIndia: false },
-    SG: { maxLength: 6, pattern: /^\d{6}$/, placeholder: "Postal Code*", error: "Enter a valid 6-digit postal code.", isIndia: false },
-    DE: { maxLength: 5, pattern: /^\d{5}$/, placeholder: "PLZ*", error: "Enter a valid 5-digit PLZ.", isIndia: false },
-    FR: { maxLength: 5, pattern: /^\d{5}$/, placeholder: "Code Postal*", error: "Enter a valid 5-digit postal code.", isIndia: false },
-    GT: { maxLength: 5, pattern: /^\d{5}$/, placeholder: "Postal Code*", error: "Enter a valid 5-digit postal code.", isIndia: false },
-    HN: { maxLength: 5, pattern: /^\d{5}$/, placeholder: "Postal Code*", error: "Enter a valid postal code.", isIndia: false },
-};
-
-// Build authoritative list of all ISO 3166-1 alpha-2 countries
+/**
+ * Dynamic registry of all ISO 3166-1 alpha-2 countries.
+ * Dialing prefixes and length metadata derived dynamically from `libphonenumber-js` & `postal-codes-js`.
+ */
 export const ALL_COUNTRIES = Object.entries(countries)
     .map(([code, c]) => {
         let dialCode = "";
@@ -132,19 +47,12 @@ export const ALL_COUNTRIES = Object.entries(countries)
             dialCode = primaryPhone ? `+${primaryPhone}` : "";
         }
 
-        const customRules = PHONE_RULES[code] || {
-            minLength: 7,
-            maxLength: 15,
-            pattern: /^\d{7,15}$/,
-            placeholder: "Phone number",
-        };
-
         return {
-            code, // ISO 3166-1 alpha-2 code (e.g., "IN", "HK", "US")
+            code, // ISO 3166-1 alpha-2 code (e.g. "IN", "US", "GB")
             name: c.name,
             dialCode,
-            postalCodeRequired: !NO_POSTAL_CODE_COUNTRIES.has(code),
-            ...customRules,
+            phoneMaxLength: getPhoneMaxLength(code),
+            postalMaxLength: getPostalMaxLength(code),
         };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -152,129 +60,152 @@ export const ALL_COUNTRIES = Object.entries(countries)
 export const COUNTRIES = ALL_COUNTRIES;
 
 /**
- * Normalizes input (ISO code or country name) to a valid ISO 3166-1 alpha-2 country object.
+ * Centralized Country Normalizer.
+ * Accepts ISO code ("IN", "US") or Country Name ("India", "United States").
+ * Returns normalized country object or null if unresolvable.
  */
-export function getCountryByNameOrCode(nameOrCode = "IN") {
-    if (!nameOrCode) return ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0];
+export function getCountry(nameOrCode) {
+    if (!nameOrCode) return null;
     const str = String(nameOrCode).trim();
-    
+
+    // Match by ISO Alpha-2 code
     const byCode = ALL_COUNTRIES.find((c) => c.code.toUpperCase() === str.toUpperCase());
     if (byCode) return byCode;
 
+    // Match by Country Name
     const byName = ALL_COUNTRIES.find((c) => c.name.toLowerCase() === str.toLowerCase());
     if (byName) return byName;
 
-    return ALL_COUNTRIES.find((c) => c.code === "IN") || ALL_COUNTRIES[0];
+    return null;
 }
 
-export function getCountry(nameOrCode = "IN") {
-    return getCountryByNameOrCode(nameOrCode);
+export function getCountryByNameOrCode(nameOrCode) {
+    const c = getCountry(nameOrCode);
+    if (c) return c;
+    const fallback = ALL_COUNTRIES[0];
+    return {
+        ...fallback,
+        phoneMaxLength: getPhoneMaxLength(fallback.code),
+        postalMaxLength: getPostalMaxLength(fallback.code),
+    };
 }
 
-export function getCountryCode(nameOrCode = "IN") {
-    return getCountryByNameOrCode(nameOrCode).code;
+export function getCountryCode(nameOrCode) {
+    const c = getCountry(nameOrCode);
+    return c ? c.code : "";
 }
 
-export function getCountryName(codeOrName = "IN") {
-    return getCountryByNameOrCode(codeOrName).name;
+export function getCountryName(codeOrName) {
+    const c = getCountry(codeOrName);
+    return c ? c.name : "";
 }
 
-export function getDialCode(countryCodeOrName = "IN") {
-    return getCountryByNameOrCode(countryCodeOrName).dialCode || "+91";
+export function getDialCode(countryCodeOrName) {
+    const c = getCountry(countryCodeOrName);
+    return c ? c.dialCode : "";
 }
 
 /**
- * Gets postal code / pin code rules for a specific country.
+ * Authoritative Phone Validation using `libphonenumber-js`.
+ * Dynamically enforces exact country-specific maximum digit length.
  */
-export function getPostalRule(countryCodeOrName = "IN") {
-    const country = getCountryByNameOrCode(countryCodeOrName);
-    const code = country.code;
-    const isRequired = !NO_POSTAL_CODE_COUNTRIES.has(code);
+export function validatePhoneNumber(phone, countryCodeOrName) {
+    const country = getCountry(countryCodeOrName);
+    if (!country) {
+        return { isValid: false, error: "Country selection is required.", cleanPhone: "" };
+    }
 
-    let label = "Postal Code";
-    if (code === "IN") label = "PIN Code";
-    else if (code === "US") label = "ZIP Code";
-    else if (code === "GB" || code === "CA" || code === "AU" || code === "NZ") label = "Postcode";
+    const maxLen = getPhoneMaxLength(country.code);
+    const cleanPhone = String(phone || "").trim();
+    const cleanDigits = cleanPhone.replace(/\D/g, "").slice(0, maxLen);
 
-    const displayLabel = isRequired ? `${label}*` : `${label} (Optional)`;
+    if (!cleanDigits) {
+        return { isValid: false, error: "Mobile number is required.", cleanPhone: "" };
+    }
 
-    const rule = POSTAL_RULES[code] || {
-        maxLength: isRequired ? 10 : 12,
-        pattern: /^[A-Z0-9 -]{3,10}$/i,
-        placeholder: displayLabel,
-        error: `Enter a valid ${label.toLowerCase()}.`,
-        isIndia: code === "IN",
-    };
+    if (cleanDigits.length > maxLen) {
+        return { isValid: false, error: "Enter a valid mobile number.", cleanPhone: cleanDigits };
+    }
+
+    try {
+        const fullNumber = `+${country.dialCode.replace("+", "")}${cleanDigits}`;
+        const isValid = isValidPhoneNumber(cleanPhone, country.code) || isValidPhoneNumber(fullNumber, country.code);
+
+        if (isValid) {
+            return { isValid: true, error: "", cleanPhone: cleanDigits };
+        }
+    } catch (e) {
+        // Handled cleanly
+    }
+
+    return { isValid: false, error: "Enter a valid mobile number.", cleanPhone: cleanDigits };
+}
+
+/**
+ * Dynamic Postal Rule Generator.
+ * Dynamically resolves postal maximum length per ISO country code.
+ */
+export function getPostalRule(countryCodeOrName) {
+    const country = getCountry(countryCodeOrName);
+    const code = country ? country.code : "";
+    const maxLen = getPostalMaxLength(code);
 
     return {
-        ...rule,
         countryCode: code,
-        countryName: country.name,
-        isRequired,
-        label: displayLabel,
-        isIndia: code === "IN",
+        countryName: country ? country.name : "",
+        isRequired: true,
+        label: "Postal Code*",
+        placeholder: "Postal Code*",
+        maxLength: maxLen,
+        error: "Enter a valid postal code.",
     };
 }
 
-// In-memory cache for live postal code verification results
-const postalCodeCache = new Map();
-
 /**
- * Synchronous format-only postal code check (Layer 1 + Layer 2 + Layer 3).
+ * Dynamic Postal Code Validator powered by `postal-codes-js`.
+ * Validates postal code formats for any ISO country dynamically.
  */
-export function validatePostalCodeFormat(postalCode, countryCodeOrName = "IN") {
-    const country = getCountryByNameOrCode(countryCodeOrName);
-    const rule = getPostalRule(country.code);
-    const cleanStr = String(postalCode || "").trim();
-
-    if (!rule.isRequired && !cleanStr) {
-        return { isValid: true, error: "", cleanPin: "" };
+export function validatePostalCodeFormat(postalCode, countryCodeOrName) {
+    const country = getCountry(countryCodeOrName);
+    if (!country) {
+        return { isValid: false, error: "Country selection is required.", cleanPin: "" };
     }
 
-    if (rule.isRequired && !cleanStr) {
-        const errorMsg = rule.countryCode === "IN" ? "PIN code is required." : "Postal code is required.";
-        return { isValid: false, error: errorMsg, cleanPin: "" };
+    const maxLen = getPostalMaxLength(country.code);
+    const cleanStr = String(postalCode || "").trim().slice(0, maxLen);
+
+    if (!cleanStr) {
+        return { isValid: false, error: "Postal code is required.", cleanPin: "" };
     }
 
-    // Format regex check
-    if (rule.pattern && !rule.pattern.test(cleanStr)) {
-        return { isValid: false, error: rule.error, cleanPin: cleanStr };
+    // Authoritative country-specific validation via postal-codes-js library
+    const result = PostalCodes.validate(country.code, cleanStr);
+
+    if (result === true) {
+        return { isValid: true, error: "", cleanPin: cleanStr };
     }
 
-    // Range / Department check for numerical postal codes
-    const range = POSTAL_RANGES[country.code];
-    if (range && /^\d+$/.test(cleanStr)) {
-        const num = parseInt(cleanStr, 10);
-        if (isNaN(num) || num < range.min || num > range.max) {
-            return {
-                isValid: false,
-                error: `Enter a valid ${rule.countryCode === "IN" ? "PIN code" : "postal code"}.`,
-                cleanPin: cleanStr,
-            };
-        }
-    }
-
-    return { isValid: true, error: "", cleanPin: cleanStr };
+    const errorMsg = typeof result === "string" ? result : "Enter a valid postal code.";
+    return { isValid: false, error: errorMsg, cleanPin: cleanStr };
 }
 
-/**
- * Multi-layered postal code recognition & existence verification (Layer 1 -> 4).
- * Evaluates countryCode + postalCode together asynchronously.
- */
-export async function verifyPostalCode({ countryCode, postalCode }) {
-    const country = getCountryByNameOrCode(countryCode);
-    const rule = getPostalRule(country.code);
-    const cleanStr = String(postalCode || "").trim();
+export function validatePostalCode(postalCode, countryCodeOrName) {
+    return validatePostalCodeFormat(postalCode, countryCodeOrName);
+}
 
-    // Layers 1, 2, & 3 check
+const postalCodeCache = new Map();
+
+export async function verifyPostalCode({ countryCode, postalCode }) {
+    const country = getCountry(countryCode);
+    if (!country) {
+        return { isValid: false, error: "Country selection is required." };
+    }
+
+    const maxLen = getPostalMaxLength(country.code);
+    const cleanStr = String(postalCode || "").trim().slice(0, maxLen);
     const formatCheck = validatePostalCodeFormat(cleanStr, country.code);
     if (!formatCheck.isValid) {
         return formatCheck;
-    }
-
-    // If country doesn't require postal code and empty
-    if (!rule.isRequired && !cleanStr) {
-        return { isValid: true, error: "" };
     }
 
     const cacheKey = `${country.code}:${cleanStr}`;
@@ -282,9 +213,7 @@ export async function verifyPostalCode({ countryCode, postalCode }) {
         return postalCodeCache.get(cacheKey);
     }
 
-    // Layer 4: Live Postal Code Recognition Service
     try {
-        // Query OpenStreetMap Nominatim API for exact { countryCode, postalCode }
         const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanStr)}&countrycodes=${encodeURIComponent(country.code.toLowerCase())}&format=json`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -302,18 +231,12 @@ export async function verifyPostalCode({ countryCode, postalCode }) {
                 postalCodeCache.set(cacheKey, result);
                 return result;
             } else {
-                // Postal code not recognized for this country
-                const result = {
-                    isValid: false,
-                    error: `Enter a valid ${rule.countryCode === "IN" ? "PIN code" : "postal code"}.`,
-                };
+                const result = { isValid: false, error: "Enter a valid postal code." };
                 postalCodeCache.set(cacheKey, result);
                 return result;
             }
         }
     } catch (err) {
-        console.warn("Postal code recognition service unavailable, falling back to format rules:", err);
-        // Fallback safely on network error/timeout without blocking valid formats
         return { isValid: true, error: "" };
     }
 
@@ -321,41 +244,52 @@ export async function verifyPostalCode({ countryCode, postalCode }) {
 }
 
 /**
- * Backward compatible helper alias.
+ * Dynamic location (City/State) lookup using OpenStreetMap Nominatim for any ISO country code.
  */
-export function validatePostalCode(postalCode, countryCodeOrName = "IN") {
-    return validatePostalCodeFormat(postalCode, countryCodeOrName);
-}
-
-/**
- * Validates a mobile number according to country rules using libphonenumber-js.
- */
-export function validatePhoneNumber(phone, countryNameOrCode = "IN") {
-    const country = getCountryByNameOrCode(countryNameOrCode);
-    const cleanPhone = String(phone || "").trim();
-    const cleanDigits = cleanPhone.replace(/\D/g, "");
-
-    if (!cleanDigits) {
-        return { isValid: false, error: "Mobile number is required.", cleanPhone: "" };
-    }
+export async function fetchPostalCodeDetails(countryCode, postalCode) {
+    const country = getCountry(countryCode);
+    if (!country || !postalCode) return null;
+    const maxLen = getPostalMaxLength(country.code);
+    const cleanPin = String(postalCode).trim().slice(0, maxLen);
 
     try {
-        const fullNumber = `+${country.dialCode.replace("+", "")}${cleanDigits}`;
-        const isValid = isValidPhoneNumber(cleanPhone, country.code) || isValidPhoneNumber(fullNumber, country.code);
-        if (isValid) {
-            return { isValid: true, error: "", cleanPhone: cleanDigits };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(cleanPin)}&countrycodes=${encodeURIComponent(country.code.toLowerCase())}&format=json&addressdetails=1`,
+            {
+                headers: { "Accept": "application/json" },
+                signal: controller.signal,
+            }
+        );
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0 && data[0]?.address) {
+                const addr = data[0].address;
+                const rawCity = addr.city || addr.town || addr.village || addr.municipality || addr.state_district || addr.county || "";
+                const state = addr.state || "";
+
+                const cleanCity = rawCity
+                    .replace(/\s+Corporation$/i, "")
+                    .replace(/\s+District$/i, "")
+                    .replace(/\s+Rural$/i, "")
+                    .trim();
+
+                if (cleanCity || state) {
+                    return { city: cleanCity, state };
+                }
+            }
         }
     } catch (e) {
-        // Fallback
+        // Silent catch
     }
 
-    if (cleanDigits.length < country.minLength || cleanDigits.length > country.maxLength) {
-        return { isValid: false, error: "Enter a valid mobile number.", cleanPhone: cleanDigits };
-    }
+    return null;
+}
 
-    if (country.pattern && !country.pattern.test(cleanDigits)) {
-        return { isValid: false, error: "Enter a valid mobile number.", cleanPhone: cleanDigits };
-    }
-
-    return { isValid: true, error: "", cleanPhone: cleanDigits };
+export function fetchIndiaPincodeDetails(pin) {
+    return fetchPostalCodeDetails("IN", pin);
 }

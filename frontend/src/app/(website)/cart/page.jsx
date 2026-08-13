@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { 
-    Heart, 
-    Trash2, 
-    ShoppingBag, 
-    Minus, 
-    Plus, 
-    ChevronDown, 
-    Lock, 
+import {
+    Heart,
+    Trash2,
+    ShoppingBag,
+    Minus,
+    Plus,
+    ChevronDown,
+    Lock,
     RotateCcw,
     CreditCard,
     SlidersHorizontal,
@@ -24,15 +24,15 @@ import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
 
 export default function CartPage() {
-    const { 
-        cartItems, 
+    const {
+        cartItems,
         setCartItems,
-        updateQuantity, 
-        removeFromCart 
+        updateQuantity,
+        removeFromCart
     } = useCart();
 
     const { toggleWishlist, isInWishlist } = useWishlist();
-    
+
     const [selectedItems, setSelectedItems] = useState([]);
     const [promoCode, setPromoCode] = useState("");
     const [discount, setDiscount] = useState(0);
@@ -158,8 +158,8 @@ export default function CartPage() {
 
             if (data.success && data.data) {
                 setActivePromo(data.data);
-                const disc = data.data.discountType === "percentage" 
-                    ? Math.round(subtotal * (data.data.discountValue / 100)) 
+                const disc = data.data.discountType === "percentage"
+                    ? Math.round(subtotal * (data.data.discountValue / 100))
                     : Math.min(subtotal, data.data.discountValue);
                 setDiscount(disc);
                 setPromoSuccess(data.message || "Promo code applied successfully!");
@@ -237,13 +237,12 @@ export default function CartPage() {
                             {/* Selection Header */}
                             <div className="flex items-center justify-between bg-white px-5 py-4 rounded-xl border border-neutral-100/70">
                                 <div className="flex items-center gap-3">
-                                    <button 
+                                    <button
                                         onClick={toggleSelectAll}
-                                        className={`w-5 h-5 border-2 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                                            allSelected 
-                                                ? "bg-black border-black text-white" 
-                                                : "border-neutral-300 hover:border-black"
-                                        }`}
+                                        className={`w-5 h-5 border-2 rounded flex items-center justify-center cursor-pointer transition-colors ${allSelected
+                                            ? "bg-black border-black text-white"
+                                            : "border-neutral-300 hover:border-black"
+                                            }`}
                                     >
                                         {allSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                     </button>
@@ -252,7 +251,7 @@ export default function CartPage() {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-4 text-neutral-400">
-                                    <button 
+                                    <button
                                         onClick={handleBulkMoveToWishlist}
                                         disabled={selectedItems.length === 0}
                                         className="hover:text-black transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
@@ -260,7 +259,7 @@ export default function CartPage() {
                                     >
                                         <Heart className="w-5 h-5 stroke-[1.75]" />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={handleBulkDelete}
                                         disabled={selectedItems.length === 0}
                                         className="hover:text-red-500 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
@@ -275,138 +274,137 @@ export default function CartPage() {
                             <div className="space-y-4">
                                 {cartItems.map((item) => {
                                     const isSelected = selectedItems.includes(item.id);
-                                        
-                                        return (
-                                            <div 
-                                                key={item.id} 
-                                                className="flex items-center gap-4 bg-white p-5 rounded-2xl border border-neutral-100/60"
-                                            >
-                                                {/* Checkbox */}
-                                                <button 
-                                                    onClick={() => toggleSelectItem(item.id)}
-                                                    className={`w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${
-                                                        isSelected 
-                                                            ? "bg-black border-black text-white" 
-                                                            : "border-neutral-300 hover:border-black"
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className="flex items-center gap-4 bg-white p-5 rounded-2xl border border-neutral-100/60"
+                                        >
+                                            {/* Checkbox */}
+                                            <button
+                                                onClick={() => toggleSelectItem(item.id)}
+                                                className={`w-5 h-5 border-2 rounded flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${isSelected
+                                                    ? "bg-black border-black text-white"
+                                                    : "border-neutral-300 hover:border-black"
                                                     }`}
-                                                >
-                                                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                                                </button>
+                                            >
+                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                            </button>
 
-                                                {/* Image */}
-                                                <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                    <img 
-                                                        src={getImageUrl(item.image)} 
-                                                        alt={item.name || "Product image"} 
-                                                        className="w-full h-full object-contain p-2 select-none"
-                                                        onError={(e) => {
-                                                            e.target.onerror = null;
-                                                            e.target.src = "/images/landing-page/coding-tshirt.png";
-                                                        }}
-                                                    />
-                                                </div>
+                                            {/* Image */}
+                                            <div className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                <img
+                                                    src={getImageUrl(item.image)}
+                                                    alt={item.name || "Product image"}
+                                                    className="w-full h-full object-contain p-2 select-none"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                    }}
+                                                />
+                                            </div>
 
-                                                {/* Details */}
-                                                <div className="flex-grow flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
-                                                    <div className="space-y-1.5 min-w-0">
-                                                        <h3 className="font-sans text-base font-semibold text-black truncate">
-                                                            {item.name}
-                                                        </h3>
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
-                                                            {item.tag}
-                                                        </p>
+                                            {/* Details */}
+                                            <div className="flex-grow flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
+                                                <div className="space-y-1.5 min-w-0">
+                                                    <h3 className="font-sans text-base font-semibold text-black truncate">
+                                                        {item.name}
+                                                    </h3>
+                                                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                                                        {item.tag}
+                                                    </p>
 
-                                                        {/* Inline Custom Selectors */}
-                                                        <div className="flex flex-wrap gap-2 pt-1">
-                                                            {/* Size dropdown */}
-                                                            <div className="relative">
-                                                                <select
-                                                                    value={item.size}
-                                                                    onChange={(e) => handleSizeChange(item.id, e.target.value)}
-                                                                    className="appearance-none pl-3 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
-                                                                >
-                                                                    {(item.sizes || [item.size]).map((sz, idx) => (
-                                                                        <option key={`sz-${sz}-${idx}`} value={sz}>{sz}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
-                                                            </div>
-
-                                                            {/* Color dropdown */}
-                                                            <div className="relative">
-                                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-black/10" style={{ backgroundColor: item.color?.hex || "#000000" }} />
-                                                                <select
-                                                                    value={item.color?.name || "Default"}
-                                                                    onChange={(e) => handleColorChange(item.id, e.target.value)}
-                                                                    className="appearance-none pl-7 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
-                                                                >
-                                                                    {(item.colors || [item.color]).map((cl, idx) => {
-                                                                        const colorName = cl?.name || (typeof cl === "string" ? cl : "Default");
-                                                                        return (
-                                                                            <option key={`cl-${colorName}-${idx}`} value={colorName}>{colorName}</option>
-                                                                        );
-                                                                    })}
-                                                                </select>
-                                                                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
-                                                            </div>
+                                                    {/* Inline Custom Selectors */}
+                                                    <div className="flex flex-wrap gap-2 pt-1">
+                                                        {/* Size dropdown */}
+                                                        <div className="relative">
+                                                            <select
+                                                                value={item.size}
+                                                                onChange={(e) => handleSizeChange(item.id, e.target.value)}
+                                                                className="appearance-none pl-3 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
+                                                            >
+                                                                {(item.sizes || [item.size]).map((sz, idx) => (
+                                                                    <option key={`sz-${sz}-${idx}`} value={sz}>{sz}</option>
+                                                                ))}
+                                                            </select>
+                                                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
                                                         </div>
 
-                                                        {/* Quantity controls */}
-                                                        <div className="pt-2">
-                                                            <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-10 w-28 select-none">
-                                                                <button
-                                                                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                                                                    className="w-8 h-8 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
-                                                                    aria-label="Decrease quantity"
-                                                                >
-                                                                    <Minus className="w-3.5 h-3.5" strokeWidth={3.5} />
-                                                                </button>
-                                                                <span className="font-bold text-sm text-black text-center w-6">{item.quantity}</span>
-                                                                <button
-                                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                                    className="w-8 h-8 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
-                                                                    aria-label="Increase quantity"
-                                                                >
-                                                                    <Plus className="w-3.5 h-3.5" strokeWidth={3.5} />
-                                                                </button>
-                                                            </div>
+                                                        {/* Color dropdown */}
+                                                        <div className="relative">
+                                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-black/10" style={{ backgroundColor: item.color?.hex || "#000000" }} />
+                                                            <select
+                                                                value={item.color?.name || "Default"}
+                                                                onChange={(e) => handleColorChange(item.id, e.target.value)}
+                                                                className="appearance-none pl-7 pr-8 py-1 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-600 bg-white cursor-pointer focus:outline-none focus:border-black hover:border-black transition-colors"
+                                                            >
+                                                                {(item.colors || [item.color]).map((cl, idx) => {
+                                                                    const colorName = cl?.name || (typeof cl === "string" ? cl : "Default");
+                                                                    return (
+                                                                        <option key={`cl-${colorName}-${idx}`} value={colorName}>{colorName}</option>
+                                                                    );
+                                                                })}
+                                                            </select>
+                                                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 pointer-events-none stroke-[2]" />
                                                         </div>
                                                     </div>
 
-                                                    {/* Price / Actions right side */}
-                                                    <div className="flex flex-row md:flex-col items-baseline md:items-end justify-between gap-2.5 min-w-[120px]">
-                                                        <div className="text-left md:text-right">
-                                                             <p className="font-clashDisplay text-lg font-bold text-black">
-                                                                 Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
-                                                             </p>
-                                                            <p className="text-xs text-neutral-400 mt-0.5">
-                                                                Qty: {item.quantity}
-                                                            </p>
+                                                    {/* Quantity controls */}
+                                                    <div className="pt-2">
+                                                        <div className="flex items-center justify-between rounded-full bg-[#F3F3F3] p-1 h-10 w-28 select-none">
+                                                            <button
+                                                                onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                                                                className="w-8 h-8 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
+                                                                aria-label="Decrease quantity"
+                                                            >
+                                                                <Minus className="w-3.5 h-3.5" strokeWidth={3.5} />
+                                                            </button>
+                                                            <span className="font-bold text-sm text-black text-center w-6">{item.quantity}</span>
+                                                            <button
+                                                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                                className="w-8 h-8 rounded-full bg-[#FAF6F0] border border-[#D5C9B9]/60 flex items-center justify-center text-black cursor-pointer hover:bg-[#EADCC9] transition-all"
+                                                                aria-label="Increase quantity"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" strokeWidth={3.5} />
+                                                            </button>
                                                         </div>
+                                                    </div>
+                                                </div>
 
-                                                        <div className="flex items-center gap-3 pt-2 text-neutral-400 text-xs">
-                                                            <button 
-                                                                onClick={() => handleMoveToWishlist(item)}
-                                                                className="flex items-center gap-1 hover:text-black transition-colors cursor-pointer"
-                                                            >
-                                                                <Heart className="w-4 h-4 stroke-[1.5]" />
-                                                                <span className="hidden sm:inline">Move to Wishlist</span>
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => removeFromCart(item.id)}
-                                                                className="flex items-center gap-1 hover:text-red-500 transition-colors cursor-pointer"
-                                                            >
-                                                                <Trash2 className="w-4 h-4 stroke-[1.5]" />
-                                                                <span className="hidden sm:inline">Remove</span>
-                                                            </button>
-                                                        </div>
+                                                {/* Price / Actions right side */}
+                                                <div className="flex flex-row md:flex-col items-baseline md:items-end justify-between gap-2.5 min-w-[120px]">
+                                                    <div className="text-left md:text-right">
+                                                        <p className="font-clashDisplay text-lg font-bold text-black">
+                                                            Rs {((typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0) * item.quantity).toLocaleString()}
+                                                        </p>
+                                                        <p className="text-xs text-neutral-400 mt-0.5">
+                                                            Qty: {item.quantity}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3 pt-2 text-neutral-400 text-xs">
+                                                        <button
+                                                            onClick={() => handleMoveToWishlist(item)}
+                                                            className="flex items-center gap-1 hover:text-black transition-colors cursor-pointer"
+                                                        >
+                                                            <Heart className="w-4 h-4 stroke-[1.5]" />
+                                                            <span className="hidden sm:inline">Move to Wishlist</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => removeFromCart(item.id)}
+                                                            className="flex items-center gap-1 hover:text-red-500 transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 className="w-4 h-4 stroke-[1.5]" />
+                                                            <span className="hidden sm:inline">Remove</span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
+                        </div>
 
                         {/* Right column: Order Summary */}
                         <div className="lg:col-span-4">
@@ -418,9 +416,9 @@ export default function CartPage() {
                                 {/* Promo Code */}
                                 <div>
                                     <div className="flex">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Promo code" 
+                                        <input
+                                            type="text"
+                                            placeholder="Promo code"
                                             value={promoCode}
                                             onChange={(e) => {
                                                 setPromoCode(e.target.value);
@@ -435,7 +433,7 @@ export default function CartPage() {
                                             }}
                                             className="flex-1 border border-neutral-200 rounded-l-full px-4 text-sm focus:outline-none focus:border-black font-sans bg-neutral-50 h-11"
                                         />
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={handleApplyPromo}
                                             className="bg-black hover:bg-neutral-800 text-white font-semibold text-xs uppercase tracking-wider rounded-r-full px-6 h-11 transition-colors cursor-pointer"
@@ -477,8 +475,8 @@ export default function CartPage() {
 
                                 {/* Total Row */}
                                 <div className="flex justify-between items-baseline pt-2">
-                                    <span className="font-bold text-base text-black">Total</span>
-                                    <span className="font-clashDisplay text-2xl font-bold text-black">
+                                    <span className="font-medium text-base text-black">Total</span>
+                                    <span className="font-clashDisplay text-xl font-medium text-black">
                                         Rs {total.toLocaleString()}
                                     </span>
                                 </div>
@@ -492,9 +490,9 @@ export default function CartPage() {
                                         <CreditCard className="w-4 h-4 stroke-[2]" />
                                         Proceed to Payment
                                     </Link>
-                                    
-                                    <Link 
-                                        href="/" 
+
+                                    <Link
+                                        href="/"
                                         className="block text-center text-neutral-400 hover:text-black text-xs font-semibold underline transition-colors"
                                     >
                                         Continue Shopping
