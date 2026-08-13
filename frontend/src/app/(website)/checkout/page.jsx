@@ -9,7 +9,8 @@ import { useCart } from "@/context/CartContext";
 import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
-import { COUNTRIES, getCountryByNameOrCode, validatePhoneNumber } from "@/lib/countryPhoneValidation";
+import CountrySelect from "@/components/ui/CountrySelect";
+import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, validatePostalCodeFormat, verifyPostalCode } from "@/lib/countryPhoneValidation";
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
@@ -38,7 +39,7 @@ export default function CheckoutPage() {
         streetAddress: "",
         streetAddress2: "",
         cityState: "",
-        country: "India",
+        country: "IN",
         addressType: "HOME",
         isDefault: true
     });
@@ -61,7 +62,7 @@ export default function CheckoutPage() {
         city: "",
         state: "",
         pinCode: "",
-        country: "India"
+        country: "IN"
     });
 
     // Prefill form from localStorage saved address and/or logged-in user details
@@ -190,11 +191,31 @@ export default function CheckoutPage() {
         setIsModalAddEditOpen(true);
     };
 
+    const [modalNameError, setModalNameError] = useState("");
+    const [modalPincodeError, setModalPincodeError] = useState("");
+    const [modalStreetError, setModalStreetError] = useState("");
+
     const handleModalPincodeChange = async (pinVal) => {
-        const pin = pinVal.replace(/\D/g, "").slice(0, 6);
+        const postalRule = getPostalRule(modalAddressForm.country);
+        const pin = postalRule.isIndia
+            ? pinVal.replace(/\D/g, "").slice(0, postalRule.maxLength)
+            : pinVal.slice(0, postalRule.maxLength);
+
         setModalAddressForm(prev => ({ ...prev, pinCode: pin }));
 
-        if (pin.length === 6) {
+        if (!pin) {
+            setModalPincodeError(postalRule.isRequired ? "Postal code is required." : "");
+            return;
+        }
+
+        const formatCheck = validatePostalCodeFormat(pin, modalAddressForm.country);
+        if (!formatCheck.isValid) {
+            setModalPincodeError(formatCheck.error);
+            return;
+        }
+        setModalPincodeError("");
+
+        if (postalRule.isIndia && pin.length === 6 && /^\d{6}$/.test(pin)) {
             setIsFetchingModalPincode(true);
             try {
                 const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
@@ -219,22 +240,48 @@ export default function CheckoutPage() {
 
     const handleSaveModalAddress = async (e) => {
         e.preventDefault();
-        const targetName = modalAddressForm.name.trim() || user?.name || "Customer";
+        const targetName = modalAddressForm.name.trim() || user?.name || "";
         const targetPhone = modalAddressForm.phone.replace(/\D/g, "") || (user?.phoneNumber ? user.phoneNumber.replace(/\D/g, "") : "");
 
-        if (!modalAddressForm.streetAddress || !modalAddressForm.pinCode) {
-            setModalPhoneError("Please fill in House Number, Pin Code, and Contact Details.");
-            if (modalFormRef.current) modalFormRef.current.scrollTop = 0;
-            return;
+        let hasErrors = false;
+
+        if (!targetName) {
+            setModalNameError("Name is required.");
+            hasErrors = true;
+        } else {
+            setModalNameError("");
         }
 
         const phoneCheck = validatePhoneNumber(targetPhone, modalAddressForm.country);
         if (!phoneCheck.isValid) {
             setModalPhoneError(phoneCheck.error);
+            hasErrors = true;
+        } else {
+            setModalPhoneError("");
+        }
+
+        const pinCheck = await verifyPostalCode({
+            countryCode: modalAddressForm.country,
+            postalCode: modalAddressForm.pinCode,
+        });
+        if (!pinCheck.isValid) {
+            setModalPincodeError(pinCheck.error);
+            hasErrors = true;
+        } else {
+            setModalPincodeError("");
+        }
+
+        if (!modalAddressForm.streetAddress.trim()) {
+            setModalStreetError("House Number/Tower/Block is required.");
+            hasErrors = true;
+        } else {
+            setModalStreetError("");
+        }
+
+        if (hasErrors) {
             if (modalFormRef.current) modalFormRef.current.scrollTop = 0;
             return;
         }
-        setModalPhoneError("");
 
         const token = localStorage.getItem("userToken");
         const cityStatePinStr = modalAddressForm.pinCode
@@ -346,13 +393,26 @@ export default function CheckoutPage() {
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [paymentError, setPaymentError] = useState("");
 
-    // Auto-fetch city & state via India Post API when valid 6-digit PIN code is typed
+    // Auto-fetch city & state via India Post API only when country is India and valid 6-digit PIN code is typed
     useEffect(() => {
         const pin = formData.pinCode.trim();
-        if (pin.length === 6 && /^\d{6}$/.test(pin)) {
+        const postalRule = getPostalRule(formData.country);
+
+        if (!pin) {
+            setPinCodeError("");
+            return;
+        }
+
+        const pinCheck = validatePostalCode(pin, formData.country);
+        if (!pinCheck.isValid) {
+            setPinCodeError(pinCheck.error);
+        } else {
+            setPinCodeError("");
+        }
+
+        if (postalRule.isIndia && pin.length === 6 && /^\d{6}$/.test(pin)) {
             const fetchPincodeDetails = async () => {
                 setIsFetchingPincode(true);
-                setPinCodeError("");
                 try {
                     const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
                     const data = await res.json();
@@ -375,39 +435,28 @@ export default function CheckoutPage() {
                         setTimeout(() => {
                             saveShippingAddress();
                         }, 200);
-                    } else {
-                        setPinCodeError("Invalid PIN code. Please enter a valid Indian PIN code.");
-                        setFormData(prev => {
-                            const updated = {
-                                ...prev,
-                                city: "",
-                                state: ""
-                            };
-                            try {
-                                localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
-                            } catch (e) { }
-                            return updated;
-                        });
                     }
                 } catch (err) {
                     console.error("Error fetching PIN code details:", err);
-                    setPinCodeError("");
                 } finally {
                     setIsFetchingPincode(false);
                 }
             };
             fetchPincodeDetails();
-        } else if (pin.length > 0 && pin.length < 6) {
-            setPinCodeError("PIN code must be exactly 6 digits.");
-        } else {
-            setPinCodeError("");
         }
-    }, [formData.pinCode]);
+    }, [formData.pinCode, formData.country]);
 
     const handleInputChange = (field, value) => {
         let valToSet = value;
         if (field === "pinCode") {
-            valToSet = value.replace(/\D/g, "").slice(0, 6);
+            const postalRule = getPostalRule(formData.country);
+            valToSet = postalRule.isIndia ? value.replace(/\D/g, "").slice(0, postalRule.maxLength) : value.slice(0, postalRule.maxLength);
+            if (valToSet) {
+                const check = validatePostalCode(valToSet, formData.country);
+                setPinCodeError(check.isValid ? "" : check.error);
+            } else {
+                setPinCodeError("");
+            }
         } else if (field === "phoneNumber") {
             const countryObj = getCountryByNameOrCode(formData.country);
             valToSet = value.replace(/\D/g, "").slice(0, countryObj.maxLength);
@@ -418,6 +467,10 @@ export default function CheckoutPage() {
                 setPhoneError("");
             }
         } else if (field === "country") {
+            if (formData.pinCode) {
+                const check = validatePostalCode(formData.pinCode, value);
+                setPinCodeError(check.isValid ? "" : check.error);
+            }
             if (formData.phoneNumber) {
                 const check = validatePhoneNumber(formData.phoneNumber, value);
                 setPhoneError(check.error);
@@ -755,7 +808,7 @@ export default function CheckoutPage() {
                     contact: formData.phoneNumber
                 },
                 notes: {
-                    address: `${formData.streetAddress}, ${formData.city}, ${formData.state} - ${formData.pinCode}, ${formData.country}`
+                    address: `${formData.streetAddress}, ${formData.city}, ${formData.state} - ${formData.pinCode}, ${getCountryName(formData.country)}`
                 },
                 theme: {
                     color: "#000000"
@@ -1179,8 +1232,8 @@ export default function CheckoutPage() {
                                                     value={formData.pinCode}
                                                     onChange={(e) => handleInputChange("pinCode", e.target.value)}
                                                     onBlur={saveShippingAddress}
-                                                    placeholder="Enter 6-digit PIN code"
-                                                    maxLength={6}
+                                                    placeholder={getPostalRule(formData.country).placeholder}
+                                                    maxLength={getPostalRule(formData.country).maxLength}
                                                     className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-semibold transition-colors placeholder:text-neutral-300 font-normal ${pinCodeError
                                                         ? "border-red-500 focus:border-red-500 bg-red-50/20"
                                                         : "border-neutral-200 focus:border-black"
@@ -1197,21 +1250,11 @@ export default function CheckoutPage() {
                                                 )}
                                             </div>
                                             <div>
-                                                <label className="text-[10px] font-bold text-neutral-400 tracking-wider mb-2 block">
-                                                    COUNTRY
-                                                </label>
-                                                <select
-                                                    value={formData.country}
+                                                <CountrySelect
+                                                    label="COUNTRY"
+                                                    value={formData.country || "IN"}
                                                     onChange={(e) => handleInputChange("country", e.target.value)}
-                                                    onBlur={saveShippingAddress}
-                                                    className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-semibold transition-colors bg-white cursor-pointer"
-                                                >
-                                                    {COUNTRIES.map((c) => (
-                                                        <option key={c.code} value={c.name}>
-                                                            {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -1849,18 +1892,31 @@ export default function CheckoutPage() {
                         </div>
 
                         {/* Content Form Body */}
-                        <form ref={modalFormRef} onSubmit={handleSaveModalAddress} className="p-6 overflow-y-auto space-y-4 flex-1">
+                        <form ref={modalFormRef} onSubmit={handleSaveModalAddress} noValidate className="p-6 overflow-y-auto space-y-4 flex-1">
                             {/* Contact Details Section */}
                             <div className="space-y-3">
                                 <p className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">CONTACT DETAILS</p>
-                                <input
-                                    type="text"
-                                    required
-                                    value={modalAddressForm.name}
-                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, name: e.target.value })}
-                                    placeholder="Name*"
-                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
-                                />
+                                <div>
+                                    <input
+                                        type="text"
+                                        value={modalAddressForm.name}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setModalAddressForm({ ...modalAddressForm, name: val });
+                                            if (val.trim()) setModalNameError("");
+                                        }}
+                                        onBlur={() => {
+                                            if (!modalAddressForm.name.trim() && !user?.name) {
+                                                setModalNameError("Name is required.");
+                                            } else {
+                                                setModalNameError("");
+                                            }
+                                        }}
+                                        placeholder="Name*"
+                                        className={`w-full h-11 border rounded-xl px-4 text-sm font-normal focus:outline-none ${modalNameError ? "border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"}`}
+                                    />
+                                    {modalNameError && <p className="text-xs text-red-500 font-semibold mt-1">{modalNameError}</p>}
+                                </div>
                                 <div>
                                     {(() => {
                                         const countryObj = getCountryByNameOrCode(modalAddressForm.country);
@@ -1873,16 +1929,23 @@ export default function CheckoutPage() {
                                                 )}
                                                 <input
                                                     type="tel"
-                                                    required
                                                     value={modalAddressForm.phone}
                                                     onChange={(e) => {
                                                         const rawDigits = e.target.value.replace(/\D/g, "").slice(0, countryObj.maxLength);
                                                         setModalAddressForm({ ...modalAddressForm, phone: rawDigits });
                                                         if (rawDigits) {
                                                             const check = validatePhoneNumber(rawDigits, modalAddressForm.country);
-                                                            setModalPhoneError(check.error);
+                                                            setModalPhoneError(check.isValid ? "" : check.error);
                                                         } else {
-                                                            setModalPhoneError("");
+                                                            setModalPhoneError("Mobile number is required.");
+                                                        }
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (!modalAddressForm.phone) {
+                                                            setModalPhoneError("Mobile number is required.");
+                                                        } else {
+                                                            const check = validatePhoneNumber(modalAddressForm.phone, modalAddressForm.country);
+                                                            setModalPhoneError(check.isValid ? "" : check.error);
                                                         }
                                                     }}
                                                     placeholder="Mobile No*"
@@ -1903,30 +1966,55 @@ export default function CheckoutPage() {
                                 <p className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase">ADDRESS</p>
 
                                 {/* Country Selector */}
-                                <div>
-                                    <select
-                                        value={modalAddressForm.country || "India"}
-                                        onChange={(e) => setModalAddressForm({ ...modalAddressForm, country: e.target.value })}
-                                        className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black bg-white cursor-pointer"
-                                    >
-                                        {COUNTRIES.map((c) => (
-                                            <option key={c.code} value={c.name}>
-                                                {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <CountrySelect
+                                    label=""
+                                    value={modalAddressForm.country || "IN"}
+                                    onChange={(e) => {
+                                        const newCountry = e.target.value;
+                                        setModalAddressForm((prev) => {
+                                            const updated = { ...prev, country: newCountry };
+                                            if (prev.pinCode) {
+                                                verifyPostalCode({ countryCode: newCountry, postalCode: prev.pinCode }).then((check) => {
+                                                    setModalPincodeError(check.isValid ? "" : check.error);
+                                                });
+                                            } else {
+                                                const rule = getPostalRule(newCountry);
+                                                if (rule.isRequired && modalPincodeError) {
+                                                    setModalPincodeError("Postal code is required.");
+                                                } else if (!rule.isRequired) {
+                                                    setModalPincodeError("");
+                                                }
+                                            }
+                                            if (prev.phone) {
+                                                const check = validatePhoneNumber(prev.phone, newCountry);
+                                                setModalPhoneError(check.isValid ? "" : check.error);
+                                            }
+                                            return updated;
+                                        });
+                                    }}
+                                />
 
                                 {/* Pin Code */}
                                 <div>
                                     <input
                                         type="text"
-                                        required
-                                        maxLength={6}
+                                        maxLength={getPostalRule(modalAddressForm.country).maxLength}
                                         value={modalAddressForm.pinCode}
                                         onChange={(e) => handleModalPincodeChange(e.target.value)}
-                                        placeholder="Pin Code*"
-                                        className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
+                                        onBlur={async () => {
+                                            if (modalAddressForm.pinCode) {
+                                                const check = await verifyPostalCode({
+                                                    countryCode: modalAddressForm.country,
+                                                    postalCode: modalAddressForm.pinCode,
+                                                });
+                                                setModalPincodeError(check.isValid ? "" : check.error);
+                                            } else {
+                                                const rule = getPostalRule(modalAddressForm.country);
+                                                setModalPincodeError(rule.isRequired ? "Postal code is required." : "");
+                                            }
+                                        }}
+                                        placeholder={getPostalRule(modalAddressForm.country).placeholder}
+                                        className={`w-full h-11 border rounded-xl px-4 text-sm font-normal focus:outline-none ${modalPincodeError ? "border-red-500 focus:border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"}`}
                                     />
                                     {isFetchingModalPincode && (
                                         <p className="text-xs text-neutral-500 font-medium flex items-center gap-1.5 mt-1 select-none">
@@ -1934,17 +2022,33 @@ export default function CheckoutPage() {
                                             Fetching city & state...
                                         </p>
                                     )}
+                                    {modalPincodeError && !isFetchingModalPincode && (
+                                        <p className="text-xs text-red-500 font-semibold mt-1">{modalPincodeError}</p>
+                                    )}
                                 </div>
 
                                 {/* House Number / Tower / Block */}
-                                <input
-                                    type="text"
-                                    required
-                                    value={modalAddressForm.streetAddress}
-                                    onChange={(e) => setModalAddressForm({ ...modalAddressForm, streetAddress: e.target.value })}
-                                    placeholder="House Number/Tower/Block*"
-                                    className="w-full h-11 border border-neutral-200 rounded-xl px-4 text-sm font-normal focus:outline-none focus:border-black"
-                                />
+                                <div>
+                                    <input
+                                        type="text"
+                                        value={modalAddressForm.streetAddress}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setModalAddressForm({ ...modalAddressForm, streetAddress: val });
+                                            if (val.trim()) setModalStreetError("");
+                                        }}
+                                        onBlur={() => {
+                                            if (!modalAddressForm.streetAddress.trim()) {
+                                                setModalStreetError("House Number/Tower/Block is required.");
+                                            } else {
+                                                setModalStreetError("");
+                                            }
+                                        }}
+                                        placeholder="House Number/Tower/Block*"
+                                        className={`w-full h-11 border rounded-xl px-4 text-sm font-normal focus:outline-none ${modalStreetError ? "border-red-500 bg-red-50/20" : "border-neutral-200 focus:border-black"}`}
+                                    />
+                                    {modalStreetError && <p className="text-xs text-red-500 font-semibold mt-1">{modalStreetError}</p>}
+                                </div>
 
                                 {/* Street / Area / Landmark */}
                                 <input

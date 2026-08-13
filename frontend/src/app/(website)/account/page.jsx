@@ -5,7 +5,8 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { COUNTRIES, getCountryByNameOrCode, validatePhoneNumber } from "@/lib/countryPhoneValidation";
+import CountrySelect from "@/components/ui/CountrySelect";
+import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode } from "@/lib/countryPhoneValidation";
 import {
     Pencil,
     Trash2,
@@ -173,15 +174,25 @@ export default function AccountProfilePage() {
     };
 
     const handlePincodeChange = async (e) => {
-        const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
-        setPincodeError("");
+        const raw = e.target.value;
+        const postalRule = getPostalRule(newAddress.country);
+        const pin = postalRule.isIndia
+            ? raw.replace(/\D/g, "").slice(0, postalRule.maxLength)
+            : raw.slice(0, postalRule.maxLength);
+
         setNewAddress((prev) => ({
             ...prev,
             pincode: pin,
-            cityStatePin: pin.length < 6 ? prev.cityStatePin.replace(/\s*-\s*\d{6}\b/, "").replace(/\s*-\s*$/, "").trim() : prev.cityStatePin,
         }));
 
-        if (pin.length === 6) {
+        if (pin) {
+            const check = validatePostalCode(pin, newAddress.country);
+            setPincodeError(check.isValid ? "" : check.error);
+        } else {
+            setPincodeError("");
+        }
+
+        if (postalRule.isIndia && pin.length === 6 && /^\d{6}$/.test(pin)) {
             setPincodeLoading(true);
             try {
                 const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
@@ -196,16 +207,11 @@ export default function AccountProfilePage() {
                             cityStatePin: locationStr,
                         }));
                         setPincodeError("");
-                        showToast(`Location fetched: ${po.District || po.Name}, ${po.State}`, "success");
-                    } else {
-                        setPincodeError("Please provide a valid pincode.");
+                        showToast(`Location fetched: ${locationStr}`, "success");
                     }
-                } else {
-                    setPincodeError("Please provide a valid pincode.");
                 }
             } catch (err) {
                 console.log("Pincode lookup error:", err);
-                setPincodeError("Please provide a valid pincode.");
             } finally {
                 setPincodeLoading(false);
             }
@@ -746,20 +752,20 @@ export default function AccountProfilePage() {
 
                             <div>
                                 <label className="text-xs font-semibold text-neutral-500 mb-1 flex items-center justify-between">
-                                    <span>6-Digit Pincode</span>
+                                    <span>{getPostalRule(newAddress.country).label.replace("*", "")}</span>
                                     {pincodeLoading && <span className="text-[10px] text-amber-600 font-bold animate-pulse">Fetching Location...</span>}
                                 </label>
                                 <input
                                     type="text"
-                                    maxLength={6}
                                     value={newAddress.pincode}
                                     onChange={handlePincodeChange}
-                                    className={`w-full border rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none font-mono tracking-wider transition-colors ${
+                                    maxLength={getPostalRule(newAddress.country).maxLength}
+                                    className={`w-full border rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none transition-colors ${
                                         pincodeError
                                             ? "border-red-400 focus:border-red-500 bg-red-50/20"
                                             : "border-neutral-200 focus:border-neutral-400"
                                     }`}
-                                    placeholder="Enter Pincode (e.g. 110027)"
+                                    placeholder={getPostalRule(newAddress.country).placeholder}
                                 />
                                 {pincodeError && (
                                     <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1">
@@ -769,30 +775,25 @@ export default function AccountProfilePage() {
                             </div>
 
                             {/* Country Selector */}
-                            <div>
-                                <label className="text-xs font-semibold text-neutral-500 mb-1 block">Country</label>
-                                <select
-                                    value={newAddress.country || "India"}
-                                    onChange={(e) => {
-                                        const selectedCountry = e.target.value;
-                                        setNewAddress((prev) => {
-                                            const updated = { ...prev, country: selectedCountry };
-                                            if (prev.phone) {
-                                                const check = validatePhoneNumber(prev.phone, selectedCountry);
-                                                setPhoneError(check.error);
-                                            }
-                                            return updated;
-                                        });
-                                    }}
-                                    className="w-full border border-neutral-200 rounded-xl px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white cursor-pointer"
-                                >
-                                    {COUNTRIES.map((c) => (
-                                        <option key={c.code} value={c.name}>
-                                            {c.name} {c.dialCode ? `(${c.dialCode})` : ""}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <CountrySelect
+                                label="Country"
+                                value={newAddress.country || "IN"}
+                                onChange={(e) => {
+                                    const selectedCode = e.target.value;
+                                    setNewAddress((prev) => {
+                                        const updated = { ...prev, country: selectedCode };
+                                        if (prev.pincode) {
+                                            const check = validatePostalCode(prev.pincode, selectedCode);
+                                            setPincodeError(check.isValid ? "" : check.error);
+                                        }
+                                        if (prev.phone) {
+                                            const check = validatePhoneNumber(prev.phone, selectedCode);
+                                            setPhoneError(check.error);
+                                        }
+                                        return updated;
+                                    });
+                                }}
+                            />
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
