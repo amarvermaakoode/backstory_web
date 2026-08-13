@@ -47,18 +47,16 @@ export default function CartDrawer() {
         <>
             {/* Backdrop Overlay */}
             <div
-                className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${
-                    isCartOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                }`}
+                className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${isCartOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                    }`}
                 onClick={closeCart}
             />
 
             {/* Slide-out Drawer Panel */}
             <div
                 ref={drawerRef}
-                className={`fixed top-0 right-0 h-full w-full sm:max-w-[480px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-                    isCartOpen ? "translate-x-0" : "translate-x-full"
-                }`}
+                className={`fixed top-0 right-0 h-full w-full sm:max-w-[480px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isCartOpen ? "translate-x-0" : "translate-x-full"
+                    }`}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200/80">
@@ -82,8 +80,8 @@ export default function CartDrawer() {
                     <div className="flex items-center justify-center text-[10px] sm:text-xs font-medium tracking-wider text-neutral-400 uppercase w-full">
                         <div className="flex-grow border-t border-neutral-200"></div>
                         <span className="px-4">
-                            {cartSubtotal >= 999 
-                                ? "You qualify for Free Delivery!" 
+                            {cartSubtotal >= 999
+                                ? "You qualify for Free Delivery!"
                                 : `Free delivery above Rs 999`}
                         </span>
                         <div className="flex-grow border-t border-neutral-200"></div>
@@ -164,9 +162,9 @@ export default function CartDrawer() {
                                                     {item.size}
                                                 </span>
                                                 <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-neutral-200/80 text-neutral-600 bg-white/50 flex items-center gap-1.5 select-none">
-                                                    <span 
-                                                        className="w-2 h-2 rounded-full border border-black/10 shadow-xs" 
-                                                        style={{ backgroundColor: item.color.hex }} 
+                                                    <span
+                                                        className="w-2 h-2 rounded-full border border-black/10 shadow-xs"
+                                                        style={{ backgroundColor: item.color.hex }}
                                                     />
                                                     {item.color.name}
                                                 </span>
@@ -229,15 +227,13 @@ export default function CartDrawer() {
                         </p>
 
                         {/* Proceed to Checkout Button */}
-                        <Link 
+                        <Link
                             href="/checkout"
                             onClick={closeCart}
-                            className="w-full h-12 bg-[#0F172A] hover:bg-black text-white transition-colors duration-300 rounded-full font-bold text-sm tracking-wide flex items-center justify-between px-6 cursor-pointer shadow-md shadow-black/5"
+                            className="w-full h-12 bg-[#0F172A] hover:bg-black text-white transition-colors duration-300 rounded-full font-bold text-sm tracking-wide flex items-center justify-center px-6 cursor-pointer shadow-md shadow-black/5"
                         >
                             <span>Proceed to Checkout</span>
-                            <span className="font-clashDisplay text-base font-bold">
-                                Rs {cartSubtotal.toLocaleString()}
-                            </span>
+
                         </Link>
 
                         {/* Continue Shopping Link */}

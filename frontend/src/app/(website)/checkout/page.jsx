@@ -1316,11 +1316,10 @@ export default function CheckoutPage() {
                                     {/* BacStory Wallet Option (if user has wallet balance) */}
                                     {user && userWalletBalance > 0 && (
                                         <label
-                                            className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${
-                                                selectedPaymentChoice === "wallet" || useWallet
+                                            className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "wallet" || useWallet
                                                     ? "border-black bg-neutral-900 text-white shadow-md"
                                                     : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-start gap-3">
                                                 <input
@@ -1349,9 +1348,8 @@ export default function CheckoutPage() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${
-                                                selectedPaymentChoice === "wallet" || useWallet ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-800"
-                                            }`}>
+                                            <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${selectedPaymentChoice === "wallet" || useWallet ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-800"
+                                                }`}>
                                                 - Rs {Math.min(userWalletBalance, totalAmount).toLocaleString()}
                                             </span>
                                         </label>
@@ -1359,11 +1357,10 @@ export default function CheckoutPage() {
 
                                     {/* Razorpay Online Payment Option */}
                                     <label
-                                        className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${
-                                            selectedPaymentChoice === "online" && !useWallet
+                                        className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
                                                 ? "border-black bg-neutral-50/80 shadow-xs text-black"
                                                 : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <input
@@ -1587,8 +1584,8 @@ export default function CheckoutPage() {
                                     {completedOrderSummary?.paymentMethod || (isWalletActive && payableTotal === 0
                                         ? "BacStory Wallet"
                                         : isWalletActive
-                                        ? "BacStory Wallet + Razorpay"
-                                        : "Razorpay Online")}
+                                            ? "BacStory Wallet + Razorpay"
+                                            : "Razorpay Online")}
                                 </span>
                             </div>
 
@@ -1746,7 +1743,7 @@ export default function CheckoutPage() {
                                                                         handleSelectAddress(addr);
                                                                         setIsSelectAddressOpen(false);
                                                                     }}
-                                                                    className="px-4 py-2 text-xs font-bold tracking-wider bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors uppercase cursor-pointer"
+                                                                    className="px-4 py-2 text-xs font-bold tracking-wider bg-black text-white rounded-lg hover:bg-neutral-800 transition-colors uppercase cursor-pointer whitespace-nowrap"
                                                                 >
                                                                     DELIVERING HERE
                                                                 </button>
