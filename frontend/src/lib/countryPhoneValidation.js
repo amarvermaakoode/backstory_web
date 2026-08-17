@@ -1,7 +1,103 @@
 import { countries } from "countries-list";
 import { isValidPhoneNumber, getCountryCallingCode, getExampleNumber } from "libphonenumber-js";
 import examples from "libphonenumber-js/mobile/examples";
-import PostalCodes from "postal-codes-js";
+
+/**
+ * Country-specific maximum postal code lengths for fast, bundler-safe resolution.
+ */
+const COUNTRY_POSTAL_MAX_LENGTHS = {
+    US: 10, // 12345-6789
+    CA: 7,  // K1A 0B1
+    GB: 8,  // SW1A 1AA
+    IN: 6,  // 110001
+    AU: 4,  // 2000
+    NZ: 4,  // 6011
+    DE: 5,  // 10115
+    FR: 5,  // 75001
+    IT: 5,  // 00100
+    ES: 5,  // 28001
+    NL: 7,  // 1012 JS
+    BE: 4,  // 1000
+    BR: 9,  // 01000-000
+    JP: 8,  // 100-0001
+    CN: 6,  // 100000
+    RU: 6,  // 101000
+    KR: 5,  // 03187
+    SG: 6,  // 049318
+    MY: 5,  // 50000
+    TH: 5,  // 10100
+    ID: 5,  // 10110
+    PH: 4,  // 1000
+    VN: 6,  // 100000
+    SA: 10, // 12211-3388
+    AE: 10,
+    ZA: 4,  // 0001
+    MX: 5,  // 01000
+    AR: 8,  // C1024CWN
+    CL: 7,  // 8320000
+    CO: 6,  // 110111
+    PL: 6,  // 00-001
+    SE: 6,  // 111 22
+    NO: 4,  // 0010
+    FI: 5,  // 00100
+    DK: 4,  // 1000
+    AT: 4,  // 1010
+    CH: 4,  // 8000
+    CZ: 6,  // 110 00
+    SK: 6,  // 811 01
+    HU: 4,  // 1011
+    RO: 6,  // 010011
+    BG: 4,  // 1000
+    GR: 6,  // 104 31
+    PT: 8,  // 1000-001
+    IE: 7,  // D02 X285
+    IL: 7,  // 9100000
+    TR: 5,  // 34000
+    UA: 5,  // 01001
+};
+
+/**
+ * Country-specific postal code validation regex patterns.
+ */
+const COUNTRY_POSTAL_PATTERNS = {
+    IN: /^\d{6}$/,
+    US: /^\d{5}(-\d{4})?$/,
+    CA: /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/,
+    GB: /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[A-Za-z]{2}$/,
+    AU: /^\d{4}$/,
+    NZ: /^\d{4}$/,
+    DE: /^\d{5}$/,
+    FR: /^\d{5}$/,
+    IT: /^\d{5}$/,
+    ES: /^\d{5}$/,
+    NL: /^\d{4}\s?[A-Za-z]{2}$/,
+    BE: /^\d{4}$/,
+    BR: /^\d{5}-?\d{3}$/,
+    JP: /^\d{3}-?\d{4}$/,
+    CN: /^\d{6}$/,
+    RU: /^\d{6}$/,
+    KR: /^\d{5}$/,
+    SG: /^\d{6}$/,
+    MY: /^\d{5}$/,
+    TH: /^\d{5}$/,
+    ID: /^\d{5}$/,
+    PH: /^\d{4}$/,
+    VN: /^\d{6}$/,
+    MX: /^\d{5}$/,
+    PL: /^\d{2}-?\d{3}$/,
+    SE: /^\d{3}\s?\d{2}$/,
+    NO: /^\d{4}$/,
+    FI: /^\d{5}$/,
+    DK: /^\d{4}$/,
+    AT: /^\d{4}$/,
+    CH: /^\d{4}$/,
+    PT: /^\d{4}-?\d{3}$/,
+    IE: /^[A-Za-z0-9]{3}\s?[A-Za-z0-9]{4}$/,
+    IL: /^\d{7}$/,
+    TR: /^\d{5}$/,
+    UA: /^\d{5}$/,
+    SA: /^\d{5}(-\d{4})?$/,
+};
 
 /**
  * Dynamically derives national phone number max length for any ISO country code using `libphonenumber-js`.
@@ -18,24 +114,17 @@ export function getPhoneMaxLength(code) {
 }
 
 /**
- * Dynamically derives maximum postal code length for any ISO country code using `postal-codes-js`.
+ * Dynamically derives maximum postal code length for any ISO country code.
  */
 export function getPostalMaxLength(code) {
-    if (!code) return 12;
-    for (let l = 12; l >= 1; l--) {
-        const testNumeric = "1".repeat(l);
-        if (PostalCodes.validate(code, testNumeric) === true) {
-            return l;
-        }
-    }
-    if (PostalCodes.validate(code, "SW1A 1AA") === true) return 8;
-    if (PostalCodes.validate(code, "K1A 0B1") === true) return 7;
-    return 12;
+    if (!code) return 10;
+    const upper = String(code).trim().toUpperCase();
+    return COUNTRY_POSTAL_MAX_LENGTHS[upper] || 10;
 }
 
 /**
  * Dynamic registry of all ISO 3166-1 alpha-2 countries.
- * Dialing prefixes and length metadata derived dynamically from `libphonenumber-js` & `postal-codes-js`.
+ * Dialing prefixes and length metadata derived dynamically from `libphonenumber-js`.
  */
 export const ALL_COUNTRIES = Object.entries(countries)
     .map(([code, c]) => {
@@ -162,8 +251,8 @@ export function getPostalRule(countryCodeOrName) {
 }
 
 /**
- * Dynamic Postal Code Validator powered by `postal-codes-js`.
- * Validates postal code formats for any ISO country dynamically.
+ * Dynamic Postal Code Validator.
+ * Validates postal code formats for any ISO country.
  */
 export function validatePostalCodeFormat(postalCode, countryCodeOrName) {
     const country = getCountry(countryCodeOrName);
@@ -178,15 +267,22 @@ export function validatePostalCodeFormat(postalCode, countryCodeOrName) {
         return { isValid: false, error: "Postal code is required.", cleanPin: "" };
     }
 
-    // Authoritative country-specific validation via postal-codes-js library
-    const result = PostalCodes.validate(country.code, cleanStr);
+    const pattern = COUNTRY_POSTAL_PATTERNS[country.code.toUpperCase()];
+    if (pattern) {
+        if (pattern.test(cleanStr)) {
+            return { isValid: true, error: "", cleanPin: cleanStr };
+        } else {
+            return { isValid: false, error: "Enter a valid postal code.", cleanPin: cleanStr };
+        }
+    }
 
-    if (result === true) {
+    // Generic fallback for countries without explicit custom regex:
+    const genericPattern = /^[a-zA-Z0-9\s-]{2,10}$/;
+    if (genericPattern.test(cleanStr)) {
         return { isValid: true, error: "", cleanPin: cleanStr };
     }
 
-    const errorMsg = typeof result === "string" ? result : "Enter a valid postal code.";
-    return { isValid: false, error: errorMsg, cleanPin: cleanStr };
+    return { isValid: false, error: "Enter a valid postal code.", cleanPin: cleanStr };
 }
 
 export function validatePostalCode(postalCode, countryCodeOrName) {
