@@ -8,15 +8,15 @@ import WishlistDrawer from "@/components/layout/WishlistDrawer";
 export default function WebsiteLayout({ children }) {
   return (
     <UserAuthProvider>
-      <CartProvider>
-        <WishlistProvider>
-          <ToastProvider>
+      <ToastProvider>
+        <CartProvider>
+          <WishlistProvider>
             {children}
             <CartDrawer />
             <WishlistDrawer />
-          </ToastProvider>
-        </WishlistProvider>
-      </CartProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </ToastProvider>
     </UserAuthProvider>
   );
 }

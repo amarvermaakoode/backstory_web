@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, Minus, Plus, Trash, ShoppingBag } from "lucide-react";
+import { X, Minus, Plus, Trash, ShoppingBag, Check } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { getImageUrl } from "@/lib/api";
 
@@ -13,12 +13,21 @@ export default function CartDrawer() {
         isCartOpen,
         cartCount,
         cartSubtotal,
+        selectedItemIds,
+        selectedCartItems,
+        selectedCount,
+        selectedSubtotal,
+        toggleSelectItem,
+        toggleSelectAll,
         updateQuantity,
         removeFromCart,
         closeCart
     } = useCart();
 
     const drawerRef = useRef(null);
+
+    const activeSelectedIds = selectedItemIds !== null ? selectedItemIds : cartItems.map(i => i.id);
+    const allSelected = cartItems.length > 0 && cartItems.every(item => activeSelectedIds.includes(item.id));
 
     // Close on Escape key press
     useEffect(() => {
@@ -80,7 +89,7 @@ export default function CartDrawer() {
                     <div className="flex items-center justify-center text-[10px] sm:text-xs font-medium tracking-wider text-neutral-400 uppercase w-full">
                         <div className="flex-grow border-t border-neutral-200"></div>
                         <span className="px-4">
-                            {cartSubtotal >= 999
+                            {selectedSubtotal >= 999
                                 ? "You qualify for Free Delivery!"
                                 : `Free delivery above Rs 999`}
                         </span>
@@ -88,8 +97,29 @@ export default function CartDrawer() {
                     </div>
                 </div>
 
+                {/* Select All Bar */}
+                {cartItems.length > 0 && (
+                    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-xs">
+                        <button
+                            type="button"
+                            onClick={toggleSelectAll}
+                            className="flex items-center gap-2 text-neutral-700 hover:text-black transition-colors cursor-pointer select-none"
+                        >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                allSelected ? "bg-black border-black text-white" : "border-neutral-300 bg-white"
+                            }`}>
+                                {allSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <span className="font-semibold">{allSelected ? "Deselect All" : "Select All"}</span>
+                        </button>
+                        <span className="font-medium text-neutral-400">
+                            {activeSelectedIds.length}/{cartItems.length} items selected
+                        </span>
+                    </div>
+                )}
+
                 {/* Cart Items List */}
-                <div className="flex-1 overflow-y-auto px-6 py-4 mt-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto px-6 py-4 mt-1 custom-scrollbar">
                     {cartItems.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2">
                             <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400/80 mb-4 select-none">
@@ -110,16 +140,33 @@ export default function CartDrawer() {
                         <div className="space-y-6">
                             {cartItems.map((item) => {
                                 const productUrl = item.link || `/products/${item.slug || item.productId || item.id}`;
+                                const isSelected = activeSelectedIds.includes(item.id);
                                 return (
                                     <div
                                         key={item.id}
-                                        className="flex gap-4 items-start pb-6 border-b border-neutral-200/50 last:border-0 last:pb-0"
+                                        className={`flex gap-3.5 items-start pb-6 border-b border-neutral-200/50 last:border-0 last:pb-0 transition-opacity ${
+                                            isSelected ? "opacity-100" : "opacity-60 hover:opacity-100"
+                                        }`}
                                     >
+                                        {/* Selection Checkbox */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleSelectItem(item.id)}
+                                            className={`mt-2 flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors cursor-pointer ${
+                                                isSelected
+                                                    ? "bg-black border-black text-white"
+                                                    : "border-neutral-300 hover:border-black bg-white"
+                                            }`}
+                                            aria-label={isSelected ? "Deselect item" : "Select item"}
+                                        >
+                                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                        </button>
+
                                         {/* Product Image Container */}
                                         <Link
                                             href={productUrl}
                                             onClick={closeCart}
-                                            className="relative w-24 h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 group cursor-pointer block"
+                                            className="relative w-20 h-24 sm:w-24 sm:h-28 bg-[#F4F0EA] rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 group cursor-pointer block"
                                         >
                                             <img
                                                 src={getImageUrl(item.image)}
@@ -215,9 +262,11 @@ export default function CartDrawer() {
                     <div className="px-6 py-6 border-t border-neutral-200/80 bg-[#FAF9F6]">
                         {/* Subtotal Row */}
                         <div className="flex justify-between items-baseline mb-1">
-                            <span className="text-sm font-medium text-neutral-500">Subtotal</span>
+                            <span className="text-sm font-medium text-neutral-500">
+                                Subtotal ({selectedCount} {selectedCount === 1 ? "item" : "items"})
+                            </span>
                             <span className="font-clashDisplay text-xl font-bold text-black">
-                                Rs {cartSubtotal.toLocaleString()}
+                                Rs {selectedSubtotal.toLocaleString()}
                             </span>
                         </div>
 

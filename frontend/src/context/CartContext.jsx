@@ -111,6 +111,7 @@ export function CartProvider({ children }) {
     const [cartItems, setCartItems] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [selectedItemIds, setSelectedItemIds] = useState(null);
     const { user, token } = useUserAuth();
 
     // Load and sync cart when user logs in/changes
@@ -193,6 +194,84 @@ export function CartProvider({ children }) {
             console.error("Failed to save cart to localStorage:", error);
         }
     }, [cartItems, isInitialized, user]);
+
+    // Sync selectedItemIds whenever cartItems change
+    useEffect(() => {
+        if (!isInitialized) return;
+        try {
+            const savedSel = localStorage.getItem("bacstory_selected_cart_items");
+            let savedArray = null;
+            if (savedSel) {
+                try {
+                    savedArray = JSON.parse(savedSel);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            const allCartIds = cartItems.map(item => item.id);
+            if (selectedItemIds === null) {
+                if (Array.isArray(savedArray) && savedArray.length > 0) {
+                    const validSaved = savedArray.filter(id => allCartIds.includes(id));
+                    setSelectedItemIds(validSaved.length > 0 ? validSaved : allCartIds);
+                } else {
+                    setSelectedItemIds(allCartIds);
+                }
+            } else {
+                const existingInCart = selectedItemIds.filter(id => allCartIds.includes(id));
+                const newlyAddedIds = allCartIds.filter(id => !selectedItemIds.includes(id));
+                setSelectedItemIds([...existingInCart, ...newlyAddedIds]);
+            }
+        } catch (error) {
+            console.error("Error setting selected cart item IDs:", error);
+        }
+    }, [cartItems, isInitialized]);
+
+    // Save selectedItemIds to localStorage
+    useEffect(() => {
+        if (selectedItemIds !== null) {
+            try {
+                localStorage.setItem("bacstory_selected_cart_items", JSON.stringify(selectedItemIds));
+            } catch (e) {
+                console.error("Failed to save selected cart items to localStorage:", error);
+            }
+        }
+    }, [selectedItemIds]);
+
+    const activeSelectedIds = selectedItemIds !== null ? selectedItemIds : cartItems.map(i => i.id);
+
+    // Calculate selected items & totals
+    const selectedCartItems = cartItems.filter(item => activeSelectedIds.includes(item.id));
+    const selectedCount = selectedCartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+    const selectedSubtotal = selectedCartItems.reduce((total, item) => {
+        const priceNum = typeof item.priceNum === "number" && !isNaN(item.priceNum)
+            ? item.priceNum
+            : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0;
+        return total + (priceNum * (item.quantity || 1));
+    }, 0);
+
+    const toggleSelectItem = (id) => {
+        setSelectedItemIds(prev => {
+            const current = prev !== null ? prev : cartItems.map(i => i.id);
+            if (current.includes(id)) {
+                return current.filter(itemId => itemId !== id);
+            } else {
+                return [...current, id];
+            }
+        });
+    };
+
+    const toggleSelectAll = () => {
+        const allItemIds = cartItems.map(item => item.id);
+        const current = selectedItemIds !== null ? selectedItemIds : allItemIds;
+        const allSelected = allItemIds.length > 0 && allItemIds.every(id => current.includes(id));
+
+        if (allSelected) {
+            setSelectedItemIds([]);
+        } else {
+            setSelectedItemIds(allItemIds);
+        }
+    };
 
     // Calculate totals
     const cartCount = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
@@ -402,6 +481,13 @@ export function CartProvider({ children }) {
                 isCartOpen,
                 cartCount,
                 cartSubtotal,
+                selectedItemIds,
+                setSelectedItemIds,
+                selectedCartItems,
+                selectedCount,
+                selectedSubtotal,
+                toggleSelectItem,
+                toggleSelectAll,
                 addToCart,
                 removeFromCart,
                 updateQuantity,

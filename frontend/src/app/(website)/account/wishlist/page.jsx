@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import { getImageUrl } from "@/lib/api";
 import { Heart, Trash2, ShoppingBag } from "lucide-react";
 import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
@@ -12,11 +13,28 @@ import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 export default function AccountWishlistPage() {
     const { wishlistItems, removeFromWishlist } = useWishlist();
     const { addToCart } = useCart();
+    const { user } = useUserAuth();
     const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
 
     const handleConfirmAddToCart = (prod, quantity, size, color) => {
         addToCart(prod, quantity, size, color);
     };
+
+    if (!user) {
+        return (
+            <div className="text-center py-16">
+                <Heart className="w-12 h-12 stroke-[1.2] text-neutral-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold font-clashDisplay text-neutral-900 mb-2">Log in to view Wishlist</h3>
+                <p className="text-sm text-neutral-500 mb-6">Please log in to view and manage your saved items.</p>
+                <Link
+                    href="/login"
+                    className="bg-neutral-900 text-white rounded-full px-6 py-2.5 text-sm font-semibold hover:bg-neutral-800 transition-colors inline-block"
+                >
+                    Log In
+                </Link>
+            </div>
+        );
+    }
 
     if (wishlistItems.length === 0) {
         return (

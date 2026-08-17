@@ -13,7 +13,7 @@ import CountrySelect from "@/components/ui/CountrySelect";
 import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, validatePostalCodeFormat, verifyPostalCode, fetchPostalCodeDetails, fetchIndiaPincodeDetails } from "@/lib/countryPhoneValidation";
 
 export default function CheckoutPage() {
-    const { cartItems, cartSubtotal, cartCount, openCart, clearCart } = useCart();
+    const { cartItems, cartSubtotal, cartCount, selectedCartItems, selectedSubtotal, selectedCount, removeFromCart, openCart, clearCart } = useCart();
     const { user, userFetch, refreshUser } = useUserAuth();
 
     const [useWallet, setUseWallet] = useState(false);
@@ -44,11 +44,12 @@ export default function CheckoutPage() {
         isDefault: true
     });
 
-    // Real cart items from CartContext
+    // Real cart items from CartContext (only selected items if selection exists)
     const isCartEmpty = cartItems.length === 0;
-    const activeItems = cartItems;
-    const activeCount = cartCount;
-    const activeSubtotal = cartSubtotal;
+    const hasSelection = Array.isArray(selectedCartItems) && selectedCartItems.length > 0;
+    const activeItems = hasSelection ? selectedCartItems : cartItems;
+    const activeCount = hasSelection ? selectedCount : cartCount;
+    const activeSubtotal = hasSelection ? selectedSubtotal : cartSubtotal;
 
     // Contact and Delivery Forms State
     const [formData, setFormData] = useState({
@@ -926,7 +927,11 @@ export default function CheckoutPage() {
                             });
                             setIsOrderComplete(true);
                             if (!isCartEmpty) {
-                                clearCart();
+                                if (hasSelection && activeItems.length < cartItems.length) {
+                                    activeItems.forEach(item => removeFromCart(item.id));
+                                } else {
+                                    clearCart();
+                                }
                             }
                         } else {
                             setPaymentError(verifyData.message || "Payment signature verification failed.");
