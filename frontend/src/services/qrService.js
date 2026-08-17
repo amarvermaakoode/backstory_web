@@ -21,6 +21,25 @@ export async function getQRCodeByCode(code) {
   }
 }
 
+// Fetch products under an Order ID after verifying against registered contact detail
+export async function getOrderProducts(orderId, identifier) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/order-products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, identifier, email: identifier }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching order products:", error);
+    return {
+      success: false,
+      message: "Failed to fetch order products.",
+    };
+  }
+}
+
 // Step 1: Send OTP to Email or Mobile Number for claiming QR Code with Order ID
 export async function sendClaimOTP(code, orderId, identifier) {
   try {

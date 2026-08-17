@@ -467,3 +467,140 @@ exports.getMyQRCodes = async (req, res) => {
     });
   }
 };
+
+// Validate order against contact and fetch items under that order
+exports.getOrderProducts = async (req, res) => {
+  try {
+    const { orderId, email, phoneNumber, identifier } = req.body;
+    const contactInput = (identifier || email || phoneNumber || "").trim();
+
+    if (!orderId || !orderId.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required",
+      });
+    }
+
+    if (!contactInput) {
+      return res.status(400).json({
+        success: false,
+        message: "Registered Email Address or Mobile Number is required",
+      });
+    }
+
+    const trimmedOrderId = orderId.trim();
+    const isMongoId = trimmedOrderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(trimmedOrderId);
+    const escapedOrderId = trimmedOrderId.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+
+    const orderDoc = await Order.findOne({
+      $or: [
+        { orderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { razorpayOrderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") } },
+        { _id: isMongoId ? trimmedOrderId : null },
+      ],
+    }).populate("user");
+
+    if (!orderDoc) {
+      return res.status(404).json({
+        success: false,
+        message: `Order ID '${trimmedOrderId}' was not found. Please check your Order ID.`,
+      });
+    }
+
+    // Verify contact input matches registered user profile (User.email or User.phoneNumber)
+    const matchResult = await checkContactMatchesRegisteredUser(contactInput, orderDoc);
+    if (!matchResult.matches) {
+      return res.status(400).json({
+        success: false,
+        message: matchResult.message || "Order ID and registered Email or Mobile Number do not match.",
+      });
+    }
+
+    // 1. Find all claimed/active QR codes for this order
+    const claimedQRs = await QRCodeModel.find({
+      orderId: { $regex: new RegExp(`^${escapedOrderId}$`, "i") },
+      status: { $in: ["claimed", "active"] },
+    }).lean();
+
+    // Track exact claimed titles & labels
+    const claimedLabelCounts = new Map();
+    claimedQRs.forEach((qr) => {
+      const t = (qr.profileData?.title || qr.garmentUnitId || "").trim();
+      if (t) {
+        claimedLabelCounts.set(t, (claimedLabelCounts.get(t) || 0) + 1);
+      }
+    });
+
+    // 2. Build full list of items for orderDoc.items (expanding multiple quantities)
+    const allItems = [];
+    (orderDoc.items || []).forEach((item, itemIdx) => {
+      const qty = item.quantity && Number(item.quantity) > 1 ? Number(item.quantity) : 1;
+      const variantParts = [];
+      if (item.color && item.color !== "Standard") variantParts.push(item.color);
+      if (item.size) variantParts.push(item.size);
+      const variantStr = variantParts.length > 0 ? ` (${variantParts.join(" / ")})` : "";
+      const baseLabel = `${item.name}${variantStr}`;
+
+      for (let q = 1; q <= qty; q++) {
+        const pieceStr = qty > 1 ? ` - Garment #${q}` : "";
+        const fullLabel = `${baseLabel}${pieceStr}`;
+
+        allItems.push({
+          id: `${item._id || item.product || itemIdx}_unit_${q}`,
+          itemId: item._id || item.product,
+          unitIndex: q,
+          totalQuantity: qty,
+          name: item.name,
+          size: item.size,
+          color: item.color,
+          image: item.image,
+          baseLabel,
+          label: fullLabel,
+        });
+      }
+    });
+
+    // 3. Filter out items whose QR code has already been claimed
+    const baseLabelConsumedCount = new Map();
+
+    const availableItems = allItems.filter((unit) => {
+      // Check exact label match (e.g. "Miles Over Words (navy blue / S) - Garment #1")
+      if (claimedLabelCounts.has(unit.label) && claimedLabelCounts.get(unit.label) > 0) {
+        claimedLabelCounts.set(unit.label, claimedLabelCounts.get(unit.label) - 1);
+        return false; // Already claimed
+      }
+
+      // Check base label match for unindexed claims (e.g. "Miles Over Words (navy blue / S)")
+      const consumedSoFar = baseLabelConsumedCount.get(unit.baseLabel) || 0;
+      const totalBaseClaimed = claimedLabelCounts.get(unit.baseLabel) || 0;
+      if (consumedSoFar < totalBaseClaimed) {
+        baseLabelConsumedCount.set(unit.baseLabel, consumedSoFar + 1);
+        return false; // Claimed under base label
+      }
+
+      return true; // Available to claim!
+    });
+
+    if (availableItems.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "All garments under this Order ID have already been claimed by QR codes.",
+        items: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order validated successfully.",
+      items: availableItems,
+    });
+  } catch (error) {
+    console.error("Error fetching order products:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch order products",
+      error: error.message,
+    });
+  }
+};
+

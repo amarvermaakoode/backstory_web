@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
-import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP } from "@/services/qrService";
+import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP, getOrderProducts } from "@/services/qrService";
 import {
   QrCode,
   Tag,
@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Music,
   Globe,
+  ChevronDown,
 } from "lucide-react";
 
 const InstagramIcon = (props) => (
@@ -93,6 +94,11 @@ export default function PublicQRCodePage() {
   const [verifying, setVerifying] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
 
+  // Garment Product Dropdown States
+  const [orderItems, setOrderItems] = useState([]);
+  const [fetchingItems, setFetchingItems] = useState(false);
+  const [itemsError, setItemsError] = useState("");
+
   // Fetch QR Code details on mount
   const fetchQRDetails = async () => {
     if (!codeParam) return;
@@ -115,6 +121,78 @@ export default function PublicQRCodePage() {
   useEffect(() => {
     fetchQRDetails();
   }, [codeParam]);
+
+  // Validate Order ID & Contact, then fetch products under that Order
+  const fetchProductsForOrder = async (targetOrderId, targetContact) => {
+    const cleanOrderId = targetOrderId.trim();
+    const cleanContact = targetContact.trim();
+
+    if (!cleanOrderId || cleanOrderId.length !== 10 || !cleanOrderId.startsWith("BAC-")) {
+      setOrderItems([]);
+      setItemsError("");
+      return false;
+    }
+
+    if (!cleanContact) {
+      setOrderItems([]);
+      setItemsError("");
+      return false;
+    }
+
+    const isEmailInput = cleanContact.includes("@");
+    if (!isEmailInput) {
+      const phoneDigits = cleanContact.replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        setOrderItems([]);
+        setItemsError("");
+        return false;
+      }
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanContact)) {
+        setOrderItems([]);
+        setItemsError("");
+        return false;
+      }
+    }
+
+    setFetchingItems(true);
+    setItemsError("");
+
+    const res = await getOrderProducts(cleanOrderId, cleanContact);
+    setFetchingItems(false);
+
+    if (res.success && res.items && res.items.length > 0) {
+      setOrderItems(res.items);
+      setItemsError("");
+      if (res.items.length === 1) {
+        setGarmentLabel(res.items[0].label);
+      } else {
+        setGarmentLabel("");
+      }
+      return true;
+    } else {
+      setOrderItems([]);
+      setGarmentLabel("");
+      setItemsError(res.message || "No products found for this order.");
+      return false;
+    }
+  };
+
+  // Automatically validate order & fetch products when Order ID and Email/Phone are entered
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (orderId && email) {
+        fetchProductsForOrder(orderId, email);
+      } else {
+        setOrderItems([]);
+        setGarmentLabel("");
+        setItemsError("");
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [orderId, email]);
 
   // Step 1: Send OTP to Email or Phone Number
   const handleSendOtp = async (e) => {
@@ -147,8 +225,18 @@ export default function PublicQRCodePage() {
         return;
       }
     }
+
+    let currentItems = orderItems;
+    if (currentItems.length === 0) {
+      const fetched = await fetchProductsForOrder(cleanOrderId, cleanContact);
+      if (!fetched) {
+        showToast(itemsError || "Order ID and registered Email/Phone do not match. Please try again.", "error");
+        return;
+      }
+    }
+
     if (!garmentLabel.trim()) {
-      showToast("Please enter a label for your garment.", "error");
+      showToast("Please select a product from your order.", "error");
       return;
     }
 
@@ -359,12 +447,13 @@ export default function PublicQRCodePage() {
                     <div className="border-b border-neutral-200/70 my-4" />
 
                     {!otpSent ? (
-                      /* Step 1 Form: Single Horizontal Row Layout */
-                      <form onSubmit={handleSendOtp} className="grid grid-cols-1 lg:grid-cols-12 gap-1 items-center pt-1">
-                        {/* Order ID */}
-                        <div className="lg:col-span-3">
+                      /* Step 1 Form: 2-Row Spacious Layout for full product dropdown visibility */
+                      <form onSubmit={handleSendOtp} className="space-y-3 pt-1">
+                        {/* Row 1: Order ID & Email/Mobile Input */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Order ID */}
                           <div className="relative">
-                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
+                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
                             <input
                               type="text"
                               required
@@ -383,15 +472,13 @@ export default function PublicQRCodePage() {
                                 }
                                 setOrderId(digitsAndLetters ? `BAC-${digitsAndLetters.slice(0, 6)}` : "BAC-");
                               }}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
                             />
                           </div>
-                        </div>
 
-                        {/* Email or Mobile */}
-                        <div className="lg:col-span-4">
+                          {/* Email or Mobile */}
                           <div className="relative">
-                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
+                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
                             <input
                               type="text"
                               required
@@ -399,45 +486,74 @@ export default function PublicQRCodePage() {
                               placeholder="Email or Mobile*"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
                             />
                           </div>
                         </div>
 
-                        {/* Label */}
-                        <div className="lg:col-span-3">
-                          <div className="relative">
-                            <Tag className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5 pointer-events-none" />
-                            <input
-                              type="text"
-                              required
-                              placeholder="Garment Label*"
-                              value={garmentLabel}
-                              onChange={(e) => setGarmentLabel(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-9 pr-3 py-2.5 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Verify Button */}
-                        <div className="lg:col-span-2">
-                          <button
-                            type="submit"
-                            disabled={sendingOtp}
-                            className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[42px] px-3 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
-                          >
-                            {sendingOtp ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Verifying...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                                <span>Verify</span>
-                              </>
+                        {/* Row 2: Garment Product Dropdown & Verify Button */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                          {/* Garment Product Select Dropdown */}
+                          <div className="sm:col-span-8 lg:col-span-9">
+                            <div className="relative">
+                              <Tag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <select
+                                required
+                                value={garmentLabel}
+                                onChange={(e) => setGarmentLabel(e.target.value)}
+                                disabled={fetchingItems}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-9 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors appearance-none cursor-pointer disabled:opacity-60 font-medium"
+                              >
+                                {fetchingItems ? (
+                                  <option value="">Loading garments for this order...</option>
+                                ) : orderItems.length > 0 ? (
+                                  <>
+                                    <option value="">-- Select Garment Product ({orderItems.length} available) --</option>
+                                    {orderItems.map((item, index) => (
+                                      <option key={index} value={item.label}>
+                                        {item.label}
+                                      </option>
+                                    ))}
+                                  </>
+                                ) : (
+                                  <option value="">
+                                    {itemsError ? "Order not matched" : "Select Garment Product*"}
+                                  </option>
+                                )}
+                              </select>
+                              <div className="absolute right-3.5 top-3.5 pointer-events-none text-neutral-400 z-10">
+                                {fetchingItems ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-neutral-500" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                              </div>
+                            </div>
+                            {itemsError && (
+                              <p className="text-[11px] text-red-500 mt-1 pl-1 font-medium leading-tight">{itemsError}</p>
                             )}
-                          </button>
+                          </div>
+
+                          {/* Verify Button */}
+                          <div className="sm:col-span-4 lg:col-span-3">
+                            <button
+                              type="submit"
+                              disabled={sendingOtp}
+                              className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[46px] px-4 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
+                            >
+                              {sendingOtp ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Verifying...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                  <span>Verify & Claim</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </form>
                     ) : (

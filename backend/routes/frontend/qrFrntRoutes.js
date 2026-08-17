@@ -6,6 +6,7 @@ const {
   verifyClaimOTP,
   updateQRProfile,
   getMyQRCodes,
+  getOrderProducts,
 } = require("../../controllers/frontend/qrFrntController");
 const { protect } = require("../../middlewares/auth");
 
@@ -14,6 +15,7 @@ router.get("/my-qrs", protect, getMyQRCodes);
 router.get("/:code", getQRCodeByCode);
 
 // Order ID + Email OTP claiming flow
+router.post("/order-products", getOrderProducts);
 router.post("/send-otp", sendClaimOTP);
 router.post("/verify-claim-otp", verifyClaimOTP);
 
