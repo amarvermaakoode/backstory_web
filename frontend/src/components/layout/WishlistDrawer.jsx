@@ -6,6 +6,7 @@ import { X, Heart } from "lucide-react";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import { getImageUrl } from "@/lib/api";
 import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 
@@ -18,6 +19,7 @@ export default function WishlistDrawer() {
         closeWishlist
     } = useWishlist();
 
+    const { user } = useUserAuth();
     const { addToCart } = useCart();
     const drawerRef = useRef(null);
     const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
@@ -80,7 +82,7 @@ export default function WishlistDrawer() {
                 <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-200/80">
                     <h2 className="font-clashDisplay text-2xl font-semibold text-black flex items-baseline gap-2">
                         Wishlist
-                        {wishlistCount > 0 && (
+                        {user && wishlistCount > 0 && (
                             <span className="font-sans text-sm font-normal text-neutral-400">
                                 ({wishlistCount})
                             </span>
@@ -97,7 +99,24 @@ export default function WishlistDrawer() {
 
                 {/* Wishlist Items Content */}
                 <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
-                    {wishlistItems.length === 0 ? (
+                    {!user ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-2">
+                            <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400/80 mb-4 select-none">
+                                <Heart className="w-6 h-6 stroke-[1.25]" />
+                            </div>
+                            <h3 className="font-sans text-lg font-semibold text-black">Log in to view Wishlist</h3>
+                            <p className="text-xs sm:text-sm text-neutral-400 max-w-[280px] leading-relaxed pb-4">
+                                Please log in to your account to view and manage your saved wishlist items.
+                            </p>
+                            <Link
+                                href="/login"
+                                onClick={closeWishlist}
+                                className="px-6 py-2 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold cursor-pointer"
+                            >
+                                Log In
+                            </Link>
+                        </div>
+                    ) : wishlistItems.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-2">
                             <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400/80 mb-4 select-none">
                                 <Heart className="w-6 h-6 stroke-[1.25]" />

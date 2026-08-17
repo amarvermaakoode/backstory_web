@@ -28,49 +28,27 @@ export default function CartPage() {
         cartItems,
         setCartItems,
         updateQuantity,
-        removeFromCart
+        removeFromCart,
+        selectedItemIds,
+        selectedCartItems,
+        toggleSelectItem,
+        toggleSelectAll
     } = useCart();
 
     const { toggleWishlist, isInWishlist } = useWishlist();
 
-    const [selectedItems, setSelectedItems] = useState([]);
+    const selectedItems = selectedItemIds !== null ? selectedItemIds : cartItems.map(item => item.id);
     const [promoCode, setPromoCode] = useState("");
     const [discount, setDiscount] = useState(0);
     const [promoError, setPromoError] = useState("");
     const [promoSuccess, setPromoSuccess] = useState("");
     const [activePromo, setActivePromo] = useState(null);
 
-    // Initialize all items as selected on load
-    useEffect(() => {
-        if (cartItems.length > 0 && selectedItems.length === 0) {
-            setSelectedItems(cartItems.map(item => item.id));
-        }
-    }, [cartItems]);
-
-    const toggleSelectItem = (id) => {
-        if (selectedItems.includes(id)) {
-            setSelectedItems(selectedItems.filter(itemId => itemId !== id));
-        } else {
-            setSelectedItems([...selectedItems, id]);
-        }
-    };
-
-    const toggleSelectAll = () => {
-        const allItemIds = cartItems.map(item => item.id);
-        const allSelected = allItemIds.every(id => selectedItems.includes(id));
-
-        if (allSelected) {
-            setSelectedItems([]);
-        } else {
-            setSelectedItems(allItemIds);
-        }
-    };
-
     const handleBulkDelete = () => {
         if (selectedItems.length === 0) return;
         if (confirm("Are you sure you want to remove selected items?")) {
             selectedItems.forEach(id => removeFromCart(id));
-            setSelectedItems([]);
+            if (setSelectedItemIds) setSelectedItemIds([]);
         }
     };
 
@@ -95,7 +73,7 @@ export default function CartPage() {
                 removeFromCart(id);
             }
         });
-        setSelectedItems([]);
+        if (setSelectedItemIds) setSelectedItemIds([]);
     };
 
     const handleMoveToWishlist = (item) => {
@@ -189,7 +167,6 @@ export default function CartPage() {
     };
 
     // Calculate Summary based on selected items only (Shipping: ₹99 below ₹999, Free ₹999+)
-    const selectedCartItems = cartItems.filter(item => selectedItems.includes(item.id));
     const subtotal = selectedCartItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0);
     const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
     const tax = 0;

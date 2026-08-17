@@ -8,6 +8,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import WishlistCard from "@/components/ui/WishlistCard";
 import SelectOptionsModal from "@/components/ui/SelectOptionsModal";
 import { API_BASE_URL, getImageUrl } from "@/lib/api";
@@ -15,6 +16,7 @@ import { API_BASE_URL, getImageUrl } from "@/lib/api";
 export default function WishlistPage() {
     const { wishlistItems, removeFromWishlist, toggleWishlist, isInWishlist } = useWishlist();
     const { addToCart } = useCart();
+    const { user } = useUserAuth();
     const [activeCategory, setActiveCategory] = useState("T-SHIRTS");
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
@@ -26,7 +28,7 @@ export default function WishlistPage() {
 
     // Categorize wishlist items
     const categorizeItem = (item) => {
-        const name = item.name.toLowerCase();
+        const name = (item.name || item.title || "").toLowerCase();
         if (name.includes("hoodie") || name.includes("sweater") || name.includes("zip")) {
             return "HOODIES";
         }
@@ -148,10 +150,26 @@ export default function WishlistPage() {
                 </div>
 
                 {/* Wishlist Grid */}
-                {paginatedWishlist.length > 0 ? (
+                {!user ? (
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                        <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400 mb-4">
+                            <Heart className="w-6 h-6 stroke-[1.25]" />
+                        </div>
+                        <h3 className="font-sans text-lg font-bold text-black">Log in to view your Wishlist</h3>
+                        <p className="text-xs sm:text-sm text-neutral-400 max-w-[280px] mt-2 leading-relaxed">
+                            Please log in to your account to view and manage items in your wishlist.
+                        </p>
+                        <Link
+                            href="/login"
+                            className="mt-6 px-6 py-2.5 bg-black text-white hover:bg-neutral-800 transition-colors rounded-full text-xs font-semibold"
+                        >
+                            Log In
+                        </Link>
+                    </div>
+                ) : paginatedWishlist.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-12 mt-10">
                         {paginatedWishlist.map((item) => (
-                            <div key={item.id} className="w-full">
+                            <div key={item.id || item._id} className="w-full">
                                 <WishlistCard 
                                     item={item} 
                                     onRemove={removeFromWishlist} 
@@ -179,7 +197,7 @@ export default function WishlistPage() {
                 )}
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {user && totalPages > 1 && (
                     <div className="flex items-center justify-center gap-4 mt-16">
                         <button
                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
