@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP, getOrderProducts } from "@/services/qrService";
+import CustomSelect from "@/components/ui/CustomSelect";
 import {
   QrCode,
   Tag,
@@ -495,40 +496,29 @@ export default function PublicQRCodePage() {
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
                           {/* Garment Product Select Dropdown */}
                           <div className="sm:col-span-8 lg:col-span-9">
-                            <div className="relative">
-                              <Tag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
-                              <select
-                                required
-                                value={garmentLabel}
-                                onChange={(e) => setGarmentLabel(e.target.value)}
-                                disabled={fetchingItems}
-                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-9 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors appearance-none cursor-pointer disabled:opacity-60 font-medium"
-                              >
-                                {fetchingItems ? (
-                                  <option value="">Loading garments for this order...</option>
-                                ) : orderItems.length > 0 ? (
-                                  <>
-                                    <option value="">-- Select Garment Product ({orderItems.length} available) --</option>
-                                    {orderItems.map((item, index) => (
-                                      <option key={index} value={item.label}>
-                                        {item.label}
-                                      </option>
-                                    ))}
-                                  </>
-                                ) : (
-                                  <option value="">
-                                    {itemsError ? "Order not matched" : "Select Garment Product*"}
-                                  </option>
-                                )}
-                              </select>
-                              <div className="absolute right-3.5 top-3.5 pointer-events-none text-neutral-400 z-10">
-                                {fetchingItems ? (
-                                  <Loader2 className="w-4 h-4 animate-spin text-neutral-500" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4" />
-                                )}
-                              </div>
-                            </div>
+                            <CustomSelect
+                              required
+                              icon={<Tag className="w-4 h-4 text-neutral-400" />}
+                              value={garmentLabel}
+                              onChange={(e) => setGarmentLabel(e.target.value)}
+                              loading={fetchingItems}
+                              disabled={fetchingItems || (orderItems.length === 0 && !itemsError)}
+                              placeholder={
+                                fetchingItems
+                                  ? "Loading garments for this order..."
+                                  : orderItems.length > 0
+                                  ? `-- Select Garment Product (${orderItems.length} available) --`
+                                  : itemsError
+                                  ? "Order not matched"
+                                  : "Select Garment Product*"
+                              }
+                              showPlaceholderInMenu={orderItems.length > 0}
+                              options={orderItems.map((item) => ({
+                                value: item.label,
+                                label: item.label,
+                              }))}
+                              className="!bg-[#FAFAFA] !border-neutral-200/90 !rounded-xl !py-3 !px-3.5 text-xs sm:text-sm hover:!border-black focus:!border-black focus:!bg-white font-medium"
+                            />
                             {itemsError && (
                               <p className="text-[11px] text-red-500 mt-1 pl-1 font-medium leading-tight">{itemsError}</p>
                             )}

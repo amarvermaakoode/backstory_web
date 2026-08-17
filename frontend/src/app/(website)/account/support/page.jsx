@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Mail, PhoneCall, RotateCcw, HelpCircle, Send, Check, Clock } from "lucide-react";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 export default function AccountSupportPage() {
     const { user, userFetch } = useUserAuth();
@@ -171,17 +172,19 @@ export default function AccountSupportPage() {
                     <form onSubmit={handleSupportSubmit} className="space-y-4">
                         <div>
                             <label className="text-xs font-semibold text-neutral-500 mb-1 block">Subject / Issue</label>
-                            <select
+                            <CustomSelect
+                                options={[
+                                    { value: "Order Status", label: "Order Status & Tracking" },
+                                    { value: "Return / Exchange", label: "Return or Exchange Request" },
+                                    { value: "Payment Issue", label: "Payment / Billing Query" },
+                                    { value: "Product Inquiry", label: "Product & Sizing Inquiry" },
+                                    { value: "Other", label: "Other Query" },
+                                ]}
                                 value={supportForm.subject}
                                 onChange={(e) => setSupportForm({ ...supportForm, subject: e.target.value })}
-                                className="w-full border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-neutral-400 bg-white"
-                            >
-                                <option value="Order Status">Order Status & Tracking</option>
-                                <option value="Return / Exchange">Return or Exchange Request</option>
-                                <option value="Payment Issue">Payment / Billing Query</option>
-                                <option value="Product Inquiry">Product & Sizing Inquiry</option>
-                                <option value="Other">Other Query</option>
-                            </select>
+                                showPlaceholderInMenu={false}
+                                className="!bg-white !border-neutral-200 !rounded-xl !py-2.5 !px-4 !text-sm text-neutral-900 focus:!border-neutral-400"
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-neutral-500 mb-1 block">Message</label>

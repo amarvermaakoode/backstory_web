@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Loader2 } from "lucide-react";
 
 /**
  * CustomSelect - Reusable custom dropdown component matching exact text field styles
@@ -11,8 +11,14 @@ import { ChevronDown, Check } from "lucide-react";
  * @param {Function} onChange - Callback triggered on selection change: onChange(value) or onChange({ target: { value } })
  * @param {string} placeholder - Placeholder text when no value is selected
  * @param {boolean} disabled - Whether the dropdown is disabled
- * @param {string} className - Optional additional classes for the trigger
+ * @param {boolean} loading - Whether options are currently loading
+ * @param {React.ReactNode} icon - Optional icon element to display on the left side
+ * @param {string} className - Optional additional classes for the trigger button
  * @param {boolean} required - Whether selection is required
+ * @param {string} name - Field name for native hidden select
+ * @param {boolean} showPlaceholderInMenu - Whether to show the placeholder option in menu
+ * @param {boolean} dropUp - Whether dropdown menu opens upwards
+ * @param {boolean} openUpwards - Alias for dropUp
  */
 export default function CustomSelect({
   options = [],
@@ -20,6 +26,8 @@ export default function CustomSelect({
   onChange,
   placeholder = "Select Option",
   disabled = false,
+  loading = false,
+  icon = null,
   className = "",
   required = false,
   name,
@@ -33,10 +41,9 @@ export default function CustomSelect({
   // Normalize options array into [{ value, label }]
   const normalizedOptions = options.map((opt) => {
     if (typeof opt === "object" && opt !== null) {
-      return {
-        value: opt.value !== undefined ? opt.value : opt._id || opt.id || "",
-        label: opt.label !== undefined ? opt.label : opt.name || opt.title || opt.Name || String(opt.value || "")
-      };
+      const val = opt.value !== undefined ? opt.value : (opt.label !== undefined ? opt.label : opt._id || opt.id || "");
+      const lbl = opt.label !== undefined ? opt.label : opt.name || opt.title || opt.Name || String(opt.value || "");
+      return { value: val, label: lbl };
     }
     return { value: opt, label: String(opt) };
   });
@@ -77,13 +84,15 @@ export default function CustomSelect({
   }, [isOpen]);
 
   const handleSelect = (optionValue) => {
-    if (disabled) return;
+    if (disabled || loading) return;
     if (onChange) {
       // Support both standard value callback and synthetic event
       onChange({ target: { value: optionValue, name } });
     }
     setIsOpen(false);
   };
+
+  const isBtnDisabled = disabled || loading;
 
   return (
     <div ref={containerRef} className="relative w-full select-none">
@@ -110,30 +119,37 @@ export default function CustomSelect({
       {/* Dropdown Trigger Button */}
       <button
         type="button"
-        disabled={disabled}
+        disabled={isBtnDisabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={`w-full bg-neutral-50 text-neutral-900 border border-neutral-200 rounded-xl py-3 px-4 outline-none text-sm font-semibold transition-all duration-200 flex items-center justify-between cursor-pointer ${
           isOpen
             ? "border-[#a39889] ring-1 ring-[#dfd7cc]/50 bg-white shadow-xs"
             : "hover:border-neutral-300 focus:border-[#a39889] focus:ring-1 focus:ring-[#dfd7cc]/50"
-        } ${disabled ? "opacity-50 cursor-not-allowed bg-neutral-100" : ""} ${className}`}
+        } ${isBtnDisabled ? "opacity-60 cursor-not-allowed bg-neutral-100" : ""} ${className}`}
       >
-        <span
-          className={`truncate ${
-            selectedOption ? "text-neutral-900 font-semibold" : "text-neutral-400 font-normal"
-          }`}
-        >
-          {selectedOption ? selectedOption.label : placeholder}
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-neutral-400 shrink-0 ml-2 transition-transform duration-200 ${
-            isOpen ? "rotate-180 text-neutral-800" : ""
-          }`}
-        />
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {icon && <div className="shrink-0 text-neutral-400 flex items-center justify-center">{icon}</div>}
+          <span
+            className={`truncate ${
+              selectedOption ? "text-neutral-900 font-semibold" : "text-neutral-400 font-normal"
+            }`}
+          >
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+        </div>
+        {loading ? (
+          <Loader2 className="w-4 h-4 text-neutral-400 animate-spin shrink-0 ml-2" />
+        ) : (
+          <ChevronDown
+            className={`w-4 h-4 text-neutral-400 shrink-0 ml-2 transition-transform duration-200 ${
+              isOpen ? "rotate-180 text-neutral-800" : ""
+            }`}
+          />
+        )}
       </button>
 
       {/* Options Dropdown Menu */}
-      {isOpen && !disabled && (
+      {isOpen && !isBtnDisabled && (
         <div
           className={`absolute z-50 left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-60 overflow-y-auto py-1 animate-in fade-in zoom-in-95 duration-150 ${
             dropUp || openUpwards ? "bottom-full mb-2" : "top-full mt-1.5"
