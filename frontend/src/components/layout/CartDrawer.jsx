@@ -68,8 +68,8 @@ export default function CartDrawer() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Shopping Cart Drawer"
-                inert={!isCartOpen ? "" : undefined}
-                className={`fixed top-0 right-0 h-full w-full sm:max-w-[480px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isCartOpen ? "translate-x-0" : "translate-x-full"
+                inert={!isCartOpen}
+                className={`fixed top-0 right-0 h-full w-full sm:max-w-[480px] bg-[#FAF9F6] text-black z-50 flex flex-col transition-transform duration-300 ease-in-out ${isCartOpen ? "translate-x-0 shadow-2xl" : "translate-x-full shadow-none"
                     }`}
             >
                 {/* Header */}

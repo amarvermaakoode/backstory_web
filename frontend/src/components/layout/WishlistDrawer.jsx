@@ -79,8 +79,8 @@ export default function WishlistDrawer() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Wishlist Drawer"
-                inert={!isWishlistOpen ? "" : undefined}
-                className={`fixed top-0 right-0 h-full w-full sm:max-w-[540px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isWishlistOpen ? "translate-x-0" : "translate-x-full"
+                inert={!isWishlistOpen}
+                className={`fixed top-0 right-0 h-full w-full sm:max-w-[540px] bg-[#FAF9F6] text-black z-50 flex flex-col transition-transform duration-300 ease-in-out ${isWishlistOpen ? "translate-x-0 shadow-2xl" : "translate-x-full shadow-none"
                     }`}
             >
                 {/* Header */}

@@ -72,12 +72,12 @@ export default function SearchOverlay({ isOpen, onClose }) {
 
             {/* Slide-down Search Panel */}
             <div
-                className={`fixed top-0 left-0 w-full bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-y-0" : "-translate-y-full"
+                className={`fixed top-0 left-0 w-full bg-[#FAF9F6] text-black z-50 flex flex-col transition-transform duration-300 ease-in-out ${isOpen ? "translate-y-0 shadow-2xl" : "-translate-y-full shadow-none"
                     }`}
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search products"
-                inert={!isOpen ? "" : undefined}
+                inert={!isOpen}
             >
                 <div className="mx-auto w-full max-w-3xl px-6 py-6 sm:py-8">
                     {/* Header row */}
