@@ -43,7 +43,7 @@ export default function Footer() {
                             </h2>
                             {/* Social Icons */}
                             <div className="flex items-center gap-4">
-                                <a href="#instagram" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="Instagram">
+                                <a href="https://www.instagram.com/bacstory_fashion?igsh=bHEwMjNqaG9yNTc2" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="Instagram" target="_blank" rel="noopener noreferrer">
                                     <Image
                                         src="/images/landing-page/instagram.svg"
                                         alt=""
@@ -53,7 +53,7 @@ export default function Footer() {
                                         className="h-6 w-6 object-contain"
                                     />
                                 </a>
-                                <a href="#linkedin" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="LinkedIn">
+                                <a href="https://www.linkedin.com/in/bacstory-fashion-73b12b42b/" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer">
                                     <Image
                                         src="/images/landing-page/linkedin.svg"
                                         alt=""
@@ -63,9 +63,9 @@ export default function Footer() {
                                         className="h-6 w-6 object-contain"
                                     />
                                 </a>
-                                <a href="#twitter" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="X (Twitter)">
+                                <a href="https://www.facebook.com/share/17uEK9Fxkb/" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
                                     <Image
-                                        src="/images/landing-page/twitter.svg"
+                                        src="/images/icons/facebook.svg"
                                         alt=""
                                         aria-hidden="true"
                                         width={24}
