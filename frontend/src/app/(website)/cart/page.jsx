@@ -201,10 +201,10 @@ export default function CartPage() {
                             Add items to your cart from our shop page to get started.
                         </p>
                         <Link
-                            href="/"
+                            href="/product-list"
                             className="px-6 py-2.5 bg-black hover:bg-neutral-800 text-white rounded-full text-xs font-semibold transition-colors"
                         >
-                            Explore Products
+                            Explore Collection
                         </Link>
                     </div>
                 ) : (

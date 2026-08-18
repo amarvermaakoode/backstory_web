@@ -135,12 +135,13 @@ export default function CartDrawer() {
                             <p className="text-xs sm:text-sm text-neutral-400 max-w-[280px] leading-relaxed pb-4">
                                 Browse our unique collection and find pieces you love.
                             </p>
-                            <button
+                            <Link
+                                href="/product-list"
                                 onClick={closeCart}
-                                className="px-6 py-2 border border-black hover:bg-black hover:text-white transition-colors rounded-full text-xs font-semibold cursor-pointer text-black bg-transparent"
+                                className="px-6 py-2 border border-black hover:bg-black hover:text-white transition-colors rounded-full text-xs font-semibold cursor-pointer text-black bg-transparent inline-block"
                             >
                                 Explore Collection
-                            </button>
+                            </Link>
                         </div>
                     ) : (
                         <div className="space-y-6">

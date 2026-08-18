@@ -134,12 +134,13 @@ export default function WishlistDrawer() {
                                     Explore our collections and save pieces that tell your story.
                                 </p>
                             </div>
-                            <button
+                            <Link
+                                href="/product-list"
                                 onClick={closeWishlist}
-                                className="px-6 py-2 border border-black hover:bg-black hover:text-white transition-colors rounded-full text-xs font-semibold cursor-pointer text-black bg-transparent"
+                                className="px-6 py-2 border border-black hover:bg-black hover:text-white transition-colors rounded-full text-xs font-semibold cursor-pointer text-black bg-transparent inline-block"
                             >
                                 Explore Collection
-                            </button>
+                            </Link>
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-4 sm:gap-6">
