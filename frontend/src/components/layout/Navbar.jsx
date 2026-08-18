@@ -67,6 +67,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     return (
         <>
         <header
+            role="banner"
             className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 max-md:bg-black max-md:text-white ${light
                 ? "md:bg-[#FAF9F6] md:text-black md:border-b md:border-neutral-200/60"
                 : scrolled || isMobileMenuOpen || solid
@@ -80,20 +81,21 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         className="md:hidden transition-colors cursor-pointer text-white hover:text-[#dfd7cc]"
-                        aria-label="Toggle Menu"
+                        aria-label="Toggle navigation menu"
+                        aria-expanded={isMobileMenuOpen}
                     >
                         {isMobileMenuOpen ? (
-                            <X className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[1.25]" />
+                            <X className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[1.25]" aria-hidden="true" />
                         ) : (
-                            <Menu className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[1.25]" />
+                            <Menu className="h-5.5 w-5.5 sm:h-6 sm:w-6 stroke-[1.25]" aria-hidden="true" />
                         )}
                     </button>
 
                     {/* Logo */}
-                    <Link href="/" className="flex items-center cursor-pointer">
+                    <Link href="/" className="flex items-center cursor-pointer" aria-label="BACSTORY homepage">
                         <Image
                             src="/images/logo.png"
-                            alt="bacstory logo"
+                            alt="BACSTORY Logo"
                             width={130}
                             height={28}
                             className={`h-6.5 sm:h-7.5 md:h-8 w-auto object-contain ${light ? "md:invert" : ""}`}
@@ -103,7 +105,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                 </div>
 
                 {/* Navigation (Desktop) */}
-                <nav className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
+                <nav aria-label="Main Navigation" className={`hidden md:flex items-center gap-10 ${light ? "text-neutral-700" : "text-white"}`}>
                     <Link href="/product-list/tribe/all" className={`text-[1.2vw] font-normal transition-colors ${light ? "hover:text-black" : "hover:text-[#dfd7cc]"}`}>
                         Tribe
                     </Link>
@@ -123,11 +125,13 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <button
                         onClick={handleSearchClick}
                         className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`}
-                        aria-label="Search"
+                        aria-label="Open search dialog"
+                        aria-haspopup="dialog"
                     >
                         <Image
                             src="/images/landing-page/search.svg"
-                            alt="Search"
+                            alt=""
+                            aria-hidden="true"
                             width={22}
                             height={22}
                             className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
@@ -136,11 +140,12 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <button
                         onClick={handleWishlistClick}
                         className={`relative transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`}
-                        aria-label="Favorites"
+                        aria-label={`Wishlist, ${wishlistCount} ${wishlistCount === 1 ? "item" : "items"}`}
                     >
                         <Image
                             src="/images/landing-page/like.svg"
-                            alt="Favorites"
+                            alt=""
+                            aria-hidden="true"
                             width={22}
                             height={22}
                             className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
@@ -155,11 +160,12 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     <button
                         onClick={handleCartClick}
                         className={`relative transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`}
-                        aria-label="Cart"
+                        aria-label={`Shopping cart, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
                     >
                         <Image
                             src="/images/landing-page/bag.svg"
-                            alt="Cart"
+                            alt=""
+                            aria-hidden="true"
                             width={22}
                             height={22}
                             className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
@@ -173,10 +179,11 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                     </button>
                     {user ? (
                         <div className="relative group select-none flex items-center">
-                            <Link href="/account" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Account">
+                            <Link href="/account" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Account menu">
                                 <Image
                                     src="/images/landing-page/user.svg"
-                                    alt="Account"
+                                    alt=""
+                                    aria-hidden="true"
                                     width={22}
                                     height={22}
                                     className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
@@ -192,7 +199,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                                                 href={item.href}
                                                 className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-neutral-900 hover:bg-[#f4f4f5] transition-colors"
                                             >
-                                                <Icon className="w-4.5 h-4.5 text-neutral-800 stroke-[1.6]" />
+                                                <Icon className="w-4.5 h-4.5 text-neutral-800 stroke-[1.6]" aria-hidden="true" />
                                                 <span>{item.label}</span>
                                             </Link>
                                         );
@@ -202,7 +209,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                                             onClick={logout}
                                             className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left"
                                         >
-                                            <LogOut className="w-4.5 h-4.5 stroke-[1.6]" />
+                                            <LogOut className="w-4.5 h-4.5 stroke-[1.6]" aria-hidden="true" />
                                             <span>Log Out</span>
                                         </button>
                                     </div>
@@ -210,10 +217,11 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                             </div>
                         </div>
                     ) : (
-                        <Link href="/login" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Account">
+                        <Link href="/login" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Sign in to your account">
                             <Image
                                 src="/images/landing-page/user.svg"
-                                alt="Account"
+                                alt=""
+                                aria-hidden="true"
                                 width={22}
                                 height={22}
                                 className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
@@ -226,7 +234,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
             {/* Mobile Navigation Drawer */}
             {isMobileMenuOpen && (
                 <div className="md:hidden fixed inset-x-0 top-17 border-b z-40 animate-fade-in bg-[#030303] backdrop-blur-lg border-neutral-900">
-                    <nav className="flex flex-col p-6 space-y-4 text-center font-clashDisplay text-lg font-medium">
+                    <nav aria-label="Mobile Navigation" className="flex flex-col p-6 space-y-4 text-center font-clashDisplay text-lg font-medium">
                         <Link
                             href="/product-list/tribe/all"
                             onClick={() => setIsMobileMenuOpen(false)}

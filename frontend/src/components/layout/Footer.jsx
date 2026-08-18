@@ -30,7 +30,7 @@ export default function Footer() {
     ];
 
     return (
-        <footer className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-12 overflow-hidden">
+        <footer role="contentinfo" className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-12 overflow-hidden">
             <div className="mx-auto max-w-[1600px] space-y-16">
 
                 {/* Top Section */}
@@ -46,7 +46,8 @@ export default function Footer() {
                                 <a href="#instagram" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="Instagram">
                                     <Image
                                         src="/images/landing-page/instagram.svg"
-                                        alt="Instagram"
+                                        alt=""
+                                        aria-hidden="true"
                                         width={24}
                                         height={24}
                                         className="h-6 w-6 object-contain"
@@ -55,7 +56,8 @@ export default function Footer() {
                                 <a href="#linkedin" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="LinkedIn">
                                     <Image
                                         src="/images/landing-page/linkedin.svg"
-                                        alt="LinkedIn"
+                                        alt=""
+                                        aria-hidden="true"
                                         width={24}
                                         height={24}
                                         className="h-6 w-6 object-contain"
@@ -64,7 +66,8 @@ export default function Footer() {
                                 <a href="#twitter" className="hover:opacity-80 transition-opacity cursor-pointer" aria-label="X (Twitter)">
                                     <Image
                                         src="/images/landing-page/twitter.svg"
-                                        alt="Twitter"
+                                        alt=""
+                                        aria-hidden="true"
                                         width={24}
                                         height={24}
                                         className="h-6 w-6 object-contain"
@@ -83,7 +86,7 @@ export default function Footer() {
                                 className="relative inline-flex items-center gap-1 group hover:text-white transition-colors shrink-0 font-light text-white"
                             >
                                 <span>Made with</span>
-                                <Heart className="text-white fill-white w-3.5 h-3.5" />
+                                <Heart className="text-white fill-white w-3.5 h-3.5" aria-hidden="true" />
                                 <span className="sr-only">Akoode Technology</span>
 
                                 <span className="absolute bottom-full left-0 mb-2.5 hidden group-hover:block bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
@@ -91,7 +94,7 @@ export default function Footer() {
                                 </span>
                             </a>
                             <div className="space-y-1">
-                                <p className="font-normal text-white">© 2026 Bacstory</p>
+                                <p className="font-normal text-white">© {new Date().getFullYear()} Bacstory</p>
                                 <p className="whitespace-nowrap space-x-1.5 text-neutral-300 font-light">
                                     <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
                                     <span>•</span>
@@ -102,7 +105,7 @@ export default function Footer() {
                     </div>
 
                     {/* Right Columns (Nav Menus) */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 md:-mr-10 mr-0">
+                    <nav aria-label="Footer Navigation" className="grid grid-cols-2 sm:grid-cols-4 gap-8 md:-mr-10 mr-0">
                         {/* Brand Column */}
                         <div className="space-y-4">
                             <h3 className="font-clashDisplay text-base lg:text-lg font-semibold tracking-wide">Brand</h3>
@@ -158,14 +161,14 @@ export default function Footer() {
                                 ))}
                             </ul>
                         </div>
-                    </div>
+                    </nav>
                 </div>
 
                 {/* Bottom Watermark Logo */}
                 <div className="pt-8 border-t border-white/5 flex justify-center w-full">
                     <Image
                         src="/images/landing-page/footer.png"
-                        alt="bacstory"
+                        alt="BACSTORY"
                         width={1920}
                         height={450}
                         className="w-full h-auto select-none"

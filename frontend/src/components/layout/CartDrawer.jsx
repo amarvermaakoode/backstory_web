@@ -56,6 +56,7 @@ export default function CartDrawer() {
         <>
             {/* Backdrop Overlay */}
             <div
+                aria-hidden="true"
                 className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${isCartOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={closeCart}
@@ -64,6 +65,10 @@ export default function CartDrawer() {
             {/* Slide-out Drawer Panel */}
             <div
                 ref={drawerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Shopping Cart Drawer"
+                inert={!isCartOpen ? "" : undefined}
                 className={`fixed top-0 right-0 h-full w-full sm:max-w-[480px] bg-[#FAF9F6] text-black shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${isCartOpen ? "translate-x-0" : "translate-x-full"
                     }`}
             >
@@ -78,9 +83,9 @@ export default function CartDrawer() {
                     <button
                         onClick={closeCart}
                         className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer text-neutral-500 hover:text-black"
-                        aria-label="Close cart"
+                        aria-label="Close shopping cart"
                     >
-                        <X className="w-6 h-6 stroke-[1.5]" />
+                        <X className="w-6 h-6 stroke-[1.5]" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -99,22 +104,23 @@ export default function CartDrawer() {
 
                 {/* Select All Bar */}
                 {cartItems.length > 0 && (
-                    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-xs">
+                    <div className="flex items-center justify-between px-6 pt-4 pb-1">
                         <button
                             type="button"
                             onClick={toggleSelectAll}
-                            className="flex items-center gap-2 text-neutral-700 hover:text-black transition-colors cursor-pointer select-none"
+                            className="flex items-center gap-2 text-xs font-medium text-neutral-700 hover:text-black transition-colors cursor-pointer"
                         >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                                allSelected ? "bg-black border-black text-white" : "border-neutral-300 bg-white"
-                            }`}>
-                                {allSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            <div
+                                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                    allSelected
+                                        ? "bg-black border-black text-white"
+                                        : "border-neutral-300 bg-white"
+                                }`}
+                            >
+                                {allSelected && <Check className="w-3 h-3 stroke-[3]" aria-hidden="true" />}
                             </div>
-                            <span className="font-semibold">{allSelected ? "Deselect All" : "Select All"}</span>
+                            <span>Select All ({cartItems.length})</span>
                         </button>
-                        <span className="font-medium text-neutral-400">
-                            {activeSelectedIds.length}/{cartItems.length} items selected
-                        </span>
                     </div>
                 )}
 
@@ -123,7 +129,7 @@ export default function CartDrawer() {
                     {cartItems.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2">
                             <div className="w-16 h-16 bg-[#F4F0EA] rounded-full flex items-center justify-center text-neutral-400/80 mb-4 select-none">
-                                <ShoppingBag className="w-6 h-6 stroke-[1.25]" />
+                                <ShoppingBag className="w-6 h-6 stroke-[1.25]" aria-hidden="true" />
                             </div>
                             <h3 className="font-sans text-lg font-semibold text-black">Your cart is empty</h3>
                             <p className="text-xs sm:text-sm text-neutral-400 max-w-[280px] leading-relaxed pb-4">
@@ -157,9 +163,9 @@ export default function CartDrawer() {
                                                     ? "bg-black border-black text-white"
                                                     : "border-neutral-300 hover:border-black bg-white"
                                             }`}
-                                            aria-label={isSelected ? "Deselect item" : "Select item"}
+                                            aria-label={isSelected ? `Deselect ${item.name || 'item'}` : `Select ${item.name || 'item'}`}
                                         >
-                                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />}
                                         </button>
 
                                         {/* Product Image Container */}
@@ -224,9 +230,9 @@ export default function CartDrawer() {
                                                     <button
                                                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                                         className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
-                                                        aria-label="Decrease quantity"
+                                                        aria-label={`Decrease quantity of ${item.name || 'item'}`}
                                                     >
-                                                        <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                        <Minus className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                                                     </button>
                                                     <span className="text-xs sm:text-sm font-semibold select-none text-neutral-800 w-4 text-center">
                                                         {item.quantity}
@@ -234,9 +240,9 @@ export default function CartDrawer() {
                                                     <button
                                                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                                         className="text-neutral-400 hover:text-black transition-colors cursor-pointer p-0.5"
-                                                        aria-label="Increase quantity"
+                                                        aria-label={`Increase quantity of ${item.name || 'item'}`}
                                                     >
-                                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true" />
                                                     </button>
                                                 </div>
 
@@ -244,9 +250,9 @@ export default function CartDrawer() {
                                                 <button
                                                     onClick={() => removeFromCart(item.id)}
                                                     className="p-1.5 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
-                                                    aria-label="Remove item"
+                                                    aria-label={`Remove ${item.name || 'item'} from cart`}
                                                 >
-                                                    <Trash className="w-4 h-4 stroke-[1.25]" />
+                                                    <Trash className="w-4 h-4 stroke-[1.25]" aria-hidden="true" />
                                                 </button>
                                             </div>
                                         </div>

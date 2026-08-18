@@ -11,7 +11,9 @@ export default function WebsiteLayout({ children }) {
       <ToastProvider>
         <CartProvider>
           <WishlistProvider>
-            {children}
+            <main id="main-content" tabIndex={-1} className="outline-none flex-1">
+              {children}
+            </main>
             <CartDrawer />
             <WishlistDrawer />
           </WishlistProvider>

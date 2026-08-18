@@ -64,6 +64,7 @@ export default function SearchOverlay({ isOpen, onClose }) {
         <>
             {/* Backdrop Overlay */}
             <div
+                aria-hidden="true"
                 className={`fixed inset-0 bg-black/60 backdrop-blur-xs z-50 transition-opacity duration-300 ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={onClose}
@@ -76,7 +77,7 @@ export default function SearchOverlay({ isOpen, onClose }) {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search products"
-                inert={!isOpen}
+                inert={!isOpen ? "" : undefined}
             >
                 <div className="mx-auto w-full max-w-3xl px-6 py-6 sm:py-8">
                     {/* Header row */}
@@ -87,29 +88,31 @@ export default function SearchOverlay({ isOpen, onClose }) {
                             className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer text-neutral-500 hover:text-black"
                             aria-label="Close search"
                         >
-                            <X className="w-6 h-6 stroke-[1.5]" />
+                            <X className="w-6 h-6 stroke-[1.5]" aria-hidden="true" />
                         </button>
                     </div>
 
                     {/* Search Input */}
-                    <form onSubmit={handleSubmit} className="mt-5">
+                    <form role="search" onSubmit={handleSubmit} className="mt-5">
                         <div className="flex items-center gap-3 bg-white border border-neutral-200 focus-within:border-black rounded-full px-5 py-3 transition-colors">
                             <Image
                                 src="/images/landing-page/search.svg"
                                 alt=""
+                                aria-hidden="true"
                                 width={18}
                                 height={18}
                                 className="h-4.5 w-4.5 object-contain shrink-0 invert opacity-70"
                             />
                             <input
                                 ref={inputRef}
+                                id="search-input"
                                 type="text"
                                 autoComplete="off"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 placeholder="Search for products, colours, categories..."
                                 className="flex-1 bg-transparent outline-none text-sm sm:text-base text-black placeholder:text-neutral-400"
-                                aria-label="Search products"
+                                aria-label="Search for products, colours, categories"
                             />
                         </div>
                     </form>
