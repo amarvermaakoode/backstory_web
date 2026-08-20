@@ -96,7 +96,7 @@ export default function Footer() {
                             <div className="space-y-1">
                                 <p className="font-normal text-white">© {new Date().getFullYear()} Bacstory</p>
                                 <p className="whitespace-nowrap space-x-1.5 text-neutral-300 font-light">
-                                    <a href="#privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+                                    <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
                                     <span>•</span>
                                     <a href="#terms" className="hover:text-white transition-colors">Terms & Conditions</a>
                                 </p>

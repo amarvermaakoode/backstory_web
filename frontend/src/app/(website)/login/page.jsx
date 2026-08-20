@@ -421,7 +421,7 @@ export default function LoginPage() {
                     Terms
                   </Link>{" "}
                   &{" "}
-                  <Link href="#privacy" className="text-black hover:underline">
+                  <Link href="/privacy-policy" className="text-black hover:underline">
                     Privacy Policy
                   </Link>
                 </div>
