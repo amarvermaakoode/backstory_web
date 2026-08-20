@@ -383,12 +383,17 @@ exports.updateQRProfile = async (req, res) => {
     const {
       code,
       title,
+      storyType,
+      signature,
       bio,
       socialLinks,
       avatarUrl,
       coverUrl,
       themeColor,
       customText,
+      askMeAbout,
+      rightNow,
+      storyPrompts,
     } = req.body;
 
     if (!code || !code.trim()) {
@@ -417,15 +422,22 @@ exports.updateQRProfile = async (req, res) => {
       });
     }
 
+    const finalSignature = signature !== undefined ? signature : (customText !== undefined ? customText : qrDoc.profileData?.signature || qrDoc.profileData?.customText || "");
+
     // Update Profile Data (edited in User Account section)
     qrDoc.profileData = {
       title: title !== undefined ? title : qrDoc.profileData?.title || "",
+      storyType: storyType !== undefined ? storyType : qrDoc.profileData?.storyType || "",
+      signature: finalSignature,
+      customText: finalSignature, // alias for backward compatibility
       bio: bio !== undefined ? bio : qrDoc.profileData?.bio || "",
       socialLinks: typeof socialLinks === "object" && socialLinks !== null ? socialLinks : qrDoc.profileData?.socialLinks || {},
       avatarUrl: avatarUrl !== undefined ? avatarUrl : qrDoc.profileData?.avatarUrl || "",
       coverUrl: coverUrl !== undefined ? coverUrl : qrDoc.profileData?.coverUrl || "",
       themeColor: themeColor || qrDoc.profileData?.themeColor || "#000000",
-      customText: customText !== undefined ? customText : qrDoc.profileData?.customText || "",
+      askMeAbout: askMeAbout !== undefined ? askMeAbout : qrDoc.profileData?.askMeAbout || "",
+      rightNow: typeof rightNow === "object" && rightNow !== null ? rightNow : qrDoc.profileData?.rightNow || {},
+      storyPrompts: typeof storyPrompts === "object" && storyPrompts !== null ? storyPrompts : qrDoc.profileData?.storyPrompts || {},
     };
 
     qrDoc.status = "active";
