@@ -11,6 +11,7 @@ import {
   Ruler,
   ShoppingBag,
   Percent,
+  Truck,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -76,6 +77,11 @@ function AdminLayoutShell({ children }) {
       name: "Promo Codes",
       path: "/admin/promo-codes",
       icon: <Percent className="w-5 h-5" />,
+    },
+    {
+      name: "Shipping Rates",
+      path: "/admin/shipping-rates",
+      icon: <Truck className="w-5 h-5" />,
     },
   ];
 

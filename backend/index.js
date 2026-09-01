@@ -1,7 +1,9 @@
+const path = require("path");
+const dotenv = require("dotenv");
+dotenv.config({ path: path.join(__dirname, ".env") });
+
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
-const path = require("path");
 
 const connectDB = require("./config/db");
 const migrationAutoSlug = require("./scripts/migrateSlugs");
@@ -36,8 +38,8 @@ const frontendQRRoutes = require("./routes/frontend/qrFrntRoutes");
 const frontendOrderRoutes = require("./routes/frontend/orderFrntRoutes");
 const walletRoutes = require("./routes/frontend/walletRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
-
-dotenv.config();
+const adminShippingRoutes = require("./routes/admin/shippingAdminRoutes");
+const frontendShippingRoutes = require("./routes/frontend/shippingFrntRoutes");
 
 const app = express();
 
@@ -83,6 +85,7 @@ app.use("/api/admin/promo-codes", adminPromoCodeRoutes);
 app.use("/api/admin/support-tickets", adminSupportRoutes);
 app.use("/api/admin/qr-codes", adminQRCodeRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
+app.use("/api/admin/shipping-rates", adminShippingRoutes);
 
 //frontend routes
 app.use("/api/frontend/categories", frontendCategoryRoutes);
@@ -101,6 +104,7 @@ app.use("/api/frontend/support", frontendSupportRoutes);
 app.use("/api/frontend/qr", frontendQRRoutes);
 app.use("/api/frontend/orders", frontendOrderRoutes);
 app.use("/api/frontend/user/wallet", walletRoutes);
+app.use("/api/frontend/shipping-rates", frontendShippingRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

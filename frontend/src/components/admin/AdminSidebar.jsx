@@ -16,6 +16,7 @@ import {
   Percent,
   QrCode,
   Package,
+  Truck,
   PanelLeftClose,
   PanelLeftOpen
 } from "lucide-react";
@@ -74,6 +75,11 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       name: "Promo Codes",
       path: "/admin/promo-codes",
       icon: <Percent className="w-5 h-5 shrink-0" />,
+    },
+    {
+      name: "Shipping Rates",
+      path: "/admin/shipping-rates",
+      icon: <Truck className="w-5 h-5 shrink-0" />,
     },
   ];
 

@@ -364,10 +364,31 @@ export default function CheckoutPage() {
     };
 
     const [shippingMethod, setShippingMethod] = useState("standard"); // standard, express, international
+    const [shippingRatesConfig, setShippingRatesConfig] = useState({
+        standard: { rate: 0, deliveryDays: "3–5 business days", freeThreshold: 999 },
+        express: { rate: 150, deliveryDays: "1–2 business days" },
+        international: { rate: 638, deliveryDays: "7–14 business days" }
+    });
     const [promoInput, setPromoInput] = useState("");
     const [activePromo, setActivePromo] = useState(null);
     const [promoError, setPromoError] = useState("");
     const [promoSuccess, setPromoSuccess] = useState("");
+
+    // Fetch active shipping rates from backend API
+    useEffect(() => {
+        const fetchShippingRates = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/frontend/shipping-rates`);
+                const data = await res.json();
+                if (data.success && data.shippingSetting) {
+                    setShippingRatesConfig(data.shippingSetting);
+                }
+            } catch (err) {
+                console.error("Error fetching shipping rates on checkout:", err);
+            }
+        };
+        fetchShippingRates();
+    }, []);
 
     // Clear coupon if cart subtotal drops below minimum spend requirement
     useEffect(() => {
@@ -550,10 +571,19 @@ export default function CheckoutPage() {
         }
     };
 
-    // Calculate shipping cost (Bacstory policy: ₹99 for orders below ₹999, Free on ₹999+)
+    // Calculate shipping cost based on selected method and admin configured rates
     const getShippingCost = () => {
-        if (activeSubtotal >= 999) return 0;
-        return 99;
+        if (shippingMethod === "express") {
+            return Number(shippingRatesConfig.express?.rate ?? 150);
+        }
+        if (shippingMethod === "international") {
+            return Number(shippingRatesConfig.international?.rate ?? 638);
+        }
+        // Standard Delivery
+        const freeThresh = Number(shippingRatesConfig.standard?.freeThreshold ?? 999);
+        const stdRate = Number(shippingRatesConfig.standard?.rate ?? 0);
+        if (activeSubtotal >= freeThresh) return 0;
+        return stdRate;
     };
 
     const shippingCost = getShippingCost();
@@ -1294,10 +1324,16 @@ export default function CheckoutPage() {
                                             />
                                             <div>
                                                 <p className="text-sm font-bold text-black">Standard Delivery</p>
-                                                <p className="text-xs text-neutral-400 mt-0.5">3–5 business days</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">
+                                                    {shippingRatesConfig.standard?.deliveryDays || "3–5 business days"}
+                                                </p>
                                             </div>
                                         </div>
-                                        <span className="text-sm font-bold text-black">Free</span>
+                                        <span className="text-sm font-bold text-black">
+                                            {activeSubtotal >= Number(shippingRatesConfig.standard?.freeThreshold ?? 999) || Number(shippingRatesConfig.standard?.rate ?? 0) === 0
+                                                ? "Free"
+                                                : `Rs ${Number(shippingRatesConfig.standard?.rate).toLocaleString()}`}
+                                        </span>
                                     </label>
 
                                     {/* Express Delivery Option */}
@@ -1318,10 +1354,14 @@ export default function CheckoutPage() {
                                             />
                                             <div>
                                                 <p className="text-sm font-bold text-black">Express Delivery</p>
-                                                <p className="text-xs text-neutral-400 mt-0.5">1–2 business days</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">
+                                                    {shippingRatesConfig.express?.deliveryDays || "1–2 business days"}
+                                                </p>
                                             </div>
                                         </div>
-                                        <span className="text-sm font-bold text-black">Rs 150</span>
+                                        <span className="text-sm font-bold text-black">
+                                            Rs {Number(shippingRatesConfig.express?.rate ?? 150).toLocaleString()}
+                                        </span>
                                     </label>
 
                                     {/* International Shipping Option */}
@@ -1342,10 +1382,14 @@ export default function CheckoutPage() {
                                             />
                                             <div>
                                                 <p className="text-sm font-bold text-black">International Shipping</p>
-                                                <p className="text-xs text-neutral-400 mt-0.5">7–14 business days</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">
+                                                    {shippingRatesConfig.international?.deliveryDays || "7–14 business days"}
+                                                </p>
                                             </div>
                                         </div>
-                                        <span className="text-sm font-bold text-black">Rs 638</span>
+                                        <span className="text-sm font-bold text-black">
+                                            Rs {Number(shippingRatesConfig.international?.rate ?? 638).toLocaleString()}
+                                        </span>
                                     </label>
                                 </div>
                             </div>
