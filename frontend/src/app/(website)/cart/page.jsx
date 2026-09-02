@@ -462,7 +462,16 @@ export default function CartPage() {
                                 <div className="space-y-4 pt-2">
                                     <Link
                                         href="/checkout"
-                                        className="w-full h-14 bg-black hover:bg-neutral-800 text-white rounded-full font-semibold text-sm tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                                        onClick={(e) => {
+                                            if (selectedCartItems.length === 0) {
+                                                e.preventDefault();
+                                                alert("Please select at least one item in your cart to proceed to payment.");
+                                                return;
+                                            }
+                                        }}
+                                        className={`w-full h-14 bg-black hover:bg-neutral-800 text-white rounded-full font-semibold text-sm tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm ${
+                                            selectedCartItems.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                                        }`}
                                     >
                                         <CreditCard className="w-4 h-4 stroke-[2]" />
                                         Proceed to Payment

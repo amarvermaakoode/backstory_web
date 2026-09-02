@@ -285,11 +285,19 @@ export default function CartDrawer() {
                         {/* Proceed to Checkout Button */}
                         <Link
                             href="/checkout"
-                            onClick={closeCart}
-                            className="w-full h-12 bg-[#0F172A] hover:bg-black text-white transition-colors duration-300 rounded-full font-bold text-sm tracking-wide flex items-center justify-center px-6 cursor-pointer shadow-md shadow-black/5"
+                            onClick={(e) => {
+                                if (selectedCartItems.length === 0) {
+                                    e.preventDefault();
+                                    alert("Please select at least one item in your cart to proceed to checkout.");
+                                    return;
+                                }
+                                closeCart();
+                            }}
+                            className={`w-full h-12 bg-[#0F172A] hover:bg-black text-white transition-colors duration-300 rounded-full font-bold text-sm tracking-wide flex items-center justify-center px-6 cursor-pointer shadow-md shadow-black/5 ${
+                                selectedCartItems.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
                         >
                             <span>Proceed to Checkout</span>
-
                         </Link>
 
                         {/* Continue Shopping Link */}

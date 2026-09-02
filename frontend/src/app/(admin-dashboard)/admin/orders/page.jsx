@@ -518,6 +518,7 @@ export default function AdminOrdersPage() {
                   <th className="py-3.5 px-4 sm:px-6">Order ID & Date</th>
                   <th className="py-3.5 px-4">Customer Details</th>
                   <th className="py-3.5 px-4">Items</th>
+                  <th className="py-3.5 px-4">Shipping Method</th>
                   <th className="py-3.5 px-4">Amount</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-center">Actions</th>
@@ -594,6 +595,14 @@ export default function AdminOrdersPage() {
                             </span>
                           )}
                         </div>
+                      </td>
+
+                      {/* Shipping Method */}
+                      <td className="py-4 px-4 align-top">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border bg-white border-neutral-200 text-neutral-800 whitespace-nowrap shadow-2xs">
+                          <Truck className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+                          <span>{order.shippingMethod || "Standard Delivery"}</span>
+                        </span>
                       </td>
 
                       {/* Amount & Payment */}
@@ -707,9 +716,15 @@ export default function AdminOrdersPage() {
 
             {/* Shipping Address Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2">
-              <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
-                Shipping Address
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                  Shipping Address & Method
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-white border border-neutral-200 text-neutral-800 shadow-2xs">
+                  <Truck className="w-3.5 h-3.5 text-neutral-700 shrink-0" />
+                  <span>{selectedOrder.shippingMethod || "Standard Delivery"}</span>
+                </span>
+              </div>
               <p className="text-sm font-semibold text-neutral-900">
                 {selectedOrder.shippingAddress?.firstName} {selectedOrder.shippingAddress?.lastName}
               </p>

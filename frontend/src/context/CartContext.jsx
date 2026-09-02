@@ -211,16 +211,14 @@ export function CartProvider({ children }) {
 
             const allCartIds = cartItems.map(item => item.id);
             if (selectedItemIds === null) {
-                if (Array.isArray(savedArray) && savedArray.length > 0) {
+                if (Array.isArray(savedArray)) {
                     const validSaved = savedArray.filter(id => allCartIds.includes(id));
-                    setSelectedItemIds(validSaved.length > 0 ? validSaved : allCartIds);
+                    setSelectedItemIds(validSaved);
                 } else {
                     setSelectedItemIds(allCartIds);
                 }
             } else {
-                const existingInCart = selectedItemIds.filter(id => allCartIds.includes(id));
-                const newlyAddedIds = allCartIds.filter(id => !selectedItemIds.includes(id));
-                setSelectedItemIds([...existingInCart, ...newlyAddedIds]);
+                setSelectedItemIds(prev => (prev ? prev.filter(id => allCartIds.includes(id)) : allCartIds));
             }
         } catch (error) {
             console.error("Error setting selected cart item IDs:", error);
@@ -374,6 +372,12 @@ export function CartProvider({ children }) {
                 return [...prevItems.map(sanitizeCartItem).filter(Boolean), newItem];
             });
         }
+
+        const addedUniqueId = `${pId}-${selectedSize}-${selectedColor.name}`;
+        setSelectedItemIds(prev => {
+            if (prev === null) return [addedUniqueId];
+            return prev.includes(addedUniqueId) ? prev : [...prev, addedUniqueId];
+        });
 
         // Open cart drawer immediately to give feedback
         setIsCartOpen(true);

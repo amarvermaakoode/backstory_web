@@ -17,6 +17,7 @@ const createOrderRecord = async (req, res) => {
       totalAmount,
       walletDeduction,
       paymentMethod,
+      shippingMethod,
     } = req.body;
 
     if (!orderId || !razorpayOrderId || !razorpayPaymentId || !items || !Array.isArray(items)) {
@@ -84,6 +85,7 @@ const createOrderRecord = async (req, res) => {
       totalAmount: totalAmount || 0,
       walletDeduction: Number(walletDeduction) || 0,
       paymentMethod: paymentMethod || "Razorpay / Prepaid",
+      shippingMethod: shippingMethod || "Standard Delivery",
       paymentStatus: "Paid",
       orderStatus: "Order Confirmed",
     });

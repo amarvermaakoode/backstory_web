@@ -44,12 +44,11 @@ export default function CheckoutPage() {
         isDefault: true
     });
 
-    // Real cart items from CartContext (only selected items if selection exists)
+    // Real cart items from CartContext (only selected items)
     const isCartEmpty = cartItems.length === 0;
-    const hasSelection = Array.isArray(selectedCartItems) && selectedCartItems.length > 0;
-    const activeItems = hasSelection ? selectedCartItems : cartItems;
-    const activeCount = hasSelection ? selectedCount : cartCount;
-    const activeSubtotal = hasSelection ? selectedSubtotal : cartSubtotal;
+    const activeItems = selectedCartItems;
+    const activeCount = selectedCount;
+    const activeSubtotal = selectedSubtotal;
 
     // Contact and Delivery Forms State
     const [formData, setFormData] = useState({
@@ -667,6 +666,11 @@ export default function CheckoutPage() {
         e.preventDefault();
         setPaymentError("");
 
+        if (!activeItems || activeItems.length === 0) {
+            setPaymentError("No items are selected for checkout. Please select items from your cart.");
+            return;
+        }
+
         // Validate Phone Number according to Country
         const phoneCheck = validatePhoneNumber(formData.phoneNumber, formData.country);
         if (!phoneCheck.isValid) {
@@ -756,7 +760,8 @@ export default function CheckoutPage() {
                             taxAmount,
                             totalAmount,
                             walletDeduction: totalAmount,
-                            paymentMethod: "BacStory Wallet"
+                            paymentMethod: "BacStory Wallet",
+                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
                         })
                     });
                 } catch (dbErr) {
@@ -934,7 +939,8 @@ export default function CheckoutPage() {
                                         taxAmount,
                                         totalAmount,
                                         walletDeduction: walletDeduction,
-                                        paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Razorpay / Prepaid"
+                                        paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Razorpay / Prepaid",
+                                        shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
                                     })
                                 });
                             } catch (dbErr) {
@@ -957,7 +963,7 @@ export default function CheckoutPage() {
                             });
                             setIsOrderComplete(true);
                             if (!isCartEmpty) {
-                                if (hasSelection && activeItems.length < cartItems.length) {
+                                if (activeItems.length < cartItems.length) {
                                     activeItems.forEach(item => removeFromCart(item.id));
                                 } else {
                                     clearCart();
