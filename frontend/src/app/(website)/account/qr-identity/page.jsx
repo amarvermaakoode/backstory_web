@@ -240,11 +240,11 @@ export default function AccountQrIdentityPage() {
                           <QrCode className="w-5 h-5" />
                         </div>
                         <div>
-                          <span className="text-xs font-mono font-semibold text-neutral-900 block">
+                          <span className="text-xs font-mono font-bold text-neutral-900 block">
                             {qr.code}
                           </span>
-                          <span className="text-[11px] text-neutral-400 block font-mono">
-                            Order: {qr.orderId || "N/A"}
+                          <span className="text-[11px] font-medium text-neutral-500 block">
+                            {qr.orderId ? `Order: ${qr.orderId}` : "🎁 Gift Claim"}
                           </span>
                         </div>
                       </div>

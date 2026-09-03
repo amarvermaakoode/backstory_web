@@ -108,3 +108,61 @@ export async function getMyQRCodes(userFetch) {
     return { success: false, qrCodes: [] };
   }
 }
+
+// Validate Gift / Marketing Claim Code
+export async function validateGiftClaimCode(claimCode) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/validate-claim-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claimCode }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error validating claim code:", error);
+    return {
+      success: false,
+      message: "Failed to validate claim code.",
+    };
+  }
+}
+
+// Step 1 (Gift Flow): Send OTP for Gift Claim
+export async function sendGiftClaimOTP(code, claimCode, identifier) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/send-gift-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, claimCode, identifier, email: identifier }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error sending gift claim OTP:", error);
+    return {
+      success: false,
+      message: "Failed to send OTP verification code.",
+    };
+  }
+}
+
+// Step 2 (Gift Flow): Verify OTP & Claim QR Code via Gift Claim Code
+export async function verifyGiftClaimOTP(code, claimCode, identifier, otp, name = "", garmentLabel = "") {
+  try {
+    const res = await fetch(`${API_BASE_URL}/frontend/qr/verify-gift-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, claimCode, identifier, email: identifier, otp, name, garmentLabel, title: garmentLabel }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error("Error verifying gift claim OTP:", error);
+    return {
+      success: false,
+      message: "Failed to verify OTP and claim QR code.",
+    };
+  }
+}
+

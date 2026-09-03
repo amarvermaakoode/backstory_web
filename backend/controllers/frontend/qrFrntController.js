@@ -1,4 +1,6 @@
+const mongoose = require("mongoose");
 const QRCodeModel = require("../../models/QRCode");
+const ClaimCode = require("../../models/ClaimCode");
 const User = require("../../models/user");
 const Otp = require("../../models/otp");
 const Order = require("../../models/Order");
@@ -220,7 +222,7 @@ exports.sendClaimOTP = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `OTP sent successfully to ${contactInput}.`,
-      mockOtp: otp,
+      mockOtp: process.env.NODE_ENV === "production" ? undefined : otp,
     });
   } catch (error) {
     console.error("Error sending claim OTP:", error);
@@ -253,23 +255,25 @@ exports.verifyClaimOTP = async (req, res) => {
 
     // Verify OTP
     let otpRecord = null;
-    if (cleanOtp === "123456") {
+    if (cleanOtp === "123456" && process.env.NODE_ENV !== "production") {
       otpRecord = true;
     } else {
-      if (cleanEmail) {
-        otpRecord = await Otp.findOne({ email: cleanEmail, otp: cleanOtp });
-        if (!otpRecord) {
-          const latestOtpDoc = await Otp.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
-          if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
-            otpRecord = true;
-          }
-        }
-      } else if (cleanPhone) {
-        otpRecord = await Otp.findOne({ phoneNumber: cleanPhone, otp: cleanOtp });
-        if (!otpRecord) {
-          const latestOtpDoc = await Otp.findOne({ phoneNumber: cleanPhone }).sort({ createdAt: -1 });
-          if (latestOtpDoc && String(latestOtpDoc.otp).trim() === cleanOtp) {
-            otpRecord = true;
+      const otpQuery = cleanEmail ? { email: cleanEmail } : { phoneNumber: cleanPhone };
+      const activeOtpDoc = await Otp.findOne(otpQuery).sort({ createdAt: -1 });
+
+      if (activeOtpDoc) {
+        if (String(activeOtpDoc.otp).trim() === cleanOtp) {
+          otpRecord = activeOtpDoc;
+        } else {
+          activeOtpDoc.attempts = (activeOtpDoc.attempts || 0) + 1;
+          if (activeOtpDoc.attempts >= 5) {
+            await Otp.deleteOne({ _id: activeOtpDoc._id });
+            return res.status(400).json({
+              success: false,
+              message: "Maximum OTP verification attempts exceeded. Please request a new OTP code.",
+            });
+          } else {
+            await activeOtpDoc.save();
           }
         }
       }
@@ -431,13 +435,23 @@ exports.updateQRProfile = async (req, res) => {
       signature: finalSignature,
       customText: finalSignature, // alias for backward compatibility
       bio: bio !== undefined ? bio : qrDoc.profileData?.bio || "",
-      socialLinks: typeof socialLinks === "object" && socialLinks !== null ? socialLinks : qrDoc.profileData?.socialLinks || {},
+      socialLinks: typeof socialLinks === "object" && socialLinks !== null ? socialLinks : (qrDoc.profileData?.socialLinks || {}),
       avatarUrl: avatarUrl !== undefined ? avatarUrl : qrDoc.profileData?.avatarUrl || "",
       coverUrl: coverUrl !== undefined ? coverUrl : qrDoc.profileData?.coverUrl || "",
       themeColor: themeColor || qrDoc.profileData?.themeColor || "#000000",
       askMeAbout: askMeAbout !== undefined ? askMeAbout : qrDoc.profileData?.askMeAbout || "",
-      rightNow: typeof rightNow === "object" && rightNow !== null ? rightNow : qrDoc.profileData?.rightNow || {},
-      storyPrompts: typeof storyPrompts === "object" && storyPrompts !== null ? storyPrompts : qrDoc.profileData?.storyPrompts || {},
+      rightNow: typeof rightNow === "object" && rightNow !== null ? rightNow : {
+        building: qrDoc.profileData?.rightNow?.building || "",
+        learning: qrDoc.profileData?.rightNow?.learning || "",
+        obsessedWith: qrDoc.profileData?.rightNow?.obsessedWith || "",
+        chasing: qrDoc.profileData?.rightNow?.chasing || "",
+        dreamingAbout: qrDoc.profileData?.rightNow?.dreamingAbout || "",
+      },
+      storyPrompts: typeof storyPrompts === "object" && storyPrompts !== null ? storyPrompts : {
+        whoAmI: qrDoc.profileData?.storyPrompts?.whoAmI || "",
+        unexpectedPart: qrDoc.profileData?.storyPrompts?.unexpectedPart || "",
+        nextChapter: qrDoc.profileData?.storyPrompts?.nextChapter || "",
+      },
     };
 
     qrDoc.status = "active";
@@ -615,4 +629,431 @@ exports.getOrderProducts = async (req, res) => {
     });
   }
 };
+
+// Validate Gift / Marketing Claim Code
+exports.validateGiftClaimCode = async (req, res) => {
+  try {
+    const { claimCode } = req.body;
+
+    if (!claimCode || !claimCode.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Claim code is required",
+      });
+    }
+
+    const cleanCode = claimCode.trim().toUpperCase();
+    const claimCodeDoc = await ClaimCode.findOne({
+      code: { $regex: new RegExp(`^${cleanCode}$`, "i") },
+    });
+
+    if (!claimCodeDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid claim code. Please check and try again.",
+      });
+    }
+
+    if (claimCodeDoc.status === "used") {
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has already been used.",
+      });
+    }
+
+    if (claimCodeDoc.status === "revoked") {
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has been revoked by admin.",
+      });
+    }
+
+    if (claimCodeDoc.status === "expired" || (claimCodeDoc.expiresAt && new Date() > new Date(claimCodeDoc.expiresAt))) {
+      if (claimCodeDoc.status !== "expired") {
+        claimCodeDoc.status = "expired";
+        await claimCodeDoc.save();
+      }
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has expired.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Claim code is valid.",
+      type: claimCodeDoc.type,
+    });
+  } catch (error) {
+    console.error("Error validating claim code:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to validate claim code",
+      error: error.message,
+    });
+  }
+};
+
+// Step 1 (Gift Flow): Send OTP using Gift/Marketing Claim Code
+exports.sendGiftClaimOTP = async (req, res) => {
+  try {
+    const { code, claimCode, email, phoneNumber, identifier } = req.body;
+
+    const contactInput = (identifier || email || phoneNumber || "").trim();
+    const cleanClaimCode = (claimCode || "").trim().toUpperCase();
+    const cleanQR = (code || "").trim();
+
+    if (!cleanQR) {
+      return res.status(400).json({
+        success: false,
+        message: "QR code parameter is required",
+      });
+    }
+
+    if (!cleanClaimCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Claim code is required",
+      });
+    }
+
+    if (!contactInput) {
+      return res.status(400).json({
+        success: false,
+        message: "Email Address or Mobile Number is required",
+      });
+    }
+
+    // 1. Verify QR Existence & Unlinked Status
+    const qrDoc = await QRCodeModel.findOne({
+      code: { $regex: new RegExp(`^${cleanQR}$`, "i") },
+    });
+
+    if (!qrDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "QR code not found",
+      });
+    }
+
+    if (qrDoc.status !== "unlinked") {
+      return res.status(400).json({
+        success: false,
+        message: "This QR code has already been claimed.",
+      });
+    }
+
+    // 2. Verify Claim Code Existence & Validity (Keep status as 'unused' at this stage!)
+    const claimCodeDoc = await ClaimCode.findOne({
+      code: { $regex: new RegExp(`^${cleanClaimCode}$`, "i") },
+    });
+
+    if (!claimCodeDoc) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid claim code. Please verify your Gift/Marketing code.",
+      });
+    }
+
+    if (claimCodeDoc.status === "used") {
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has already been used by another user.",
+      });
+    }
+
+    if (claimCodeDoc.status === "revoked") {
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has been revoked by admin.",
+      });
+    }
+
+    if (claimCodeDoc.status === "expired" || (claimCodeDoc.expiresAt && new Date() > new Date(claimCodeDoc.expiresAt))) {
+      if (claimCodeDoc.status !== "expired") {
+        claimCodeDoc.status = "expired";
+        await claimCodeDoc.save();
+      }
+      return res.status(400).json({
+        success: false,
+        message: "This claim code has expired.",
+      });
+    }
+
+    // 3. Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const isEmail = contactInput.includes("@");
+    const cleanEmail = isEmail ? contactInput.toLowerCase() : null;
+    const cleanPhone = !isEmail ? contactInput : null;
+
+    if (cleanEmail) {
+      await Otp.deleteMany({ email: cleanEmail });
+      await Otp.create({ email: cleanEmail, otp });
+    } else {
+      await Otp.deleteMany({ phoneNumber: cleanPhone });
+      await Otp.create({ phoneNumber: cleanPhone, otp });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `OTP sent successfully to ${contactInput}.`,
+      mockOtp: process.env.NODE_ENV === "production" ? undefined : otp,
+    });
+  } catch (error) {
+    console.error("Error sending gift claim OTP:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send OTP",
+      error: error.message,
+    });
+  }
+};
+
+// Step 2 (Gift Flow): Verify OTP and execute Atomic Claim Transaction (QR + ClaimCode -> User)
+exports.verifyGiftClaimOTP = async (req, res) => {
+  try {
+    const { code, claimCode, email, phoneNumber, identifier, otp, name, garmentLabel, title } = req.body;
+
+    const contactInput = (identifier || email || phoneNumber || "").trim();
+    const cleanClaimCode = (claimCode || "").trim().toUpperCase();
+    const cleanQR = (code || "").trim();
+    const cleanOtp = String(otp || "").trim();
+    const customTitle = (garmentLabel || title || "").trim();
+
+    if (!cleanQR || !cleanClaimCode || !contactInput || !cleanOtp) {
+      return res.status(400).json({
+        success: false,
+        message: "Code, Claim Code, Email/Phone, and OTP are required.",
+      });
+    }
+
+    const isEmail = contactInput.includes("@");
+    const cleanEmail = isEmail ? contactInput.toLowerCase() : null;
+    const cleanPhone = !isEmail ? contactInput : null;
+
+    // 1. Verify OTP Code
+    let otpRecord = null;
+    if (cleanOtp === "123456" && process.env.NODE_ENV !== "production") {
+      otpRecord = true;
+    } else {
+      const otpQuery = cleanEmail ? { email: cleanEmail } : { phoneNumber: cleanPhone };
+      const activeOtpDoc = await Otp.findOne(otpQuery).sort({ createdAt: -1 });
+
+      if (activeOtpDoc) {
+        if (String(activeOtpDoc.otp).trim() === cleanOtp) {
+          otpRecord = activeOtpDoc;
+        } else {
+          activeOtpDoc.attempts = (activeOtpDoc.attempts || 0) + 1;
+          if (activeOtpDoc.attempts >= 5) {
+            await Otp.deleteOne({ _id: activeOtpDoc._id });
+            return res.status(400).json({
+              success: false,
+              message: "Maximum OTP verification attempts exceeded. Please request a new OTP code.",
+            });
+          } else {
+            await activeOtpDoc.save();
+          }
+        }
+      }
+    }
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP code",
+      });
+    }
+
+    // 2. Reuse existing User Lookup / Creation flow
+    let user = null;
+    if (cleanEmail) {
+      user = await User.findOne({ email: cleanEmail });
+    } else if (cleanPhone) {
+      user = await User.findOne({ phoneNumber: cleanPhone });
+    }
+
+    if (!user) {
+      user = await User.create({
+        email: cleanEmail || undefined,
+        phoneNumber: cleanPhone || undefined,
+        name: (name || "").trim() || (cleanEmail ? cleanEmail.split("@")[0] : "User"),
+        role: "user",
+      });
+    }
+
+    const qrUpdatePayload = {
+      status: customTitle ? "active" : "claimed",
+      linkedUser: user._id,
+      linkedAt: new Date(),
+    };
+    if (customTitle) {
+      qrUpdatePayload["profileData.title"] = customTitle;
+    }
+
+    // 3. ATOMIC TRANSACTION: Link QR & Consume Claim Code simultaneously
+    let updatedQR = null;
+    let updatedClaimCode = null;
+    let session = null;
+    let supportsTransactions = false;
+
+    try {
+      if (mongoose.connection.client && mongoose.connection.client.topology) {
+        const topType = mongoose.connection.client.topology.description?.type;
+        if (topType && topType !== "Single" && topType !== "Unknown") {
+          session = await mongoose.startSession();
+          supportsTransactions = true;
+        }
+      }
+    } catch (e) {
+      session = null;
+      supportsTransactions = false;
+    }
+
+    if (supportsTransactions && session) {
+      let transactionCommitted = false;
+      try {
+        session.startTransaction();
+
+        // Atomic update 1: QR Code status "unlinked" -> "claimed"
+        updatedQR = await QRCodeModel.findOneAndUpdate(
+          {
+            code: { $regex: new RegExp(`^${cleanQR}$`, "i") },
+            status: "unlinked",
+          },
+          qrUpdatePayload,
+          { new: true, session }
+        );
+
+        if (!updatedQR) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({
+            success: false,
+            message: "This QR code has already been claimed by another user.",
+          });
+        }
+
+        // Atomic update 2: Claim Code status "unused" -> "used"
+        updatedClaimCode = await ClaimCode.findOneAndUpdate(
+          {
+            code: { $regex: new RegExp(`^${cleanClaimCode}$`, "i") },
+            status: "unused",
+            $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+          },
+          {
+            status: "used",
+            claimedBy: user._id,
+            claimedQR: updatedQR._id,
+            claimedAt: new Date(),
+          },
+          { new: true, session }
+        );
+
+        if (!updatedClaimCode) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({
+            success: false,
+            message: "Invalid, expired, revoked, or already used claim code.",
+          });
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+        transactionCommitted = true;
+      } catch (txError) {
+        if (!transactionCommitted) {
+          try {
+            await session.abortTransaction();
+          } catch (e) {}
+        }
+        try {
+          session.endSession();
+        } catch (e) {}
+        updatedQR = null;
+        updatedClaimCode = null;
+      }
+    }
+
+    // Fallback: If standalone MongoDB environment without replica sets or transaction error
+    if (!updatedQR || !updatedClaimCode) {
+      // Step 1: Atomic update QR Code
+      updatedQR = await QRCodeModel.findOneAndUpdate(
+        {
+          code: { $regex: new RegExp(`^${cleanQR}$`, "i") },
+          status: "unlinked",
+        },
+        qrUpdatePayload,
+        { new: true }
+      );
+
+      if (!updatedQR) {
+        return res.status(400).json({
+          success: false,
+          message: "This QR code has already been claimed by another user.",
+        });
+      }
+
+      // Step 2: Atomic update Claim Code
+      updatedClaimCode = await ClaimCode.findOneAndUpdate(
+        {
+          code: { $regex: new RegExp(`^${cleanClaimCode}$`, "i") },
+          status: "unused",
+          $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+        },
+        {
+          status: "used",
+          claimedBy: user._id,
+          claimedQR: updatedQR._id,
+          claimedAt: new Date(),
+        },
+        { new: true }
+      );
+
+      if (!updatedClaimCode) {
+        // Rollback Step 1! Revert QR code update to maintain strict transactional consistency
+        await QRCodeModel.updateOne(
+          { _id: updatedQR._id },
+          { status: "unlinked", linkedUser: null, linkedAt: null }
+        );
+        return res.status(400).json({
+          success: false,
+          message: "Invalid, expired, revoked, or already used claim code.",
+        });
+      }
+    }
+
+    // Delete used OTP
+    if (cleanEmail) {
+      await Otp.deleteMany({ email: cleanEmail });
+    } else if (cleanPhone) {
+      await Otp.deleteMany({ phoneNumber: cleanPhone });
+    }
+
+    // Reuse existing JWT auth token generation
+    const token = generateToken({ id: user._id, role: user.role || "user" });
+
+    return res.status(200).json({
+      success: true,
+      message: `QR Code successfully claimed via ${updatedClaimCode.type} code and linked to your BACSTORY account!`,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+      qrCode: updatedQR,
+      claimCode: updatedClaimCode,
+    });
+  } catch (error) {
+    console.error("Error verifying gift claim OTP:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify OTP and claim QR code",
+      error: error.message,
+    });
+  }
+};
+
 

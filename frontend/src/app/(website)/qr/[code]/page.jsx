@@ -5,7 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserAuth } from "@/context/UserAuthContext";
 import { useToast } from "@/context/ToastContext";
-import { getQRCodeByCode, sendClaimOTP, verifyClaimOTP, getOrderProducts } from "@/services/qrService";
+import {
+  getQRCodeByCode,
+  sendClaimOTP,
+  verifyClaimOTP,
+  getOrderProducts,
+  validateGiftClaimCode,
+  sendGiftClaimOTP,
+  verifyGiftClaimOTP,
+} from "@/services/qrService";
 import CustomSelect from "@/components/ui/CustomSelect";
 import {
   QrCode,
@@ -30,6 +38,8 @@ import {
   Music,
   Globe,
   ChevronDown,
+  Ticket,
+  Shirt,
 } from "lucide-react";
 
 const InstagramIcon = (props) => (
@@ -84,10 +94,20 @@ export default function PublicQRCodePage() {
   const [qrData, setQrData] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Claim & OTP Flow States
+  // Claim Method State: "order" (Order ID) vs "gift" (Gift/Marketing Claim Code)
+  const [claimMethod, setClaimMethod] = useState("order");
+
+  // Order Purchase Claim & OTP Flow States
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
   const [garmentLabel, setGarmentLabel] = useState("");
+
+  // Gift Claim Flow States
+  const [giftClaimCode, setGiftClaimCode] = useState("");
+  const [giftContact, setGiftContact] = useState("");
+  const [giftName, setGiftName] = useState("");
+  const [giftGarmentLabel, setGiftGarmentLabel] = useState("");
+
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [mockOtpHint, setMockOtpHint] = useState("");
@@ -195,7 +215,7 @@ export default function PublicQRCodePage() {
     return () => clearTimeout(timer);
   }, [orderId, email]);
 
-  // Step 1: Send OTP to Email or Phone Number
+  // Step 1 (Order Flow): Send OTP to Email or Phone Number
   const handleSendOtp = async (e) => {
     e.preventDefault();
     const cleanOrderId = orderId.trim();
@@ -256,7 +276,36 @@ export default function PublicQRCodePage() {
     }
   };
 
-  // Step 2: Verify OTP and Claim QR Code
+  // Step 1 (Gift Flow): Send OTP using Gift/Marketing Claim Code
+  const handleSendGiftOtp = async (e) => {
+    e.preventDefault();
+    const cleanCode = giftClaimCode.trim().toUpperCase();
+    if (!cleanCode) {
+      showToast("Please enter your Gift or Marketing Claim Code.", "error");
+      return;
+    }
+    const cleanContact = giftContact.trim();
+    if (!cleanContact) {
+      showToast("Please enter your email or mobile number.", "error");
+      return;
+    }
+
+    setSendingOtp(true);
+    const res = await sendGiftClaimOTP(codeParam, cleanCode, cleanContact);
+    setSendingOtp(false);
+
+    if (res.success) {
+      setOtpSent(true);
+      if (res.mockOtp) {
+        setMockOtpHint(res.mockOtp);
+      }
+      showToast(res.message || "Verification code sent successfully!", "success");
+    } else {
+      showToast(res.message || "Failed to send verification code.", "error");
+    }
+  };
+
+  // Step 2: Verify OTP and Claim QR Code (Works for both Order & Gift flows)
   const handleVerifyAndClaim = async (e) => {
     e.preventDefault();
     if (!otp.trim()) {
@@ -265,7 +314,12 @@ export default function PublicQRCodePage() {
     }
 
     setVerifying(true);
-    const res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim(), garmentLabel.trim());
+    let res;
+    if (claimMethod === "gift") {
+      res = await verifyGiftClaimOTP(codeParam, giftClaimCode.trim().toUpperCase(), giftContact.trim(), otp.trim(), giftName.trim(), giftGarmentLabel.trim());
+    } else {
+      res = await verifyClaimOTP(codeParam, orderId.trim(), email.trim(), otp.trim(), garmentLabel.trim());
+    }
     setVerifying(false);
 
     if (res.success) {
@@ -435,7 +489,7 @@ export default function PublicQRCodePage() {
                             Verify & Claim Your
                           </h2>
                           <h3 className="text-2xl sm:text-3xl font-bold text-[#767A59] font-sans tracking-tight leading-tight">
-                            OR Garment
+                            QR Garment
                           </h3>
                         </div>
                       </div>
@@ -447,89 +501,199 @@ export default function PublicQRCodePage() {
                     {/* Horizontal Divider Line */}
                     <div className="border-b border-neutral-200/70 my-4" />
 
+                    {/* Claim Method Tabs */}
+                    {!otpSent && (
+                      <div className="flex bg-[#EFECE6] p-1 rounded-2xl mb-4 text-xs font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setClaimMethod("order")}
+                          className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                            claimMethod === "order"
+                              ? "bg-white text-neutral-900 shadow-xs font-bold"
+                              : "text-neutral-600 hover:text-neutral-900"
+                          }`}
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                          <span>Order ID Claim</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setClaimMethod("gift")}
+                          className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                            claimMethod === "gift"
+                              ? "bg-white text-neutral-900 shadow-xs font-bold"
+                              : "text-neutral-600 hover:text-neutral-900"
+                          }`}
+                        >
+                          <Ticket className="w-3.5 h-3.5 text-[#767A59]" />
+                          <span>Marketing / Promo Code</span>
+                        </button>
+                      </div>
+                    )}
+
                     {!otpSent ? (
-                      /* Step 1 Form: 2-Row Spacious Layout for full product dropdown visibility */
-                      <form onSubmit={handleSendOtp} className="space-y-3 pt-1">
-                        {/* Row 1: Order ID & Email/Mobile Input */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {/* Order ID */}
-                          <div className="relative">
-                            <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
-                            <input
-                              type="text"
-                              required
-                              maxLength={10}
-                              placeholder="BAC-180019*"
-                              value={orderId}
-                              onChange={(e) => {
-                                const raw = e.target.value.toUpperCase();
-                                if (!raw) {
-                                  setOrderId("");
-                                  return;
+                      claimMethod === "order" ? (
+                        /* Step 1 Form (Order Flow): 2-Row Spacious Layout */
+                        <form onSubmit={handleSendOtp} className="space-y-3 pt-1">
+                          {/* Row 1: Order ID & Email/Mobile Input */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Order ID */}
+                            <div className="relative">
+                              <ShoppingBag className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                required
+                                maxLength={10}
+                                placeholder="BAC-180019*"
+                                value={orderId}
+                                onChange={(e) => {
+                                  const raw = e.target.value.toUpperCase();
+                                  if (!raw) {
+                                    setOrderId("");
+                                    return;
+                                  }
+                                  let digitsAndLetters = raw.replace(/[^A-Z0-9]/g, "");
+                                  if (digitsAndLetters.startsWith("BAC")) {
+                                    digitsAndLetters = digitsAndLetters.slice(3);
+                                  }
+                                  setOrderId(digitsAndLetters ? `BAC-${digitsAndLetters.slice(0, 6)}` : "BAC-");
+                                }}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
+                              />
+                            </div>
+
+                            {/* Email or Mobile */}
+                            <div className="relative">
+                              <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                required
+                                maxLength={50}
+                                placeholder="Email or Mobile*"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Row 2: Garment Product Dropdown & Verify Button */}
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                            {/* Garment Product Select Dropdown */}
+                            <div className="sm:col-span-8 lg:col-span-9">
+                              <CustomSelect
+                                required
+                                icon={<Tag className="w-4 h-4 text-neutral-400" />}
+                                value={garmentLabel}
+                                onChange={(e) => setGarmentLabel(e.target.value)}
+                                loading={fetchingItems}
+                                disabled={fetchingItems || (orderItems.length === 0 && !itemsError)}
+                                placeholder={
+                                  fetchingItems
+                                    ? "Loading garments for this order..."
+                                    : orderItems.length > 0
+                                    ? `-- Select Garment Product (${orderItems.length} available) --`
+                                    : itemsError
+                                    ? "Order not matched"
+                                    : "Select Garment Product*"
                                 }
-                                let digitsAndLetters = raw.replace(/[^A-Z0-9]/g, "");
-                                if (digitsAndLetters.startsWith("BAC")) {
-                                  digitsAndLetters = digitsAndLetters.slice(3);
-                                }
-                                setOrderId(digitsAndLetters ? `BAC-${digitsAndLetters.slice(0, 6)}` : "BAC-");
-                              }}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
-                            />
+                                showPlaceholderInMenu={orderItems.length > 0}
+                                options={orderItems.map((item) => ({
+                                  value: item.label,
+                                  label: item.label,
+                                }))}
+                                className="!bg-[#FAFAFA] !border-neutral-200/90 !rounded-xl !py-3 !px-3.5 text-xs sm:text-sm hover:!border-black focus:!border-black focus:!bg-white font-medium"
+                              />
+                              {itemsError && (
+                                <p className="text-[11px] text-red-500 mt-1 pl-1 font-medium leading-tight">{itemsError}</p>
+                              )}
+                            </div>
+
+                            {/* Verify Button */}
+                            <div className="sm:col-span-4 lg:col-span-3">
+                              <button
+                                type="submit"
+                                disabled={sendingOtp}
+                                className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[46px] px-4 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
+                              >
+                                {sendingOtp ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Verifying...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                    <span>Verify & Claim</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+                      ) : (
+                        /* Step 1 Form (Gift Flow): Claim Code + Phone/Email */
+                        <form onSubmit={handleSendGiftOtp} className="space-y-3 pt-1">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Claim Code Input */}
+                            <div className="relative">
+                              <Ticket className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                required
+                                placeholder="MKT-XXXX-XXXX*"
+                                value={giftClaimCode}
+                                onChange={(e) => setGiftClaimCode(e.target.value.toUpperCase())}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm font-mono uppercase transition-colors"
+                              />
+                            </div>
+
+                            {/* Email or Mobile Input */}
+                            <div className="relative">
+                              <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                required
+                                maxLength={50}
+                                placeholder="Email or Mobile*"
+                                value={giftContact}
+                                onChange={(e) => setGiftContact(e.target.value)}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              />
+                            </div>
                           </div>
 
-                          {/* Email or Mobile */}
-                          <div className="relative">
-                            <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
-                            <input
-                              type="text"
-                              required
-                              maxLength={50}
-                              placeholder="Email or Mobile*"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
-                            />
-                          </div>
-                        </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Recipient Name Input */}
+                            <div className="relative">
+                              <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                placeholder="Your Name (Optional)"
+                                value={giftName}
+                                onChange={(e) => setGiftName(e.target.value)}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              />
+                            </div>
 
-                        {/* Row 2: Garment Product Dropdown & Verify Button */}
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                          {/* Garment Product Select Dropdown */}
-                          <div className="sm:col-span-8 lg:col-span-9">
-                            <CustomSelect
-                              required
-                              icon={<Tag className="w-4 h-4 text-neutral-400" />}
-                              value={garmentLabel}
-                              onChange={(e) => setGarmentLabel(e.target.value)}
-                              loading={fetchingItems}
-                              disabled={fetchingItems || (orderItems.length === 0 && !itemsError)}
-                              placeholder={
-                                fetchingItems
-                                  ? "Loading garments for this order..."
-                                  : orderItems.length > 0
-                                  ? `-- Select Garment Product (${orderItems.length} available) --`
-                                  : itemsError
-                                  ? "Order not matched"
-                                  : "Select Garment Product*"
-                              }
-                              showPlaceholderInMenu={orderItems.length > 0}
-                              options={orderItems.map((item) => ({
-                                value: item.label,
-                                label: item.label,
-                              }))}
-                              className="!bg-[#FAFAFA] !border-neutral-200/90 !rounded-xl !py-3 !px-3.5 text-xs sm:text-sm hover:!border-black focus:!border-black focus:!bg-white font-medium"
-                            />
-                            {itemsError && (
-                              <p className="text-[11px] text-red-500 mt-1 pl-1 font-medium leading-tight">{itemsError}</p>
-                            )}
+                            {/* Garment Title / Name Input */}
+                            <div className="relative">
+                              <Shirt className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5 pointer-events-none z-10" />
+                              <input
+                                type="text"
+                                placeholder="Garment Name (e.g. Oversized Tee)"
+                                value={giftGarmentLabel}
+                                onChange={(e) => setGiftGarmentLabel(e.target.value)}
+                                className="w-full bg-[#FAFAFA] border border-neutral-200/90 rounded-xl pl-10 pr-3 py-3 text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:bg-white text-xs sm:text-sm transition-colors"
+                              />
+                            </div>
                           </div>
 
-                          {/* Verify Button */}
-                          <div className="sm:col-span-4 lg:col-span-3">
+                          <div className="flex justify-end pt-1">
                             <button
                               type="submit"
                               disabled={sendingOtp}
-                              className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[46px] px-4 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
+                              className="w-full sm:w-auto bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white font-bold h-[46px] px-8 rounded-xl text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-md whitespace-nowrap"
                             >
                               {sendingOtp ? (
                                 <>
@@ -539,13 +703,13 @@ export default function PublicQRCodePage() {
                               ) : (
                                 <>
                                   <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                                  <span>Verify & Claim</span>
+                                  <span>Claim Gift</span>
                                 </>
                               )}
                             </button>
                           </div>
-                        </div>
-                      </form>
+                        </form>
+                      )
                     ) : (
                       /* Step 2 Form (OTP Input) */
                       <form onSubmit={handleVerifyAndClaim} className="space-y-4">
@@ -554,7 +718,7 @@ export default function PublicQRCodePage() {
                           <div className="text-xs text-emerald-800 space-y-0.5">
                             <p className="font-semibold">OTP Code Sent!</p>
                             <p>
-                              We sent a 6-digit OTP code to <strong>{email}</strong>.
+                              We sent a 6-digit OTP code to <strong>{claimMethod === "gift" ? giftContact : email}</strong>.
                             </p>
                             {mockOtpHint && (
                               <p className="text-[11px] font-mono text-emerald-700 pt-1">

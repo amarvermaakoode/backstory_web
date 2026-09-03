@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   Clock,
   Shirt,
-  RefreshCw
+  RefreshCw,
+  Ticket,
 } from "lucide-react";
 
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -81,6 +82,21 @@ export default function QRCodesAdminPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Claim Codes State
+  const [claimCodes, setClaimCodes] = useState([]);
+  const [claimCodesPage, setClaimCodesPage] = useState(1);
+  const [claimCodeTypeFilter, setClaimCodeTypeFilter] = useState("all");
+  const [claimCodeStatusFilter, setClaimCodeStatusFilter] = useState("all");
+  const [isGenerateClaimModalOpen, setIsGenerateClaimModalOpen] = useState(false);
+  const [claimTypeInput, setClaimTypeInput] = useState("MARKETING");
+  const [claimQuantityInput, setClaimQuantityInput] = useState("1");
+  const [claimExpiryInput, setClaimExpiryInput] = useState("");
+  const [claimNoteInput, setClaimNoteInput] = useState("");
+
+  const totalClaimPages = Math.ceil(claimCodes.length / ITEMS_PER_PAGE);
+  const activeClaimPage = claimCodesPage > totalClaimPages && totalClaimPages > 0 ? totalClaimPages : claimCodesPage;
+  const paginatedClaimCodes = claimCodes.slice((activeClaimPage - 1) * ITEMS_PER_PAGE, activeClaimPage * ITEMS_PER_PAGE);
+
   // Modals
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -99,10 +115,104 @@ export default function QRCodesAdminPage() {
   useEffect(() => {
     if (activeTab === "batches") {
       fetchBatches();
-    } else {
+    } else if (activeTab === "qrcodes") {
       fetchAllQRCodes();
+    } else if (activeTab === "claimCodes") {
+      fetchClaimCodes();
     }
-  }, [activeTab, statusFilter]);
+  }, [activeTab, statusFilter, claimCodeTypeFilter, claimCodeStatusFilter]);
+
+  async function fetchClaimCodes() {
+    try {
+      setLoading(true);
+      setError("");
+      let url = `/claim-codes?page=1&limit=100`;
+      if (claimCodeTypeFilter !== "all") {
+        url += `&type=${claimCodeTypeFilter}`;
+      }
+      if (claimCodeStatusFilter !== "all") {
+        url += `&status=${claimCodeStatusFilter}`;
+      }
+
+      const res = await adminFetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setClaimCodes(data.claimCodes || []);
+      } else {
+        setError(data.message || "Failed to load claim codes");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch claim codes.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleGenerateClaimCodes = async (e) => {
+    e.preventDefault();
+    try {
+      setSubmitLoading(true);
+      setError("");
+      setSuccess("");
+      const res = await adminFetch("/claim-codes/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: claimTypeInput,
+          quantity: parseInt(claimQuantityInput, 10) || 1,
+          expiresAt: claimExpiryInput || null,
+          note: claimNoteInput,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message);
+        setIsGenerateClaimModalOpen(false);
+        setClaimTypeInput("MARKETING");
+        setClaimQuantityInput("1");
+        setClaimExpiryInput("");
+        setClaimNoteInput("");
+        fetchClaimCodes();
+      } else {
+        setError(data.message || "Failed to generate claim codes");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to generate claim codes.");
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleRevokeClaimCode = async (id, codeStr) => {
+    const confirmed = await customConfirm(
+      `Are you sure you want to revoke claim code '${codeStr}'? It will no longer be usable.`,
+      "Revoke Claim Code",
+      "Revoke Code",
+      true
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const res = await adminFetch(`/claim-codes/${id}/revoke`, {
+        method: "PUT",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(data.message);
+        fetchClaimCodes();
+      } else {
+        setError(data.message || "Failed to revoke claim code");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to revoke claim code.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   async function fetchBatches() {
     try {
@@ -395,6 +505,17 @@ export default function QRCodesAdminPage() {
             >
               All Individual QRs
             </button>
+            <button
+              onClick={() => setActiveTab("claimCodes")}
+              className={`pb-4 px-4 font-semibold text-sm transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                activeTab === "claimCodes"
+                  ? "border-neutral-900 text-neutral-900"
+                  : "border-transparent text-neutral-500 hover:text-neutral-800"
+              }`}
+            >
+              <Ticket className="w-4 h-4 text-neutral-700" />
+              Marketing Claims ({claimCodes.length})
+            </button>
           </div>
 
           {activeTab === "batches" ? (
@@ -405,7 +526,7 @@ export default function QRCodesAdminPage() {
               <RefreshCw className="w-3.5 h-3.5" />
               Refresh
             </button>
-          ) : (
+          ) : activeTab === "qrcodes" ? (
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -433,6 +554,34 @@ export default function QRCodesAdminPage() {
                   className="!py-1.5 !px-3 !text-xs !rounded-lg"
                 />
               </div>
+            </div>
+          ) : (
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+
+              <div className="w-36">
+                <CustomSelect
+                  options={[
+                    { value: "all", label: "All Statuses" },
+                    { value: "unused", label: "Unused" },
+                    { value: "used", label: "Used" },
+                    { value: "revoked", label: "Revoked" },
+                    { value: "expired", label: "Expired" },
+                  ]}
+                  value={claimCodeStatusFilter}
+                  onChange={(e) => setClaimCodeStatusFilter(e.target.value)}
+                  placeholder="Select Status"
+                  showPlaceholderInMenu={false}
+                  className="!py-1.5 !px-3 !text-xs !rounded-lg"
+                />
+              </div>
+
+              <button
+                onClick={() => setIsGenerateClaimModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white rounded-lg font-medium text-xs hover:bg-neutral-800 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Generate Claim Code
+              </button>
             </div>
           )}
         </div>
@@ -687,7 +836,216 @@ export default function QRCodesAdminPage() {
             />
           </div>
         )}
+
+        {/* Tab 3: Gift & Marketing Claim Codes Table */}
+        {activeTab === "claimCodes" && (
+          <div className="p-6">
+            {loading ? (
+              <div className="py-16 flex flex-col items-center justify-center text-neutral-500">
+                <Loader className="w-8 h-8 animate-spin mb-2" />
+                <p className="text-sm">Loading claim codes...</p>
+              </div>
+            ) : claimCodes.length === 0 ? (
+              <div className="py-16 text-center">
+                <Ticket className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+                <h3 className="text-base font-semibold text-neutral-700">No Claim Codes Found</h3>
+                <p className="text-xs text-neutral-500 max-w-sm mx-auto mt-1 mb-4">
+                  Generate Gift or Marketing claim codes to allow recipients to claim garments without an Order ID.
+                </p>
+                <button
+                  onClick={() => setIsGenerateClaimModalOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white rounded-xl font-medium text-xs hover:bg-neutral-800 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Generate Claim Code
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-neutral-200/80 rounded-xl">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-neutral-50/80 border-b border-neutral-200/80 text-xs font-semibold text-neutral-600 uppercase tracking-wider">
+                      <th className="py-3 px-4">Claim Code</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Expires</th>
+                      <th className="py-3 px-4">Claimed QR</th>
+                      <th className="py-3 px-4">Claimed By</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {paginatedClaimCodes.map((item) => (
+                      <tr key={item._id} className="hover:bg-neutral-50/60 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-neutral-900">
+                          {item.code}
+                          {item.note && (
+                            <p className="text-[11px] text-neutral-400 font-sans font-normal">{item.note}</p>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-md text-[11px] font-bold tracking-wider ${
+                              item.type === "MARKETING"
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {item.type}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                              item.status === "used"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : item.status === "unused"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : item.status === "revoked"
+                                ? "bg-red-50 text-red-700 border border-red-200"
+                                : "bg-neutral-100 text-neutral-600 border border-neutral-200"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-xs text-neutral-600">
+                          {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : "No Expiry"}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-xs text-neutral-800 font-semibold">
+                          {item.claimedQR?.code ? (
+                            <a
+                              href={`/qr/${item.claimedQR.code}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:underline text-neutral-900"
+                            >
+                              {item.claimedQR.code}
+                            </a>
+                          ) : (
+                            <span className="text-neutral-400 font-normal">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-xs text-neutral-600">
+                          {item.claimedBy ? (
+                            <div>
+                              <p className="font-semibold text-neutral-900">{item.claimedBy.name || "User"}</p>
+                              <p className="text-[11px] text-neutral-500">{item.claimedBy.email || item.claimedBy.phoneNumber}</p>
+                            </div>
+                          ) : (
+                            <span className="text-neutral-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          {item.status === "unused" && (
+                            <button
+                              onClick={() => handleRevokeClaimCode(item._id, item.code)}
+                              className="px-3 py-1 text-xs border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium transition-all cursor-pointer"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <AdminPagination
+              currentPage={activeClaimPage}
+              totalPages={totalClaimPages}
+              onPageChange={setClaimCodesPage}
+              totalItems={claimCodes.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Generate Claim Code Modal */}
+      {isGenerateClaimModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-neutral-100">
+              <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-neutral-700" />
+                Generate Marketing Claim Code
+              </h3>
+              <button
+                onClick={() => setIsGenerateClaimModalOpen(false)}
+                className="text-neutral-400 hover:text-neutral-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateClaimCodes} className="space-y-4">
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Quantity (Count) *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    required
+                    value={claimQuantityInput}
+                    onChange={(e) => setClaimQuantityInput(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-800"
+                  />
+                  <p className="text-[10px] text-neutral-400 mt-1">1 to 100 codes</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Expiry Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={claimExpiryInput}
+                    onChange={(e) => setClaimExpiryInput(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                  Note / Campaign Description (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. VIP Gift for Influencer campaign"
+                  value={claimNoteInput}
+                  onChange={(e) => setClaimNoteInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-800"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end border-t border-neutral-100 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsGenerateClaimModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 rounded-xl cursor-pointer disabled:opacity-50"
+                >
+                  {submitLoading && <Loader className="w-4 h-4 animate-spin" />}
+                  Generate Code(s)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Generate Batch Modal */}
       {isGenerateModalOpen && (

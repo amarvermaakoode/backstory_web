@@ -8,7 +8,6 @@ export default function Footer() {
     const brandLinks = [
         { name: "About", href: "/about-us" },
         { name: "Mission", href: "/about-us#philosophy" },
-        { name: "Stories", href: "/about-us" },
     ];
 
     const shopLinks = [
@@ -24,9 +23,8 @@ export default function Footer() {
     ];
 
     const identityLinks = [
-        { name: "How It Works", href: "#" },
-        { name: "Profiles", href: "#" },
-        { name: "Community", href: "#" },
+        { name: "How It Works", href: "/about-us#qr-concept" },
+        { name: "Our Philosophy", href: "/about-us#philosophy" },
     ];
 
     return (
