@@ -81,13 +81,13 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-neutral-200 transition-all duration-300 ease-in-out md:static md:flex md:flex-col ${sidebarOpen
+      className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-neutral-200 transition-all duration-300 ease-in-out flex flex-col h-screen max-h-screen md:sticky md:top-0 ${sidebarOpen
           ? "lg:w-[18%] md:w-[22%] w-[70%] translate-x-0"
           : "md:w-20 -translate-x-full md:translate-x-0"
         }`}
     >
       {/* Sidebar Header */}
-      <div className={`h-16 flex items-center border-b border-neutral-100 px-4 ${sidebarOpen ? "justify-between" : "justify-center"}`}>
+      <div className={`h-16 shrink-0 flex items-center border-b border-neutral-100 px-4 ${sidebarOpen ? "justify-between" : "justify-center"}`}>
         {sidebarOpen && (
           <Link href="/admin/dashboard" className="flex items-center gap-2 overflow-hidden">
             <img src="/images/logo-dark.svg" alt="Bacstory Logo" className="h-[4vh] max-h-9 w-auto object-contain" />
@@ -109,7 +109,7 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
       </div>
 
       {/* Sidebar Navigation */}
-      <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 min-h-0 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:#e5e5e5_transparent]">
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
@@ -130,15 +130,15 @@ export default function AdminSidebar({ sidebarOpen, setSidebarOpen }) {
         })}
       </nav>
 
-      {/* Sidebar Footer */}
-      <div className="p-3 border-t border-neutral-100 bg-neutral-50/50">
+      {/* Sidebar Footer - Fixed at Bottom */}
+      <div className="shrink-0 p-3 border-t border-neutral-100 bg-neutral-50/50 mt-auto">
         <div className={`flex items-center gap-3 py-2 mb-1 ${sidebarOpen ? "px-2" : "justify-center"}`}>
-          <div className="w-9 h-9 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 shrink-0" title={admin.name}>
-            {admin.name ? admin.name.charAt(0).toUpperCase() : "A"}
+          <div className="w-9 h-9 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center text-xs font-semibold text-neutral-700 shrink-0" title={admin.name || admin.email}>
+            {admin.name ? admin.name.charAt(0).toUpperCase() : (admin.email ? admin.email.charAt(0).toUpperCase() : "A")}
           </div>
           {sidebarOpen && (
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-neutral-800 truncate">{admin.name}</p>
+            <div className="overflow-hidden min-w-0">
+              <p className="text-sm font-semibold text-neutral-800 truncate">{admin.name || "Admin"}</p>
               <p className="text-xs text-neutral-500 truncate">{admin.email}</p>
             </div>
           )}
