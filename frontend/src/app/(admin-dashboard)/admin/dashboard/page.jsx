@@ -134,11 +134,10 @@ export default function AdminDashboardPage() {
 
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-          isPositive
-            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-            : "bg-rose-50 text-rose-700 border border-rose-200/60"
-        }`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${isPositive
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+          : "bg-rose-50 text-rose-700 border border-rose-200/60"
+          }`}
       >
         {isPositive ? (
           <TrendingUp className="w-3 h-3" />
@@ -212,9 +211,8 @@ export default function AdminDashboardPage() {
       return `${acc} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${point.x} ${point.y}`;
     }, "");
 
-    const areaD = `${pathD} L ${points[points.length - 1].x} ${
-      height - paddingY
-    } L ${points[0].x} ${height - paddingY} Z`;
+    const areaD = `${pathD} L ${points[points.length - 1].x} ${height - paddingY
+      } L ${points[0].x} ${height - paddingY} Z`;
 
     const totalPeriodVal = values.reduce((a, b) => a + b, 0);
     const peakVal = Math.max(...values, 0);
@@ -250,21 +248,19 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-1.5 bg-neutral-100/80 p-1 rounded-xl">
             <button
               onClick={() => setChartMetric("revenue")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                chartMetric === "revenue"
-                  ? "bg-white text-neutral-900 shadow-xs"
-                  : "text-neutral-500 hover:text-neutral-800"
-              }`}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${chartMetric === "revenue"
+                ? "bg-white text-neutral-900 shadow-xs"
+                : "text-neutral-500 hover:text-neutral-800"
+                }`}
             >
               Revenue (₹)
             </button>
             <button
               onClick={() => setChartMetric("orders")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                chartMetric === "orders"
-                  ? "bg-white text-neutral-900 shadow-xs"
-                  : "text-neutral-500 hover:text-neutral-800"
-              }`}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${chartMetric === "orders"
+                ? "bg-white text-neutral-900 shadow-xs"
+                : "text-neutral-500 hover:text-neutral-800"
+                }`}
             >
               Orders (Qty)
             </button>
@@ -365,8 +361,8 @@ export default function AdminDashboardPage() {
               .filter(
                 (_, idx) =>
                   idx %
-                    (data.length > 15 ? Math.ceil(data.length / 7) : 1) ===
-                    0 || idx === data.length - 1
+                  (data.length > 15 ? Math.ceil(data.length / 7) : 1) ===
+                  0 || idx === data.length - 1
               )
               .map((pt, idx) => (
                 <text
@@ -432,7 +428,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-2 md:space-y-2  pb-12">
       {/* Top Header & Timeframe Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl border border-neutral-200/80 shadow-xs">
         <div>
@@ -440,9 +436,9 @@ export default function AdminDashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
               Performance & Analytics
             </h1>
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-900 text-white">
+            {/* <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-neutral-900 text-white">
               <Sparkles className="w-3 h-3 text-[#dfd7cc]" /> Live
-            </span>
+            </span> */}
           </div>
           <p className="text-sm text-neutral-500 mt-1">
             Real-time sales, order fulfillment, smart QR interactions, and catalog health.
@@ -462,11 +458,10 @@ export default function AdminDashboardPage() {
               <button
                 key={t.value}
                 onClick={() => setTimeframe(t.value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  timeframe === t.value
-                    ? "bg-white text-neutral-900 shadow-xs"
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${timeframe === t.value
+                  ? "bg-white text-neutral-900 shadow-xs"
+                  : "text-neutral-500 hover:text-neutral-900"
+                  }`}
               >
                 {t.label}
               </button>
@@ -474,7 +469,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Refresh Button */}
-          <button
+          {/* <button
             onClick={() => fetchDashboardStats(true)}
             disabled={refreshing}
             className="p-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl transition-all cursor-pointer flex items-center justify-center border border-neutral-200/60 disabled:opacity-50"
@@ -483,7 +478,7 @@ export default function AdminDashboardPage() {
             <RefreshCw
               className={`w-4 h-4 ${refreshing ? "animate-spin text-neutral-900" : ""}`}
             />
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -495,7 +490,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Main KPI Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {/* Total Revenue */}
         <div className="bg-white p-5 md:p-6 rounded-2xl border border-neutral-200/80 shadow-xs hover:border-neutral-300 transition-all">
           <div className="flex items-center justify-between">
@@ -585,7 +580,7 @@ export default function AdminDashboardPage() {
 
       {/* Interactive Main Chart Section */}
       <div className="bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-0 md:mb-6">
           <div>
             <h2 className="text-lg font-bold text-neutral-900">
               Sales & Order Trajectory
@@ -594,7 +589,7 @@ export default function AdminDashboardPage() {
               Interactive revenue and order curves across selected date intervals.
             </p>
           </div>
-          <div className="text-xs font-medium text-neutral-500 flex items-center gap-2">
+          <div className="hidden md:block text-xs font-medium text-neutral-500 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-neutral-900" />
             <span>Hover on data points for exact breakdown</span>
           </div>
@@ -604,7 +599,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* 3-Column Analytics Row: Category Sales + QR Ecosystem + Order Pipeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
         {/* 1. Category Breakdown */}
         <div className="bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-col justify-between">
           <div>
@@ -779,9 +774,9 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Bottom 2-Column: Top Selling Products + Recent Orders Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
         {/* Top Selling Products (5 Cols) */}
-        <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-white p-4 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -865,7 +860,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Recent Orders Live Table (7 Cols) */}
-        <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white p-4 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -880,16 +875,16 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto -mx-1 sm:mx-0">
+              <table className="w-full text-left border-collapse min-w-[560px]">
                 <thead>
-                  <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
-                    <th className="pb-3 pl-1">Order</th>
-                    <th className="pb-3">Customer</th>
-                    <th className="pb-3">Items</th>
-                    <th className="pb-3">Amount</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-right pr-1">Action</th>
+                  <tr className="border-b border-neutral-100 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider whitespace-nowrap">
+                    <th className="pb-3 pl-2 pr-3">Order</th>
+                    <th className="pb-3 px-3">Customer</th>
+                    <th className="pb-3 px-3">Items</th>
+                    <th className="pb-3 px-3">Amount</th>
+                    <th className="pb-3 px-3">Status</th>
+                    <th className="pb-3 text-right pr-2 pl-3">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100 text-xs">
@@ -901,34 +896,34 @@ export default function AdminDashboardPage() {
                     </tr>
                   ) : (
                     stats.recentOrders.map((ord) => (
-                      <tr key={ord._id} className="hover:bg-neutral-50/70 transition-colors">
-                        <td className="py-3 pl-1 font-bold text-neutral-900">
+                      <tr key={ord._id} className="hover:bg-neutral-50/70 transition-colors whitespace-nowrap">
+                        <td className="py-3 pl-2 pr-3 font-bold text-neutral-900 whitespace-nowrap">
                           {ord.orderId}
                         </td>
-                        <td className="py-3">
-                          <p className="font-medium text-neutral-800 truncate max-w-[130px]">
+                        <td className="py-3 px-3">
+                          <p className="font-medium text-neutral-800 truncate max-w-[140px]">
                             {ord.customerName}
                           </p>
-                          <p className="text-[11px] text-neutral-400 truncate max-w-[130px]">
+                          <p className="text-[11px] text-neutral-400 truncate max-w-[140px]">
                             {ord.customerEmail || "Prepaid Checkout"}
                           </p>
                         </td>
-                        <td className="py-3 text-neutral-600">
+                        <td className="py-3 px-3 text-neutral-600 whitespace-nowrap">
                           {ord.itemsCount} item{ord.itemsCount > 1 ? "s" : ""}
                         </td>
-                        <td className="py-3 font-bold text-neutral-900">
+                        <td className="py-3 px-3 font-bold text-neutral-900 whitespace-nowrap">
                           {formatCurrency(ord.totalAmount)}
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusBadge(
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap border ${getStatusBadge(
                               ord.orderStatus
                             )}`}
                           >
                             {ord.orderStatus}
                           </span>
                         </td>
-                        <td className="py-3 text-right pr-1">
+                        <td className="py-3 pr-2 pl-3 text-right whitespace-nowrap">
                           <Link
                             href={`/admin/orders?search=${ord.orderId}`}
                             className="p-1.5 hover:bg-neutral-200 text-neutral-600 hover:text-neutral-900 rounded-lg inline-flex items-center"
@@ -945,13 +940,13 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-neutral-100 mt-4 flex items-center justify-between text-xs text-neutral-500">
+          <div className="pt-4 border-t border-neutral-100 mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-neutral-500">
             <span>
               Showing latest {stats.recentOrders.length} processed transactions
             </span>
             <Link
               href="/admin/orders"
-              className="font-semibold text-neutral-900 hover:underline flex items-center gap-1"
+              className="font-semibold text-neutral-900 hover:underline flex items-center gap-1 shrink-0"
             >
               Go to Order Manager <ChevronRight className="w-3.5 h-3.5" />
             </Link>

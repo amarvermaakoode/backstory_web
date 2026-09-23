@@ -20,6 +20,7 @@ export default function CheckoutPage() {
     const [selectedPaymentChoice, setSelectedPaymentChoice] = useState("online"); // "online" | "wallet"
 
     const [phoneError, setPhoneError] = useState("");
+    const [contactEmailError, setContactEmailError] = useState("");
 
     // Delivery address selection & modal state
     const [isWritingAddress, setIsWritingAddress] = useState(false);
@@ -118,8 +119,8 @@ export default function CheckoutPage() {
             setFormData(prev => ({
                 ...prev,
                 ...localData,
-                contactEmail: user.email || localData.contactEmail || prev.contactEmail || "",
-                deliveryEmail: user.email || localData.deliveryEmail || prev.deliveryEmail || "",
+                contactEmail: localData.contactEmail || user.email || prev.contactEmail || "",
+                deliveryEmail: localData.deliveryEmail || user.email || prev.deliveryEmail || "",
                 phoneNumber: savedUserAddress.phoneNumber || user.phoneNumber || localData.phoneNumber || prev.phoneNumber || "",
                 firstName: savedUserAddress.firstName || localData.firstName || fName || prev.firstName,
                 lastName: savedUserAddress.lastName || localData.lastName || lName || prev.lastName,
@@ -482,9 +483,7 @@ export default function CheckoutPage() {
         setFormData(prev => {
             const updated = {
                 ...prev,
-                [field]: valToSet,
-                ...(field === "deliveryEmail" ? { contactEmail: valToSet } : {}),
-                ...(field === "contactEmail" ? { deliveryEmail: valToSet } : {})
+                [field]: valToSet
             };
             try {
                 localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
@@ -636,6 +635,18 @@ export default function CheckoutPage() {
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
         setPaymentError("");
+
+        // Validate Contact Email if news & offers checkbox is selected
+        if (formData.newsletter && !formData.contactEmail?.trim()) {
+            setContactEmailError("Please enter your email to receive news and offers.");
+            const el = document.getElementById("contactEmailInput");
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                el.focus();
+            }
+            return;
+        }
+        setContactEmailError("");
 
         // Validate Phone Number according to Country
         const phoneCheck = validatePhoneNumber(formData.phoneNumber, formData.country);
@@ -1026,19 +1037,38 @@ export default function CheckoutPage() {
                                     Contact Details
                                 </h2>
                                 <div className="space-y-4">
-                                    <input
-                                        type="email"
-                                        required
-                                        value={formData.contactEmail}
-                                        onChange={(e) => handleInputChange("contactEmail", e.target.value)}
-                                        placeholder="Email Address"
-                                        className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-medium transition-colors"
-                                    />
+                                    <div>
+                                        <input
+                                            id="contactEmailInput"
+                                            type="email"
+                                            required={formData.newsletter}
+                                            value={formData.contactEmail}
+                                            onChange={(e) => {
+                                                handleInputChange("contactEmail", e.target.value);
+                                                if (contactEmailError && e.target.value.trim()) {
+                                                    setContactEmailError("");
+                                                }
+                                            }}
+                                            placeholder="Email Address"
+                                            className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-medium transition-colors ${contactEmailError
+                                                ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                : "border-neutral-200 focus:border-black"
+                                                }`}
+                                        />
+                                        {contactEmailError && (
+                                            <p className="text-xs text-red-500 font-semibold mt-1.5">{contactEmailError}</p>
+                                        )}
+                                    </div>
                                     <label className="flex items-center gap-2.5 text-xs text-neutral-500 font-semibold cursor-pointer select-none">
                                         <input
                                             type="checkbox"
                                             checked={formData.newsletter}
-                                            onChange={(e) => handleInputChange("newsletter", e.target.checked)}
+                                            onChange={(e) => {
+                                                handleInputChange("newsletter", e.target.checked);
+                                                if (!e.target.checked) {
+                                                    setContactEmailError("");
+                                                }
+                                            }}
                                             className="w-4.5 h-4.5 border-neutral-300 rounded-sm text-black focus:ring-black cursor-pointer accent-black"
                                         />
                                         <span>Email me with news and offers</span>
@@ -1368,8 +1398,8 @@ export default function CheckoutPage() {
                                     {user && userWalletBalance > 0 && (
                                         <label
                                             className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "wallet" || useWallet
-                                                    ? "border-black bg-neutral-900 text-white shadow-md"
-                                                    : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                                ? "border-black bg-neutral-900 text-white shadow-md"
+                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
                                                 }`}
                                         >
                                             <div className="flex items-start gap-3">
@@ -1409,8 +1439,8 @@ export default function CheckoutPage() {
                                     {/* Razorpay Online Payment Option */}
                                     <label
                                         className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
-                                                ? "border-black bg-neutral-50/80 shadow-xs text-black"
-                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                            ? "border-black bg-neutral-50/80 shadow-xs text-black"
+                                            : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
