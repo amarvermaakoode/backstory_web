@@ -81,6 +81,7 @@ app.use("/api/admin/size-guides", sizeGuideRoutes);
 app.use("/api/admin/products", productRoutes);
 app.use("/api/admin/reviews", adminReviewRoutes);
 app.use("/api/admin/promo-codes", adminPromoCodeRoutes);
+app.use("/api/admin/coupons", adminPromoCodeRoutes);
 app.use("/api/admin/support-tickets", adminSupportRoutes);
 app.use("/api/admin/qr-codes", adminQRCodeRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
@@ -99,6 +100,7 @@ app.use("/api/frontend/auth", frontendAuthRoutes);
 app.use("/api/frontend/wishlist", frontendWishlistRoutes);
 app.use("/api/frontend/cart", frontendCartRoutes);
 app.use("/api/frontend/promo-codes", frontendPromoCodeRoutes);
+app.use("/api/frontend/coupons", frontendPromoCodeRoutes);
 app.use("/api/frontend/support", frontendSupportRoutes);
 app.use("/api/frontend/qr", frontendQRRoutes);
 app.use("/api/frontend/orders", frontendOrderRoutes);
@@ -107,6 +109,14 @@ app.use("/api/frontend/user/wallet", walletRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.send("Backend is running successfully");
+});
+
+// JSON 404 Handler for undefined API routes (prevents HTML doctype response errors)
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `API route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
 // Global Error Handler Middleware

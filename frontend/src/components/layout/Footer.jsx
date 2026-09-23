@@ -12,7 +12,7 @@ export default function Footer() {
     ];
 
     const shopLinks = [
-        { name: "New Arrivals", href: "/product-list" },
+        { name: "New Arrivals", href: "/product-list?view=new-arrivals" },
         { name: "Tribes", href: "/product-list/tribe/all" },
     ];
 

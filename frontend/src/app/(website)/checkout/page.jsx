@@ -559,42 +559,36 @@ export default function CheckoutPage() {
 
     // Handle Promo Code application
     const handleApplyPromo = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setPromoError("");
         setPromoSuccess("");
 
-        if (!promoInput.trim()) {
+        const code = promoInput.trim().toUpperCase();
+        if (!code) {
             setPromoError("Please enter a promo code.");
             return;
         }
 
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/coupons`);
-            const data = await res.json();
-            const coupons = Array.isArray(data) ? data : data.data || [];
-            const codeToMatch = promoInput.trim().toUpperCase();
-            const found = coupons.find(c => (c.code || "").toUpperCase() === codeToMatch);
+            const res = await fetch(`${API_BASE_URL}/frontend/promo-codes/validate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, orderAmount: activeSubtotal })
+            });
 
-            if (!found) {
-                setPromoError("Invalid promo code. Please check and try again.");
-                setActivePromo(null);
-                return;
+            const contentType = res.headers.get("content-type") || "";
+            let data = null;
+            if (contentType.includes("application/json")) {
+                data = await res.json();
             }
 
-            if (!found.status) {
-                setPromoError("This promo code is currently inactive.");
+            if (res.ok && data?.success && data?.data) {
+                setActivePromo(data.data);
+                setPromoSuccess(data.message || `Promo code "${data.data.code}" applied!`);
+            } else {
                 setActivePromo(null);
-                return;
+                setPromoError(data?.message || "Invalid promo code. Please check and try again.");
             }
-
-            if (activeSubtotal < (found.minOrderAmount || 0)) {
-                setPromoError(`This promo code requires a minimum spend of Rs ${found.minOrderAmount}`);
-                setActivePromo(null);
-                return;
-            }
-
-            setActivePromo(found);
-            setPromoSuccess(`Promo code "${found.code}" applied!`);
         } catch (error) {
             console.error("Error applying promo code:", error);
             setPromoError("Failed to apply promo code. Please try again.");
@@ -1562,24 +1556,53 @@ export default function CheckoutPage() {
 
                             {/* Promo Code Apply Box */}
                             <div className="mt-6 pt-6 border-t border-neutral-100">
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Promo code"
-                                        value={promoInput}
-                                        onChange={(e) => setPromoInput(e.target.value)}
-                                        className="flex-1 h-11 border border-neutral-200 rounded-lg px-3 focus:outline-none focus:border-black text-sm font-medium transition-colors"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleApplyPromo}
-                                        className="h-11 px-5 bg-black text-white hover:bg-neutral-800 rounded-full font-bold text-xs tracking-wider transition-colors cursor-pointer flex items-center justify-center select-none"
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
+                                {activePromo ? (
+                                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3.5 py-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-xs text-green-900 bg-green-200/70 px-2 py-0.5 rounded tracking-wider uppercase">{activePromo.code}</span>
+                                            <span className="text-xs text-green-800 font-medium">
+                                                Applied ({activePromo.discountType === "percentage" ? `${activePromo.discountValue}% OFF` : `Rs ${activePromo.discountValue} OFF`})
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setActivePromo(null);
+                                                setPromoInput("");
+                                                setPromoSuccess("");
+                                                setPromoError("");
+                                            }}
+                                            className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer underline transition-colors"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Promo code"
+                                            value={promoInput}
+                                            onChange={(e) => setPromoInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleApplyPromo(e);
+                                                }
+                                            }}
+                                            className="flex-1 h-11 border border-neutral-200 rounded-lg px-3 focus:outline-none focus:border-black text-sm font-medium transition-colors"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleApplyPromo}
+                                            className="h-11 px-5 bg-black text-white hover:bg-neutral-800 rounded-full font-bold text-xs tracking-wider transition-colors cursor-pointer flex items-center justify-center select-none"
+                                        >
+                                            Apply
+                                        </button>
+                                    </div>
+                                )}
                                 {promoError && <p className="text-xs text-red-500 font-semibold mt-2 ml-1">{promoError}</p>}
-                                {promoSuccess && <p className="text-xs text-green-600 font-semibold mt-2 ml-1">{promoSuccess}</p>}
+                                {promoSuccess && !activePromo && <p className="text-xs text-green-600 font-semibold mt-2 ml-1">{promoSuccess}</p>}
                             </div>
 
                             {/* Pricing summary totals */}

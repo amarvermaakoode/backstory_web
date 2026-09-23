@@ -3,8 +3,12 @@ const Product = require("../../models/product");
 // Get Active Products
 const getProducts = async (req, res) => {
   try {
-    const { category, collection, subCategory } = req.query;
+    const { category, collection, subCategory, featured } = req.query;
     let query = { status: true };
+
+    if (featured === "true" || featured === true) {
+      query.featured = true;
+    }
 
     const mongoose = require("mongoose");
 
@@ -122,17 +126,23 @@ const getProducts = async (req, res) => {
   }
 };
 
-// Get Featured Products (Limit of 3)
+// Get Featured Products
 const getFeaturedProducts = async (req, res) => {
   try {
-    const products = await Product.find({ status: true, featured: true })
+    const limit = req.query.limit ? parseInt(req.query.limit) : 0;
+    let query = Product.find({ status: true, featured: true })
       .populate("category", "Name image slug")
       .populate("subCategory", "name image slug")
       .populate("collection", "Name image slug")
       .populate("sizeGuide", "name chart")
       .populate("colors.color", "name hexCode")
-      .sort({ createdAt: -1 })
-      .limit(3);
+      .sort({ createdAt: -1 });
+
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const products = await query;
 
     return res.status(200).json({
       success: true,
