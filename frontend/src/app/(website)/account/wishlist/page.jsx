@@ -18,6 +18,9 @@ export default function AccountWishlistPage() {
 
     const handleConfirmAddToCart = (prod, quantity, size, color) => {
         addToCart(prod, quantity, size, color);
+        if (selectedProductForOptions) {
+            removeFromWishlist(selectedProductForOptions);
+        }
     };
 
     if (!user) {

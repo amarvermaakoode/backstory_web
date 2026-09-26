@@ -21,8 +21,14 @@ import {
 export default function AccountLayout({ children }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { logout } = useUserAuth();
+    const { logout, user, loading } = useUserAuth();
     const { showToast } = useToast();
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.replace("/login");
+        }
+    }, [loading, user, router]);
 
     const handleLogout = () => {
         showToast("Logged out successfully.", "info");
@@ -38,6 +44,18 @@ export default function AccountLayout({ children }) {
             setMobileView("content");
         }
     }, [pathname, isRootAccount]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center">
+                <div className="w-7 h-7 border-2 border-neutral-300 border-t-black rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!user) {
+        return null;
+    }
 
     const getBreadcrumbTitle = () => {
         if (pathname.includes("/orders")) return "Orders";

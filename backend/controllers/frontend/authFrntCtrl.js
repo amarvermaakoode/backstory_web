@@ -5,7 +5,8 @@ const { generateToken } = require("../../config/jwt");
 // Send OTP
 const sendOtp = async (req, res) => {
   try {
-    const { email, phoneNumber } = req.body;
+    const { email, phoneNumber, type, mode } = req.body;
+    const authType = type || mode; // "login" | "signup"
 
     if (!email && !phoneNumber) {
       return res.status(400).json({
@@ -14,13 +15,55 @@ const sendOtp = async (req, res) => {
       });
     }
 
+    const formattedEmail = email ? email.toLowerCase().trim() : undefined;
+    const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
+
+    // Check existing user for login / signup validation
+    let existingUser = null;
+    if (formattedEmail) {
+      existingUser = await User.findOne({ email: formattedEmail });
+    } else if (formattedPhone) {
+      existingUser = await User.findOne({ phoneNumber: formattedPhone });
+    }
+
+    if (authType === "login") {
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          accountNotFound: true,
+          message: formattedPhone
+            ? "This account doesn't exist. Please sign up."
+            : "This account doesn't exist. Please sign up.",
+        });
+      }
+      if (existingUser.isDeactivated) {
+        return res.status(403).json({
+          success: false,
+          isDeactivated: true,
+          message: "Your account is deactivated. Please contact support.",
+        });
+      }
+    }
+
+    if (authType === "signup") {
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          accountExists: true,
+          message: formattedPhone
+            ? "An account with this phone number already exists. Please log in."
+            : "An account with this email address already exists. Please log in.",
+        });
+      }
+    }
+
     // Generate a mock 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Clean up any existing OTPs for this email/phone number
     const query = {};
-    if (email) query.email = email.toLowerCase().trim();
-    if (phoneNumber) query.phoneNumber = phoneNumber.trim();
+    if (formattedEmail) query.email = formattedEmail;
+    if (formattedPhone) query.phoneNumber = formattedPhone;
 
     await Otp.deleteMany(query);
 
@@ -49,7 +92,8 @@ const sendOtp = async (req, res) => {
 // Verify OTP & Login/Signup
 const verifyOtp = async (req, res) => {
   try {
-    const { email, phoneNumber, otp } = req.body;
+    const { email, phoneNumber, otp, type, mode } = req.body;
+    const authType = type || mode; // "login" | "signup"
 
     if (!otp) {
       return res.status(400).json({
@@ -102,6 +146,31 @@ const verifyOtp = async (req, res) => {
       user = await User.findOne({ phoneNumber: formattedPhone });
     }
 
+    if (authType === "login") {
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          accountNotFound: true,
+          message: "This account doesn't exist. Please sign up first.",
+        });
+      }
+      if (user.isDeactivated) {
+        return res.status(403).json({
+          success: false,
+          isDeactivated: true,
+          message: "Your account is deactivated. Please contact support.",
+        });
+      }
+    }
+
+    if (authType === "signup" && user) {
+      return res.status(409).json({
+        success: false,
+        accountExists: true,
+        message: "An account already exists with these details. Please log in.",
+      });
+    }
+
     let isNewUser = false;
 
     if (!user) {
@@ -151,8 +220,8 @@ const getCurrentUser = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     let user = await User.findById(userId).select("-password");
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+    if (!user || user.isDeactivated) {
+      return res.status(401).json({ success: false, message: "User not found or account deactivated", accountDeleted: true });
     }
 
     // Auto-sync wallet balance from any refunded wallet orders

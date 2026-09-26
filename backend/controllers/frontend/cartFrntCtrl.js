@@ -72,6 +72,13 @@ const addToCart = async (req, res) => {
       });
     }
 
+    // Automatically remove from wishlist if present
+    if (user.wishlist && user.wishlist.length > 0) {
+      user.wishlist = user.wishlist.filter(
+        (id) => id && id.toString() !== productId.toString()
+      );
+    }
+
     await user.save();
     const cart = await getPopulatedUserCart(req.user.id);
 
@@ -205,6 +212,14 @@ const syncCart = async (req, res) => {
     }
 
     if (changed) {
+      // Automatically remove synchronized items from user's wishlist
+      if (user.wishlist && user.wishlist.length > 0) {
+        user.wishlist = user.wishlist.filter((id) => {
+          return !cartItems.some(
+            (ci) => (ci.productId || ci.product || ci.id || ci._id)?.toString() === id.toString()
+          );
+        });
+      }
       await user.save();
     }
 

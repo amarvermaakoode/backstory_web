@@ -37,7 +37,7 @@ export default function CartPage() {
 
     const { toggleWishlist, isInWishlist } = useWishlist();
 
-    const selectedItems = selectedItemIds !== null ? selectedItemIds : cartItems.map(item => item.id);
+    const selectedItems = (selectedItemIds && selectedItemIds.length > 0) ? selectedItemIds : cartItems.map(item => item.id);
     const [promoCode, setPromoCode] = useState("");
     const [discount, setDiscount] = useState(0);
     const [promoError, setPromoError] = useState("");

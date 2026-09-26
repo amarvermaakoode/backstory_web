@@ -27,7 +27,9 @@ export default function ShopByTribe() {
         fetchSubCategories();
     }, []);
 
-    const activeTribes = subCategories;
+    const activeTribes = [...subCategories]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 4);
 
     return (
         <section className="w-full bg-[#F4F0EA] py-8 px-6 sm:px-10 md:px-16 lg:px-[4%] text-black overflow-hidden">

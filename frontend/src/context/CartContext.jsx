@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { useUserAuth } from "@/context/UserAuthContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { API_BASE_URL } from "@/lib/api";
 
 const CartContext = createContext(undefined);
@@ -113,11 +114,13 @@ export function CartProvider({ children }) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [selectedItemIds, setSelectedItemIds] = useState(null);
     const { user, token } = useUserAuth();
+    const wishlistCtx = useWishlist();
 
-    // Load and sync cart when user logs in/changes
+    // Load and sync cart when user logs in/changes or on initial load
     useEffect(() => {
         const syncAndLoadCart = async () => {
-            if (user) {
+            const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("userToken") : null);
+            if (user || activeToken) {
                 try {
                     const localSaved = localStorage.getItem("bacstory_cart");
                     let localItems = [];
@@ -129,7 +132,6 @@ export function CartProvider({ children }) {
                         }
                     }
 
-                    const activeToken = token || localStorage.getItem("userToken");
                     if (!activeToken) return;
 
                     if (localItems.length > 0) {
@@ -197,8 +199,9 @@ export function CartProvider({ children }) {
 
     // Sync selectedItemIds whenever cartItems change
     useEffect(() => {
-        if (!isInitialized) return;
+        if (!isInitialized || cartItems.length === 0) return;
         try {
+            const allCartIds = cartItems.map(item => item.id);
             const savedSel = localStorage.getItem("bacstory_selected_cart_items");
             let savedArray = null;
             if (savedSel) {
@@ -209,16 +212,19 @@ export function CartProvider({ children }) {
                 }
             }
 
-            const allCartIds = cartItems.map(item => item.id);
             if (selectedItemIds === null) {
-                if (Array.isArray(savedArray)) {
+                if (Array.isArray(savedArray) && savedArray.length > 0) {
                     const validSaved = savedArray.filter(id => allCartIds.includes(id));
-                    setSelectedItemIds(validSaved);
+                    setSelectedItemIds(validSaved.length > 0 ? validSaved : allCartIds);
                 } else {
                     setSelectedItemIds(allCartIds);
                 }
             } else {
-                setSelectedItemIds(prev => (prev ? prev.filter(id => allCartIds.includes(id)) : allCartIds));
+                setSelectedItemIds(prev => {
+                    if (!prev || prev.length === 0) return allCartIds;
+                    const valid = prev.filter(id => allCartIds.includes(id));
+                    return valid.length > 0 ? valid : allCartIds;
+                });
             }
         } catch (error) {
             console.error("Error setting selected cart item IDs:", error);
@@ -227,7 +233,7 @@ export function CartProvider({ children }) {
 
     // Save selectedItemIds to localStorage
     useEffect(() => {
-        if (selectedItemIds !== null) {
+        if (selectedItemIds !== null && selectedItemIds.length > 0) {
             try {
                 localStorage.setItem("bacstory_selected_cart_items", JSON.stringify(selectedItemIds));
             } catch (e) {
@@ -236,10 +242,16 @@ export function CartProvider({ children }) {
         }
     }, [selectedItemIds]);
 
-    const activeSelectedIds = selectedItemIds !== null ? selectedItemIds : cartItems.map(i => i.id);
+    const activeSelectedIds = (selectedItemIds && selectedItemIds.length > 0)
+        ? selectedItemIds
+        : cartItems.map(i => i.id);
 
     // Calculate selected items & totals
-    const selectedCartItems = cartItems.filter(item => activeSelectedIds.includes(item.id));
+    const rawSelectedItems = cartItems.filter(item => activeSelectedIds.includes(item.id));
+    const selectedCartItems = (rawSelectedItems.length > 0 || cartItems.length === 0)
+        ? rawSelectedItems
+        : cartItems;
+
     const selectedCount = selectedCartItems.reduce((total, item) => total + (item.quantity || 1), 0);
     const selectedSubtotal = selectedCartItems.reduce((total, item) => {
         const priceNum = typeof item.priceNum === "number" && !isNaN(item.priceNum)
@@ -281,7 +293,13 @@ export function CartProvider({ children }) {
     }, 0);
 
     const addToCart = async (product, quantity = 1, size = null, color = null) => {
-        const pId = product.id || product._id;
+        const pId = product.id || product._id || product.productId;
+
+        // If product is in wishlist, automatically remove it
+        if (wishlistCtx?.removeFromWishlist && (wishlistCtx.isInWishlist?.(product) || (pId && wishlistCtx.isInWishlist?.(pId)))) {
+            wishlistCtx.removeFromWishlist(product);
+        }
+
         const selectedSize = size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : "M");
         const selectedColor = color || (product.colors && product.colors.length > 0
             ? { 

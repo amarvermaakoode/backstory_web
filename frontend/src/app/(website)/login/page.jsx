@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Mail, Lock, CheckCircle2, ArrowRight } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { useUserAuth } from "@/context/UserAuthContext";
@@ -26,6 +26,8 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
   const [otpError, setOtpError] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isAccountNotFound, setIsAccountNotFound] = useState(false);
   const [mockOtpCode, setMockOtpCode] = useState("");
   const otpRefs = useRef([]);
 
@@ -93,10 +95,13 @@ export default function LoginPage() {
     if (!isValid) return;
 
     setLoading(true);
+    setAuthError("");
     setOtpError("");
-    const res = await sendOtp(
-      activeTab === "mobile" ? { phoneNumber } : { email }
-    );
+    setIsAccountNotFound(false);
+    const res = await sendOtp({
+      ...(activeTab === "mobile" ? { phoneNumber } : { email }),
+      type: "login",
+    });
     setLoading(false);
 
     if (res.success) {
@@ -105,7 +110,10 @@ export default function LoginPage() {
         setMockOtpCode(res.mockOtp);
       }
     } else {
-      setOtpError(res.error || "Failed to send verification code. Please try again.");
+      setAuthError(res.error || "Failed to send verification code. Please try again.");
+      if (res.accountNotFound) {
+        setIsAccountNotFound(true);
+      }
     }
   };
 
@@ -114,9 +122,10 @@ export default function LoginPage() {
     setOtpCode(["", "", "", "", "", ""]);
     setOtpError("");
     setLoading(true);
-    const res = await sendOtp(
-      activeTab === "mobile" ? { phoneNumber } : { email }
-    );
+    const res = await sendOtp({
+      ...(activeTab === "mobile" ? { phoneNumber } : { email }),
+      type: "login",
+    });
     setLoading(false);
     if (res.success) {
       if (res.mockOtp) {
@@ -158,6 +167,7 @@ export default function LoginPage() {
       const res = await verifyOtp({
         otp: completeOtp,
         ...(activeTab === "mobile" ? { phoneNumber } : { email }),
+        type: "login",
       });
       setLoading(false);
 
@@ -261,12 +271,12 @@ export default function LoginPage() {
                       </button>
                     )}
                     <h1 className="heading-sub text-black font-semibold mb-1">
-                      {otpSent ? "Enter the OTP" : "Login or Sign Up"}
+                      {otpSent ? "Enter the OTP" : "Log In"}
                     </h1>
                     <p className="text-xs sm:text-sm text-neutral-400 font-medium">
                       {otpSent
                         ? `We've sent an OTP to ${activeTab === "mobile" ? `+91 ${phoneNumber}` : email}`
-                        : "Your story starts here"
+                        : "Welcome back! Enter your details to continue"
                       }
                     </p>
                   </div>
@@ -276,7 +286,12 @@ export default function LoginPage() {
                     <div className="bg-neutral-100 p-1.5 rounded-2xl flex gap-1 mb-8">
                       <button
                         type="button"
-                        onClick={() => setActiveTab("mobile")}
+                        onClick={() => {
+                          setActiveTab("mobile");
+                          setAuthError("");
+                          setIsAccountNotFound(false);
+                          setOtpError("");
+                        }}
                         className={`flex-1 text-center py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === "mobile"
                           ? "bg-white text-black shadow-xs"
                           : "text-neutral-400 hover:text-black"
@@ -286,7 +301,12 @@ export default function LoginPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("email")}
+                        onClick={() => {
+                          setActiveTab("email");
+                          setAuthError("");
+                          setIsAccountNotFound(false);
+                          setOtpError("");
+                        }}
                         className={`flex-1 text-center py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === "email"
                           ? "bg-white text-black shadow-xs"
                           : "text-neutral-400 hover:text-black"
@@ -354,6 +374,12 @@ export default function LoginPage() {
                   ) : (
                     /* Credentials Input Stage */
                     <form onSubmit={handleSendOtp} className="space-y-6">
+                      {authError && (
+                        <div className="bg-red-50 border border-red-200/80 rounded-xl p-3.5 text-center text-xs text-red-600 font-semibold animate-fadeIn">
+                          {authError}
+                        </div>
+                      )}
+
                       {activeTab === "mobile" ? (
                         /* Mobile Phone Input */
                         <div>
@@ -368,7 +394,13 @@ export default function LoginPage() {
                               type="tel"
                               required
                               value={phoneNumber}
-                              onChange={handlePhoneChange}
+                              onChange={(e) => {
+                                handlePhoneChange(e);
+                                if (authError) {
+                                  setAuthError("");
+                                  setIsAccountNotFound(false);
+                                }
+                              }}
                               placeholder="98765 43210"
                               className="flex-1 h-full px-4 outline-none text-sm font-medium bg-transparent text-black"
                             />
@@ -387,7 +419,13 @@ export default function LoginPage() {
                             type="email"
                             required
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              if (authError) {
+                                setAuthError("");
+                                setIsAccountNotFound(false);
+                              }
+                            }}
                             placeholder="johndoe@gmail.com"
                             className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
                           />
@@ -414,8 +452,21 @@ export default function LoginPage() {
                   )}
                 </div>
 
+                {/* Switch between Login and Signup */}
+                {!otpSent && (
+                  <div className="text-center text-xs text-neutral-500 font-medium mt-6">
+                    Don&apos;t have an account?{" "}
+                    <Link
+                      href="/signup"
+                      className="text-black font-semibold hover:underline transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
+
                 {/* Terms & Privacy Policy Footnote */}
-                <div className="text-center text-[10px] text-neutral-400 font-medium pt-8 mt-4 border-t border-neutral-100">
+                <div className="text-center text-[10px] text-neutral-400 font-medium pt-4 mt-4 border-t border-neutral-100">
                   By continuing, you agree to our{" "}
                   <Link href="#terms" className="text-black hover:underline">
                     Terms

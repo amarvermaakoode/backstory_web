@@ -12,22 +12,24 @@ const WishlistContext = createContext(undefined);
 const areProductsEqual = (item, product) => {
     if (!item || !product) return false;
 
-    // 1. Direct ID comparison
-    if (item.id && product.id) return item.id === product.id;
-    if (item._id && product._id) return item._id === product._id;
+    // 1. ID comparison (direct, cross, or nested)
+    const itemId = item.id || item._id || item.productId;
+    const prodId = product.id || product._id || product.productId;
 
-    // 2. Cross ID comparison
-    if (item.id && product._id) return item.id === product._id;
-    if (item._id && product.id) return item._id === product.id;
+    if (itemId && prodId && String(itemId) === String(prodId)) {
+        return true;
+    }
 
-    // 3. Slug comparison
-    if (item.slug && product.slug) return item.slug === product.slug;
+    // 2. Slug comparison
+    if (item.slug && product.slug && item.slug === product.slug) {
+        return true;
+    }
 
-    // 4. Name comparison (case-insensitive, trimmed) - only as a last resort if neither has any ID/slug
-    if (!item.id && !item._id && !item.slug && !product.id && !product._id && !product.slug) {
-        const name1 = item.name || item.title || "";
-        const name2 = product.name || product.title || "";
-        if (name1 && name2 && name1.toLowerCase().trim() === name2.toLowerCase().trim()) return true;
+    // 3. Name comparison (case-insensitive, trimmed)
+    const name1 = item.name || item.title || "";
+    const name2 = product.name || product.title || "";
+    if (name1 && name2 && name1.toLowerCase().trim() === name2.toLowerCase().trim()) {
+        return true;
     }
 
     return false;
@@ -178,15 +180,54 @@ export function WishlistProvider({ children }) {
     };
 
     const removeFromWishlist = async (productOrId) => {
-        if (!user) return;
+        if (!productOrId) return;
+
+        const productId = typeof productOrId === "object" && productOrId !== null
+            ? (productOrId.id || productOrId._id || productOrId.productId)
+            : productOrId;
+
+        // Optimistically remove from state so the UI reflects the change immediately
+        setWishlistItems((prev) => prev.filter((item) => {
+            if (typeof productOrId === "object" && productOrId !== null) {
+                return !areProductsEqual(item, productOrId);
+            }
+            const targetId = String(productId);
+            return (
+                String(item.id || "") !== targetId &&
+                String(item._id || "") !== targetId &&
+                item.slug !== targetId
+            );
+        }));
+
+        // Clean up guest local storage if present
+        try {
+            const localSaved = localStorage.getItem("bacstory_wishlist");
+            if (localSaved) {
+                const parsed = JSON.parse(localSaved);
+                if (Array.isArray(parsed)) {
+                    const filtered = parsed.filter((item) => {
+                        if (typeof productOrId === "object" && productOrId !== null) {
+                            return !areProductsEqual(item, productOrId);
+                        }
+                        const targetId = String(productId);
+                        return (
+                            String(item.id || "") !== targetId &&
+                            String(item._id || "") !== targetId &&
+                            item.slug !== targetId
+                        );
+                    });
+                    localStorage.setItem("bacstory_wishlist", JSON.stringify(filtered));
+                }
+            }
+        } catch (e) {
+            console.error("Failed to update guest wishlist storage:", e);
+        }
+
+        if (!user || !productId) return;
 
         try {
-            const productId = typeof productOrId === "object" && productOrId !== null
-                ? (productOrId.id || productOrId._id)
-                : productOrId;
-
             const activeToken = token || localStorage.getItem("userToken");
-            const res = await fetch(`${API_BASE_URL}/frontend/wishlist/toggle`, {
+            const res = await fetch(`${API_BASE_URL}/frontend/wishlist/remove`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -241,13 +282,17 @@ export function WishlistProvider({ children }) {
             if (typeof productOrId === "object" && productOrId !== null) {
                 return areProductsEqual(item, productOrId);
             } else {
-                if (item.id === productOrId || item._id === productOrId || item.slug === productOrId) {
+                const targetId = String(productOrId);
+                if (
+                    (item.id && String(item.id) === targetId) ||
+                    (item._id && String(item._id) === targetId) ||
+                    (item.slug && item.slug === targetId)
+                ) {
                     return true;
                 }
-                // Only compare by name if the item in wishlist has no ID/slug
-                if (!item.id && !item._id && !item.slug) {
-                    return (item.name && item.name.toLowerCase().trim() === productOrId.toLowerCase().trim()) ||
-                        (item.title && item.title.toLowerCase().trim() === productOrId.toLowerCase().trim());
+                const name = item.name || item.title || "";
+                if (name && name.toLowerCase().trim() === targetId.toLowerCase().trim()) {
+                    return true;
                 }
                 return false;
             }

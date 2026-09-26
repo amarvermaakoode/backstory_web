@@ -7,9 +7,24 @@ import { API_BASE_URL } from "@/lib/api";
 const UserAuthContext = createContext(null);
 
 export function UserAuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("userData");
+        return stored ? JSON.parse(stored) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+  const [token, setToken] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("userToken") || null;
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const saveAuth = (token, user) => {
@@ -32,7 +47,10 @@ export function UserAuthProvider({ children }) {
 
   const refreshUser = async (authToken) => {
     const activeToken = authToken || token || (typeof window !== "undefined" ? localStorage.getItem("userToken") : null);
-    if (!activeToken) return;
+    if (!activeToken) {
+      clearSession();
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/frontend/auth/me`, {
@@ -40,13 +58,21 @@ export function UserAuthProvider({ children }) {
           Authorization: `Bearer ${activeToken}`,
         },
       });
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        setUser(data.user);
-        saveAuth(activeToken, data.user);
+      const data = await res.json().catch(() => ({}));
+
+      // If account was deleted, deactivated, or token is invalid: log out immediately!
+      if (!res.ok || res.status === 401 || res.status === 404 || !data.success || !data.user || data.user.isDeactivated) {
+        clearSession();
+        if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
+          router.replace("/login");
+        }
+        return;
       }
+
+      setUser(data.user);
+      saveAuth(activeToken, data.user);
     } catch (err) {
-      console.error("Error refreshing user profile:", err);
+      console.warn("Could not refresh user profile:", err?.message || err);
     }
   };
 
@@ -69,13 +95,32 @@ export function UserAuthProvider({ children }) {
     } else {
       setLoading(false);
     }
+
+    // Re-verify account validity whenever user returns to tab
+    const handleRecheck = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        const currentToken = localStorage.getItem("userToken");
+        if (currentToken) {
+          refreshUser(currentToken);
+        }
+      }
+    };
+
+    window.addEventListener("focus", handleRecheck);
+    document.addEventListener("visibilitychange", handleRecheck);
+
+    return () => {
+      window.removeEventListener("focus", handleRecheck);
+      document.removeEventListener("visibilitychange", handleRecheck);
+    };
   }, []);
 
-  const sendOtp = async ({ email, phoneNumber }) => {
+  const sendOtp = async ({ email, phoneNumber, type, mode }) => {
     try {
       const body = {};
       if (email) body.email = email;
       if (phoneNumber) body.phoneNumber = phoneNumber;
+      if (type || mode) body.type = type || mode;
 
       const response = await fetch(`${API_BASE_URL}/frontend/auth/send-otp`, {
         method: "POST",
@@ -87,20 +132,26 @@ export function UserAuthProvider({ children }) {
 
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Failed to send OTP");
+        return {
+          success: false,
+          error: data.message || "Failed to send OTP",
+          accountNotFound: !!data.accountNotFound,
+          accountExists: !!data.accountExists,
+        };
       }
       return { success: true, mockOtp: data.mockOtp, message: data.message };
     } catch (error) {
       console.error("Send OTP Error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || "Failed to connect to authentication server." };
     }
   };
 
-  const verifyOtp = async ({ email, phoneNumber, otp }) => {
+  const verifyOtp = async ({ email, phoneNumber, otp, type, mode }) => {
     try {
       const body = { otp };
       if (email) body.email = email;
       if (phoneNumber) body.phoneNumber = phoneNumber;
+      if (type || mode) body.type = type || mode;
 
       const response = await fetch(`${API_BASE_URL}/frontend/auth/verify-otp`, {
         method: "POST",
@@ -112,7 +163,12 @@ export function UserAuthProvider({ children }) {
 
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "OTP verification failed");
+        return {
+          success: false,
+          error: data.message || "OTP verification failed",
+          accountNotFound: !!data.accountNotFound,
+          accountExists: !!data.accountExists,
+        };
       }
 
       setToken(data.token);
@@ -122,7 +178,7 @@ export function UserAuthProvider({ children }) {
       return { success: true, user: data.user, isNewUser: data.isNewUser };
     } catch (error) {
       console.error("Verify OTP Error:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || "Failed to verify code." };
     }
   };
 
@@ -143,8 +199,11 @@ export function UserAuthProvider({ children }) {
       },
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403 || response.status === 404) {
       clearSession();
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
+        router.replace("/login");
+      }
     }
     return response;
   };

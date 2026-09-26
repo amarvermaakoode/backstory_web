@@ -117,8 +117,46 @@ const syncWishlist = async (req, res) => {
   }
 };
 
+// Remove wishlist item
+const removeFromWishlist = async (req, res) => {
+  try {
+    const { productId } = req.body;
+    if (!productId) {
+      return res.status(400).json({ success: false, message: "Product ID is required." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const initialLength = user.wishlist.length;
+    user.wishlist = user.wishlist.filter(
+      (id) => id && id.toString() !== productId.toString()
+    );
+
+    if (user.wishlist.length !== initialLength) {
+      await user.save();
+    }
+
+    const updatedUser = await User.findById(req.user.id).populate({
+      path: "wishlist",
+      populate: populateOptions
+    });
+
+    return res.status(200).json({
+      success: true,
+      wishlist: updatedUser.wishlist || []
+    });
+  } catch (error) {
+    console.error("Remove from wishlist error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getWishlist,
   toggleWishlist,
+  removeFromWishlist,
   syncWishlist
 };

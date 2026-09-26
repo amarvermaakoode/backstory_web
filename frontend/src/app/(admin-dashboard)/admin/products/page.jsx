@@ -154,9 +154,9 @@ export default function ProductsAdminPage() {
       ]);
 
       setProducts(prodData.data || prodData || []);
-      setCategories(catData.data || catData || []);
-      setCollections(colData.data || colData || []);
-      setSizeGuides(sizeData.data || sizeData || []);
+      setCategories((catData.data || catData || []).filter((c) => c.status !== false));
+      setCollections((colData.data || colData || []).filter((coll) => coll.status !== false));
+      setSizeGuides((sizeData.data || sizeData || []).filter((sg) => sg.status !== false));
       setAllColors((colorData.data || colorData || []).filter(c => c.status !== false));
     } catch (err) {
       console.error(err);
@@ -170,7 +170,7 @@ export default function ProductsAdminPage() {
     try {
       const res = await adminFetch(`/sub-categories/category/${categoryId}`);
       const data = await res.json();
-      setSubCategories(data.data || data || []);
+      setSubCategories((data.data || data || []).filter((sc) => sc.status !== false));
     } catch (err) {
       console.error(err);
     }
@@ -766,7 +766,9 @@ export default function ProductsAdminPage() {
                       setSelectedSubCategory(""); // reset subcategory
                     }}
                     placeholder="Select Category"
-                    options={categories.map((c) => ({ value: c._id, label: c.Name }))}
+                    options={categories
+                      .filter((c) => c.status !== false)
+                      .map((c) => ({ value: c._id, label: c.Name }))}
                   />
                 </div>
 
@@ -781,7 +783,9 @@ export default function ProductsAdminPage() {
                     value={selectedSubCategory}
                     onChange={(e) => setSelectedSubCategory(e.target.value)}
                     placeholder="Select Sub-Category"
-                    options={subCategories.map((sc) => ({ value: sc._id, label: sc.name }))}
+                    options={subCategories
+                      .filter((sc) => sc.status !== false)
+                      .map((sc) => ({ value: sc._id, label: sc.name }))}
                   />
                 </div>
 
@@ -794,7 +798,9 @@ export default function ProductsAdminPage() {
                     value={selectedCollection}
                     onChange={(e) => setSelectedCollection(e.target.value)}
                     placeholder="Select Collection"
-                    options={collections.map((coll) => ({ value: coll._id, label: coll.Name || coll.name }))}
+                    options={collections
+                      .filter((coll) => coll.status !== false)
+                      .map((coll) => ({ value: coll._id, label: coll.Name || coll.name }))}
                   />
                 </div>
 
@@ -808,7 +814,9 @@ export default function ProductsAdminPage() {
                     value={selectedSizeGuide}
                     onChange={(e) => setSelectedSizeGuide(e.target.value)}
                     placeholder="Select Size Guide"
-                    options={sizeGuides.map((sg) => ({ value: sg._id, label: sg.name }))}
+                    options={sizeGuides
+                      .filter((sg) => sg.status !== false)
+                      .map((sg) => ({ value: sg._id, label: sg.name }))}
                   />
                 </div>
 

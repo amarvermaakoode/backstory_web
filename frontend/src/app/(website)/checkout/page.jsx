@@ -45,11 +45,12 @@ export default function CheckoutPage() {
         isDefault: true
     });
 
-    // Real cart items from CartContext (only selected items)
+    // Real cart items from CartContext (selected items, falling back to all cart items if selection is empty)
     const isCartEmpty = cartItems.length === 0;
-    const activeItems = selectedCartItems;
-    const activeCount = selectedCount;
-    const activeSubtotal = selectedSubtotal;
+    const hasSelectedItems = Array.isArray(selectedCartItems) && selectedCartItems.length > 0;
+    const activeItems = hasSelectedItems ? selectedCartItems : cartItems;
+    const activeCount = hasSelectedItems ? selectedCount : cartCount;
+    const activeSubtotal = hasSelectedItems ? selectedSubtotal : cartSubtotal;
 
     // Contact and Delivery Forms State
     const [formData, setFormData] = useState({

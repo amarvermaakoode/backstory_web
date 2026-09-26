@@ -432,7 +432,9 @@ export default function SubCategoriesAdminPage() {
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   placeholder="Select Category"
-                  options={categories.map((cat) => ({ value: cat._id, label: cat.Name }))}
+                  options={categories
+                    .filter((cat) => cat.status !== false)
+                    .map((cat) => ({ value: cat._id, label: cat.Name }))}
                 />
               </div>
 

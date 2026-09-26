@@ -2,8 +2,18 @@
 // Previously these were duplicated (identically) across ~13 components/pages.
 
 // Base origin of the Express backend (no trailing slash).
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const getApiBaseOrigin = () => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    // If user loaded the site via 127.0.0.1 or local network IP, keep the host aligned with window.location
+    if (window.location.hostname === "127.0.0.1" && (!envUrl || envUrl.includes("localhost"))) {
+      return "http://127.0.0.1:5000";
+    }
+  }
+  return envUrl || "http://localhost:5000";
+};
+
+export const API_URL = getApiBaseOrigin();
 
 // Base URL for all REST endpoints.
 export const API_BASE_URL = `${API_URL}/api`;

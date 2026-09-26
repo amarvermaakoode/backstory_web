@@ -98,6 +98,9 @@ export default function WishlistPage() {
 
     const handleConfirmAddToCart = (product, quantity, size, color) => {
         addToCart(product, quantity, size, color);
+        if (selectedProductForOptions) {
+            removeFromWishlist(selectedProductForOptions);
+        }
     };
 
     return (

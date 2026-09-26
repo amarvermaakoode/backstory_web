@@ -88,6 +88,7 @@ const orderSchema = new mongoose.Schema(
         "Confirmed",
         "Pending",
         "Failed",
+        "Refund Pending",
         "Refund Processing",
         "Refunded",
         "Cancelled (Unpaid)",
@@ -211,6 +212,7 @@ const orderSchema = new mongoose.Schema(
         enum: [
           "None",
           "Paid",
+          "Refund Pending",
           "Refund Processing",
           "Refunded",
           "Processed / Credited",

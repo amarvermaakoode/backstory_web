@@ -28,7 +28,10 @@ export default function QrEnabledRange() {
         fetchCollections();
     }, []);
 
-    const activeCollections = collections;
+    // Show only the 2 latest collections
+    const activeCollections = [...collections]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 2);
 
     return (
         <section className="w-full bg-[#C5B9AC] p-6 sm:p-10 md:p-12 overflow-hidden">

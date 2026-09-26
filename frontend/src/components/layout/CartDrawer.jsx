@@ -26,7 +26,7 @@ export default function CartDrawer() {
 
     const drawerRef = useRef(null);
 
-    const activeSelectedIds = selectedItemIds !== null ? selectedItemIds : cartItems.map(i => i.id);
+    const activeSelectedIds = (selectedItemIds && selectedItemIds.length > 0) ? selectedItemIds : cartItems.map(i => i.id);
     const allSelected = cartItems.length > 0 && cartItems.every(item => activeSelectedIds.includes(item.id));
 
     // Close on Escape key press

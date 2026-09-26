@@ -53,6 +53,9 @@ export default function WishlistDrawer() {
 
     const handleConfirmAddToCart = (product, quantity, size, color) => {
         addToCart(product, quantity, size, color);
+        if (selectedProductForOptions) {
+            removeFromWishlist(selectedProductForOptions);
+        }
         closeWishlist();
     };
 

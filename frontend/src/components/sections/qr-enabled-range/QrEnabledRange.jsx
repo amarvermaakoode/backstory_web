@@ -13,16 +13,8 @@ export default function QrEnabledRange() {
             try {
                 const res = await fetch(`${API_BASE_URL}/frontend/categories`);
                 const data = await res.json();
-                if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
-                    let fetchedList = [...data.data];
-                    if (fetchedList.length === 3) {
-                        fetchedList.push({
-                            _id: "more",
-                            Name: "More...",
-                            image: "/images/landing-page/pants.png"
-                        });
-                    }
-                    setCategories(fetchedList);
+                if (data && data.success && Array.isArray(data.data)) {
+                    setCategories(data.data);
                 } else {
                     setCategories([]);
                 }
@@ -35,6 +27,15 @@ export default function QrEnabledRange() {
         fetchCategories();
     }, []);
 
+    // Show only the latest 3 categories
+    const displayCategories = [...categories]
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .slice(0, 3);
+
+    if (displayCategories.length === 0) {
+        return null;
+    }
+
     return (
         <section className="w-full bg-[#050505] overflow-hidden">
             {/* Header Banner with Cream Background */}
@@ -46,58 +47,36 @@ export default function QrEnabledRange() {
                 </div>
             </div>
 
-            {/* Grid of Categories */}
-            <div className="grid grid-cols-2 md:grid-cols-3 w-full h-[80vh] gap-px bg-neutral-900">
-                {categories.slice(0, 4).map((category, index) => {
-                    const isFirst = index === 0;
-                    const isSecond = index === 1;
-                    const isFourth = index === 3;
+            {/* Grid of Exactly 3 Categories (Latest first) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 w-full h-auto md:h-[80vh] gap-px bg-neutral-900">
+                {displayCategories.map((category) => (
+                    <Link
+                        key={category._id}
+                        href={`/product-list/range/${category.slug || category._id}`}
+                        className="group relative h-[300px] md:h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black"
+                    >
+                        {/* Background Image */}
+                        <div className="absolute inset-0 overflow-hidden">
+                            <Image
+                                src={getImageUrl(category.image)}
+                                alt={category.Name}
+                                fill
+                                priority
+                                unoptimized
+                                className="object-cover object-center select-none transition-transform duration-1000 ease-out group-hover:scale-105"
+                            />
+                            {/* Dark Gradient Overlay for Readability */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60 transition-all duration-500 group-hover:via-black/30 group-hover:to-black/75" />
+                        </div>
 
-                    const scaleClass = isFirst 
-                        ? "scale-200 group-hover:scale-205" 
-                        : isSecond 
-                        ? "scale-160 group-hover:scale-165" 
-                        : "scale-100 group-hover:scale-105";
-
-                    const itemClass = isFourth ? "md:!hidden" : "";
-
-                    return (
-                        <Link
-                            key={category._id}
-                            href={`/product-list/range/${category.slug || category._id}`}
-                            className={`group relative h-full w-full overflow-hidden flex items-center justify-center cursor-pointer bg-black ${itemClass}`}
-                        >
-                            {/* Background Image */}
-                            <div className="absolute inset-0 overflow-hidden">
-                                <Image
-                                    src={getImageUrl(category.image)}
-                                    alt={category.Name}
-                                    fill
-                                    priority
-                                    unoptimized
-                                    className={`object-cover object-center select-none transition-transform duration-1000 ease-out ${scaleClass}`}
-                                />
-                                {isFourth ? (
-                                    <div
-                                        className="absolute inset-0 opacity-80 transition-all duration-500 group-hover:opacity-70"
-                                        style={{
-                                            background: "linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(0deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), linear-gradient(0deg, #070A0E, #070A0E)"
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/10 to-black/0 transition-all duration-500 group-hover:via-black/20 group-hover:to-black/40" />
-                                )}
-                            </div>
-
-                            {/* Content (Text Centered) */}
-                            <div className="relative z-10 text-center px-6 flex flex-col items-center justify-center h-full w-full">
-                                <h3 className="heading-sub text-white transition-all duration-700 ease-out group-hover:scale-95">
-                                    {category.Name}
-                                </h3>
-                            </div>
-                        </Link>
-                    );
-                })}
+                        {/* Content (Text Centered) */}
+                        <div className="relative z-10 text-center px-6 flex flex-col items-center justify-center h-full w-full">
+                            <h3 className="heading-sub text-white transition-all duration-700 ease-out group-hover:scale-95 drop-shadow-md">
+                                {category.Name}
+                            </h3>
+                        </div>
+                    </Link>
+                ))}
             </div>
         </section>
     );

@@ -9,15 +9,15 @@ export default function WebsiteLayout({ children }) {
   return (
     <UserAuthProvider>
       <ToastProvider>
-        <CartProvider>
-          <WishlistProvider>
+        <WishlistProvider>
+          <CartProvider>
             <main id="main-content" tabIndex={-1} className="outline-none flex-1">
               {children}
             </main>
             <CartDrawer />
             <WishlistDrawer />
-          </WishlistProvider>
-        </CartProvider>
+          </CartProvider>
+        </WishlistProvider>
       </ToastProvider>
     </UserAuthProvider>
   );
