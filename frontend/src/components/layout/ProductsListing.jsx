@@ -24,10 +24,13 @@ export default function ProductsListing({
     const urlCategory = categorySlug || searchParams.get("category");
     const urlCollection = collectionSlug || searchParams.get("collection");
     const urlSubCategory = subCategorySlug || searchParams.get("subCategory");
+    const urlFeatured = searchParams.get("featured");
+    const urlView = searchParams.get("view");
 
     const isCategoryPage = !!categorySlug;
     const isCollectionPage = !!collectionSlug;
     const isSubCategoryPage = !!subCategorySlug;
+    const isFeaturedOnly = urlFeatured === "true" || urlFeatured === "1";
 
     // Dynamic catalogs and product list
     const [categories, setCategories] = useState(cached?.categories || []);
@@ -160,7 +163,7 @@ export default function ProductsListing({
     useEffect(() => {
         let isMounted = true;
 
-        fetchListingData().then((data) => {
+        fetchListingData(true).then((data) => {
             if (!isMounted) return;
             if (data) {
                 setCategories(data.categories || []);
@@ -205,11 +208,22 @@ export default function ProductsListing({
         if (isSubCategoryPage) {
             return "Shop by Tribe";
         }
-        return "Featured Products";
+        if (isFeaturedOnly) {
+            return "Featured Products";
+        }
+        if (urlView === "new-arrivals") {
+            return "New Arrivals";
+        }
+        return "All Products";
     };
 
     // Filter products
     const filteredProducts = products.filter((product) => {
+        // Only restrict to featured products if explicitly on featured listing (?featured=true)
+        if (isFeaturedOnly && !product.featured) {
+            return false;
+        }
+
         const matchesCategory = selectedCategory === "ALL" || 
             product.categoryId === selectedCategory ||
             product.categorySlug === selectedCategory ||
@@ -266,7 +280,12 @@ export default function ProductsListing({
         if (sortBy === "rating") {
             return parseFloat(b.rating) - parseFloat(a.rating);
         }
-        return 0; // Default/Featured (original order)
+        if (sortBy === "featured") {
+            if (a.featured && !b.featured) return -1;
+            if (!a.featured && b.featured) return 1;
+            return 0;
+        }
+        return 0; // Default order
     });
 
     const ITEMS_PER_PAGE = 8;
@@ -349,7 +368,8 @@ export default function ProductsListing({
             setSelectedCategory("ALL");
             setSelectedCollection("ALL");
             setSelectedSubCategory(normSlug === "all" ? "ALL" : normSlug);
-            const newUrl = normSlug === "all" ? "/product-list" : `/product-list/tribe/${normSlug}`;
+            const base = isFeaturedOnly ? "/product-list?featured=true" : urlView ? `/product-list?view=${urlView}` : "/product-list";
+            const newUrl = normSlug === "all" ? base : `/product-list/tribe/${normSlug}`;
             window.history.pushState({}, "", newUrl);
         }
     };

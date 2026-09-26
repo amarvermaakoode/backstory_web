@@ -20,6 +20,7 @@ export default function CheckoutPage() {
     const [selectedPaymentChoice, setSelectedPaymentChoice] = useState("online"); // "online" | "wallet"
 
     const [phoneError, setPhoneError] = useState("");
+    const [contactEmailError, setContactEmailError] = useState("");
 
     // Delivery address selection & modal state
     const [isWritingAddress, setIsWritingAddress] = useState(false);
@@ -117,8 +118,8 @@ export default function CheckoutPage() {
             setFormData(prev => ({
                 ...prev,
                 ...localData,
-                contactEmail: user.email || localData.contactEmail || prev.contactEmail || "",
-                deliveryEmail: user.email || localData.deliveryEmail || prev.deliveryEmail || "",
+                contactEmail: localData.contactEmail || user.email || prev.contactEmail || "",
+                deliveryEmail: localData.deliveryEmail || user.email || prev.deliveryEmail || "",
                 phoneNumber: savedUserAddress.phoneNumber || user.phoneNumber || localData.phoneNumber || prev.phoneNumber || "",
                 firstName: savedUserAddress.firstName || localData.firstName || fName || prev.firstName,
                 lastName: savedUserAddress.lastName || localData.lastName || lName || prev.lastName,
@@ -502,9 +503,7 @@ export default function CheckoutPage() {
         setFormData(prev => {
             const updated = {
                 ...prev,
-                [field]: valToSet,
-                ...(field === "deliveryEmail" ? { contactEmail: valToSet } : {}),
-                ...(field === "contactEmail" ? { deliveryEmail: valToSet } : {})
+                [field]: valToSet
             };
             try {
                 localStorage.setItem("savedShippingAddress", JSON.stringify(updated));
@@ -589,42 +588,36 @@ export default function CheckoutPage() {
 
     // Handle Promo Code application
     const handleApplyPromo = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setPromoError("");
         setPromoSuccess("");
 
-        if (!promoInput.trim()) {
+        const code = promoInput.trim().toUpperCase();
+        if (!code) {
             setPromoError("Please enter a promo code.");
             return;
         }
 
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/coupons`);
-            const data = await res.json();
-            const coupons = Array.isArray(data) ? data : data.data || [];
-            const codeToMatch = promoInput.trim().toUpperCase();
-            const found = coupons.find(c => (c.code || "").toUpperCase() === codeToMatch);
+            const res = await fetch(`${API_BASE_URL}/frontend/promo-codes/validate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, orderAmount: activeSubtotal })
+            });
 
-            if (!found) {
-                setPromoError("Invalid promo code. Please check and try again.");
-                setActivePromo(null);
-                return;
+            const contentType = res.headers.get("content-type") || "";
+            let data = null;
+            if (contentType.includes("application/json")) {
+                data = await res.json();
             }
 
-            if (!found.status) {
-                setPromoError("This promo code is currently inactive.");
+            if (res.ok && data?.success && data?.data) {
+                setActivePromo(data.data);
+                setPromoSuccess(data.message || `Promo code "${data.data.code}" applied!`);
+            } else {
                 setActivePromo(null);
-                return;
+                setPromoError(data?.message || "Invalid promo code. Please check and try again.");
             }
-
-            if (activeSubtotal < (found.minOrderAmount || 0)) {
-                setPromoError(`This promo code requires a minimum spend of Rs ${found.minOrderAmount}`);
-                setActivePromo(null);
-                return;
-            }
-
-            setActivePromo(found);
-            setPromoSuccess(`Promo code "${found.code}" applied!`);
         } catch (error) {
             console.error("Error applying promo code:", error);
             setPromoError("Failed to apply promo code. Please try again.");
@@ -665,6 +658,18 @@ export default function CheckoutPage() {
     const handleCheckoutSubmit = async (e) => {
         e.preventDefault();
         setPaymentError("");
+
+        // Validate Contact Email if news & offers checkbox is selected
+        if (formData.newsletter && !formData.contactEmail?.trim()) {
+            setContactEmailError("Please enter your email to receive news and offers.");
+            const el = document.getElementById("contactEmailInput");
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                el.focus();
+            }
+            return;
+        }
+        setContactEmailError("");
 
         if (!activeItems || activeItems.length === 0) {
             setPaymentError("No items are selected for checkout. Please select items from your cart.");
@@ -1062,19 +1067,38 @@ export default function CheckoutPage() {
                                     Contact Details
                                 </h2>
                                 <div className="space-y-4">
-                                    <input
-                                        type="email"
-                                        required
-                                        value={formData.contactEmail}
-                                        onChange={(e) => handleInputChange("contactEmail", e.target.value)}
-                                        placeholder="Email Address"
-                                        className="w-full h-12 border border-neutral-200 rounded-lg px-4 focus:outline-none focus:border-black text-sm font-medium transition-colors"
-                                    />
+                                    <div>
+                                        <input
+                                            id="contactEmailInput"
+                                            type="email"
+                                            required={formData.newsletter}
+                                            value={formData.contactEmail}
+                                            onChange={(e) => {
+                                                handleInputChange("contactEmail", e.target.value);
+                                                if (contactEmailError && e.target.value.trim()) {
+                                                    setContactEmailError("");
+                                                }
+                                            }}
+                                            placeholder="Email Address"
+                                            className={`w-full h-12 border rounded-lg px-4 focus:outline-none text-sm font-medium transition-colors ${contactEmailError
+                                                ? "border-red-500 focus:border-red-500 bg-red-50/20"
+                                                : "border-neutral-200 focus:border-black"
+                                                }`}
+                                        />
+                                        {contactEmailError && (
+                                            <p className="text-xs text-red-500 font-semibold mt-1.5">{contactEmailError}</p>
+                                        )}
+                                    </div>
                                     <label className="flex items-center gap-2.5 text-xs text-neutral-500 font-semibold cursor-pointer select-none">
                                         <input
                                             type="checkbox"
                                             checked={formData.newsletter}
-                                            onChange={(e) => handleInputChange("newsletter", e.target.checked)}
+                                            onChange={(e) => {
+                                                handleInputChange("newsletter", e.target.checked);
+                                                if (!e.target.checked) {
+                                                    setContactEmailError("");
+                                                }
+                                            }}
                                             className="w-4.5 h-4.5 border-neutral-300 rounded-sm text-black focus:ring-black cursor-pointer accent-black"
                                         />
                                         <span>Email me with news and offers</span>
@@ -1418,8 +1442,8 @@ export default function CheckoutPage() {
                                     {user && userWalletBalance > 0 && (
                                         <label
                                             className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "wallet" || useWallet
-                                                    ? "border-black bg-neutral-900 text-white shadow-md"
-                                                    : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                                ? "border-black bg-neutral-900 text-white shadow-md"
+                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
                                                 }`}
                                         >
                                             <div className="flex items-start gap-3">
@@ -1459,8 +1483,8 @@ export default function CheckoutPage() {
                                     {/* Razorpay Online Payment Option */}
                                     <label
                                         className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
-                                                ? "border-black bg-neutral-50/80 shadow-xs text-black"
-                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                            ? "border-black bg-neutral-50/80 shadow-xs text-black"
+                                            : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -1582,24 +1606,53 @@ export default function CheckoutPage() {
 
                             {/* Promo Code Apply Box */}
                             <div className="mt-6 pt-6 border-t border-neutral-100">
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Promo code"
-                                        value={promoInput}
-                                        onChange={(e) => setPromoInput(e.target.value)}
-                                        className="flex-1 h-11 border border-neutral-200 rounded-lg px-3 focus:outline-none focus:border-black text-sm font-medium transition-colors"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleApplyPromo}
-                                        className="h-11 px-5 bg-black text-white hover:bg-neutral-800 rounded-full font-bold text-xs tracking-wider transition-colors cursor-pointer flex items-center justify-center select-none"
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
+                                {activePromo ? (
+                                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3.5 py-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-xs text-green-900 bg-green-200/70 px-2 py-0.5 rounded tracking-wider uppercase">{activePromo.code}</span>
+                                            <span className="text-xs text-green-800 font-medium">
+                                                Applied ({activePromo.discountType === "percentage" ? `${activePromo.discountValue}% OFF` : `Rs ${activePromo.discountValue} OFF`})
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setActivePromo(null);
+                                                setPromoInput("");
+                                                setPromoSuccess("");
+                                                setPromoError("");
+                                            }}
+                                            className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer underline transition-colors"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Promo code"
+                                            value={promoInput}
+                                            onChange={(e) => setPromoInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleApplyPromo(e);
+                                                }
+                                            }}
+                                            className="flex-1 h-11 border border-neutral-200 rounded-lg px-3 focus:outline-none focus:border-black text-sm font-medium transition-colors"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleApplyPromo}
+                                            className="h-11 px-5 bg-black text-white hover:bg-neutral-800 rounded-full font-bold text-xs tracking-wider transition-colors cursor-pointer flex items-center justify-center select-none"
+                                        >
+                                            Apply
+                                        </button>
+                                    </div>
+                                )}
                                 {promoError && <p className="text-xs text-red-500 font-semibold mt-2 ml-1">{promoError}</p>}
-                                {promoSuccess && <p className="text-xs text-green-600 font-semibold mt-2 ml-1">{promoSuccess}</p>}
+                                {promoSuccess && !activePromo && <p className="text-xs text-green-600 font-semibold mt-2 ml-1">{promoSuccess}</p>}
                             </div>
 
                             {/* Pricing summary totals */}

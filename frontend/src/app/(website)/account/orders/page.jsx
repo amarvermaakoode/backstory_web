@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info } from "lucide-react";
+import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
@@ -56,6 +56,13 @@ export default function AccountOrdersPage() {
     const [loading, setLoading] = useState(true);
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [selectedStatusFilter, setSelectedStatusFilter] = useState("All");
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
+
+    // Reset pagination to page 1 whenever filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedStatusFilter]);
 
     const [cancellingOrder, setCancellingOrder] = useState(null);
     const [cancelReason, setCancelReason] = useState("");
@@ -206,6 +213,18 @@ export default function AccountOrdersPage() {
         });
     });
 
+    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+    const activePage = currentPage > totalPages && totalPages > 0 ? totalPages : (currentPage < 1 ? 1 : currentPage);
+    const startIndex = (activePage - 1) * ITEMS_PER_PAGE;
+    const paginatedOrders = filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24 text-neutral-400">
@@ -279,169 +298,238 @@ export default function AccountOrdersPage() {
                 </div>
             ) : (
                 <div className="space-y-10">
-                    {filteredOrders.map((order) => {
-                        const currentOrderStatus = order.orderStatus || "Order Confirmed";
-                        return (
-                            <div key={order.id} className="border-b border-neutral-100 pb-8 last:border-0 space-y-5">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs font-normal text-neutral-400">
-                                        Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
-                                    </p>
-                                    {order.paymentMethod && (
-                                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
-                                            {order.paymentMethod}
-                                        </span>
-                                    )}
-                                </div>
+                    <div className="space-y-10">
+                        {paginatedOrders.map((order) => {
+                            const currentOrderStatus = order.orderStatus || "Order Confirmed";
+                            return (
+                                <div key={order.id} className="border-b border-neutral-100 pb-8 last:border-0 space-y-5">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-xs font-normal text-neutral-400">
+                                            Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
+                                        </p>
+                                        {order.paymentMethod && (
+                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
+                                                {order.paymentMethod}
+                                            </span>
+                                        )}
+                                    </div>
 
-                                {/* Items inside this order */}
-                                <div className="space-y-6">
-                                    {order.items.map((item) => {
-                                        const productUrl = item.link || `/products/${item.slug || item.productId || item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}`;
-                                        const itemStatus = order.orderStatus || item.orderStatus || "Order Confirmed";
+                                    {/* Items inside this order */}
+                                    <div className="space-y-6">
+                                        {order.items.map((item) => {
+                                            const productUrl = item.link || `/products/${item.slug || item.productId || item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}`;
+                                            const itemStatus = order.orderStatus || item.orderStatus || "Order Confirmed";
 
-                                        return (
-                                            <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                <div className="flex items-start gap-4">
-                                                    <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
-                                                        <img
-                                                            src={getImageUrl(item.image)}
-                                                            alt={item.name || "Product"}
-                                                            onError={(e) => {
-                                                                e.currentTarget.onerror = null;
-                                                                e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
-                                                            }}
-                                                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                                                        />
-                                                    </Link>
-                                                    <div className="space-y-1">
-                                                        <Link href={productUrl} className="group block cursor-pointer">
-                                                            <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover:underline transition-colors">
-                                                                {item.name}
-                                                            </h4>
+                                            return (
+                                                <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                    <div className="flex items-start gap-4">
+                                                        <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
+                                                            <img
+                                                                src={getImageUrl(item.image)}
+                                                                alt={item.name || "Product"}
+                                                                onError={(e) => {
+                                                                    e.currentTarget.onerror = null;
+                                                                    e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
+                                                                }}
+                                                                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                                                            />
                                                         </Link>
-                                                        <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">{item.category}</p>
-                                                        <div className="flex items-center gap-2 pt-1">
-                                                            <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white">
-                                                                {item.size}
-                                                            </span>
-                                                            <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white flex items-center gap-1.5">
-                                                                <span className="w-2 h-2 rounded-full border border-neutral-300" style={{ backgroundColor: item.colorHex || '#ddd' }} />
-                                                                {item.color}
-                                                            </span>
+                                                        <div className="space-y-1">
+                                                            <Link href={productUrl} className="group block cursor-pointer">
+                                                                <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover:underline transition-colors">
+                                                                    {item.name}
+                                                                </h4>
+                                                            </Link>
+                                                            <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">{item.category}</p>
+                                                            <div className="flex items-center gap-2 pt-1">
+                                                                <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white">
+                                                                    {item.size}
+                                                                </span>
+                                                                <span className="border border-neutral-200/80 rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 bg-white flex items-center gap-1.5">
+                                                                    <span className="w-2 h-2 rounded-full border border-neutral-300" style={{ backgroundColor: item.colorHex || '#ddd' }} />
+                                                                    {item.color}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
+
+                                                    <div className="text-right self-end sm:self-start shrink-0 space-y-1">
+                                                        <p className="font-semibold text-neutral-900 text-base sm:text-lg">{item.price}</p>
+                                                        <p className="text-xs text-neutral-400 font-medium">Qty: {item.quantity}</p>
+                                                        {currentOrderStatus !== "Delivered" && itemStatus !== "Delivered" && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned" && (
+                                                            <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
-
-                                                <div className="text-right self-end sm:self-start shrink-0 space-y-1">
-                                                    <p className="font-semibold text-neutral-900 text-base sm:text-lg">{item.price}</p>
-                                                    <p className="text-xs text-neutral-400 font-medium">Qty: {item.quantity}</p>
-                                                    {currentOrderStatus !== "Delivered" && itemStatus !== "Delivered" && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned" && (
-                                                        <p className="text-xs text-neutral-400 font-normal pt-4">{item.deliveryDate}</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-
-
-                                {/* Footer Action Buttons */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
-                                    <div className="flex items-center gap-2.5">
-                                        <button
-                                            onClick={() => setSelectedTrackOrder(order)}
-                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                        >
-                                            <Package className="w-3.5 h-3.5 text-neutral-600" />
-                                            Track Order
-                                        </button>
-
-                                         {(() => {
-                                             const allReturnReqs = (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0)
-                                                 ? order.returnRequestsHistory
-                                                 : (order.returnExchange?.isRequested ? [order.returnExchange] : []);
-
-                                             const totalOrderedQty = (order.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-                                             let totalReturnedQty = 0;
-                                             allReturnReqs.forEach(req => {
-                                                 if (req.status !== "Rejected") {
-                                                     if (req.requestedItems && Array.isArray(req.requestedItems) && req.requestedItems.length > 0) {
-                                                         req.requestedItems.forEach(ri => {
-                                                             totalReturnedQty += (ri.returnQuantity || 1);
-                                                         });
-                                                     } else {
-                                                         totalReturnedQty += (order.items?.length || 1);
-                                                     }
-                                                 }
-                                             });
-
-                                             const remainingReturnableQty = Math.max(0, totalOrderedQty - totalReturnedQty);
-                                             const isDeliveredOrActive = currentOrderStatus === "Delivered" || currentOrderStatus === "Return In Progress" || currentOrderStatus === "Returned" || order.orderStatus === "Delivered" || order.orderStatus === "Return In Progress" || order.orderStatus === "Returned";
-
-                                             if (isDeliveredOrActive && remainingReturnableQty > 0) {
-                                                 return (
-                                                     <Link
-                                                         href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
-                                                         className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                                     >
-                                                         <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
-                                                         <span>Return or Exchange</span>
-                                                     </Link>
-                                                 );
-                                             }
-
-                                             if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
-                                                 const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
-                                                 return (
-                                                     <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
-                                                         <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
-                                                         <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
-                                                     </span>
-                                                 );
-                                             }
-
-                                             return null;
-                                         })()}
-
-                                        {/* Cancellation Action according to Bacstory policy */}
-                                        {(currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing") ? (
-                                            <button
-                                                onClick={() => setCancellingOrder(order)}
-                                                className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                                            >
-                                                <X className="w-3.5 h-3.5 text-red-600" />
-                                                Cancel Order
-                                            </button>
-                                        ) : (() => {
-                                            const stepIdx = getStepIndex(currentOrderStatus);
-                                            const isNonCancellableInTransit = stepIdx >= 1 && stepIdx <= 3 && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned";
-                                            if (isNonCancellableInTransit) {
-                                                return (
-                                                    <span
-                                                        className="text-[11px] text-neutral-400 font-light border border-neutral-200 rounded-full px-3 py-1 bg-neutral-50 cursor-default select-none"
-                                                        title="Orders cannot be cancelled once packed or shipped for dispatch"
-                                                    >
-                                                        Packed & Non-Cancellable
-                                                    </span>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
+                                            );
+                                        })}
                                     </div>
-                                    <Link
-                                        href="/account/support"
-                                        className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
-                                    >
-                                        <HelpCircle className="w-3.5 h-3.5" />
-                                        Need Help?
-                                    </Link>
+
+
+
+                                    {/* Footer Action Buttons */}
+                                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <button
+                                                onClick={() => setSelectedTrackOrder(order)}
+                                                className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                            >
+                                                <Package className="w-3.5 h-3.5 text-neutral-600" />
+                                                Track Order
+                                            </button>
+
+                                            {(() => {
+                                                const allReturnReqs = (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0)
+                                                    ? order.returnRequestsHistory
+                                                    : (order.returnExchange?.isRequested ? [order.returnExchange] : []);
+
+                                                const totalOrderedQty = (order.items || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+                                                let totalReturnedQty = 0;
+                                                allReturnReqs.forEach(req => {
+                                                    if (req.status !== "Rejected") {
+                                                        if (req.requestedItems && Array.isArray(req.requestedItems) && req.requestedItems.length > 0) {
+                                                            req.requestedItems.forEach(ri => {
+                                                                totalReturnedQty += (ri.returnQuantity || 1);
+                                                            });
+                                                        } else {
+                                                            totalReturnedQty += (order.items?.length || 1);
+                                                        }
+                                                    }
+                                                });
+
+                                                const remainingReturnableQty = Math.max(0, totalOrderedQty - totalReturnedQty);
+                                                const isDeliveredOrActive = currentOrderStatus === "Delivered" || currentOrderStatus === "Return In Progress" || currentOrderStatus === "Returned" || order.orderStatus === "Delivered" || order.orderStatus === "Return In Progress" || order.orderStatus === "Returned";
+
+                                                if (isDeliveredOrActive && remainingReturnableQty > 0) {
+                                                    return (
+                                                        <Link
+                                                            href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                                            <span>Return or Exchange</span>
+                                                        </Link>
+                                                    );
+                                                }
+
+                                                if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
+                                                    const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
+                                                    return (
+                                                        <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
+                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
+                                                            <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
+                                                        </span>
+                                                    );
+                                                }
+
+                                                return null;
+                                            })()}
+
+                                            {/* Cancellation Action according to Bacstory policy */}
+                                            {(currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing") ? (
+                                                <button
+                                                    onClick={() => setCancellingOrder(order)}
+                                                    className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                >
+                                                    <X className="w-3.5 h-3.5 text-red-600" />
+                                                    Cancel Order
+                                                </button>
+                                            ) : (() => {
+                                                const stepIdx = getStepIndex(currentOrderStatus);
+                                                const isNonCancellableInTransit = stepIdx >= 1 && stepIdx <= 3 && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned";
+                                                if (isNonCancellableInTransit) {
+                                                    return (
+                                                        <span
+                                                            className="text-[11px] text-neutral-400 font-light border border-neutral-200 rounded-full px-3 py-1 bg-neutral-50 cursor-default select-none"
+                                                            title="Orders cannot be cancelled once packed or shipped for dispatch"
+                                                        >
+                                                            Packed & Non-Cancellable
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
+                                        <Link
+                                            href="/account/support"
+                                            className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
+                                        >
+                                            <HelpCircle className="w-3.5 h-3.5" />
+                                            Need Help?
+                                        </Link>
+                                    </div>
                                 </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Pagination Controls (8 items per page) */}
+                    {totalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100">
+                            <p className="text-xs text-neutral-500 order-2 sm:order-1">
+                                Showing <span className="font-semibold text-neutral-800">{startIndex + 1}</span>–<span className="font-semibold text-neutral-800">{Math.min(startIndex + ITEMS_PER_PAGE, filteredOrders.length)}</span> of <span className="font-semibold text-neutral-800">{filteredOrders.length}</span> orders
+                            </p>
+
+                            <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                                {/* Previous Page Button */}
+                                <button
+                                    disabled={activePage === 1}
+                                    onClick={() => handlePageChange(activePage - 1)}
+                                    className={`p-2 rounded-full border border-neutral-200 hover:border-black transition-colors cursor-pointer flex items-center justify-center ${activePage === 1 ? "opacity-30 cursor-not-allowed border-neutral-100" : ""
+                                        }`}
+                                    aria-label="Previous Page"
+                                >
+                                    <ChevronLeft className="h-4 w-4 stroke-[1.75]" />
+                                </button>
+
+                                {/* Page Numbers with ellipsis support */}
+                                {(() => {
+                                    const pages = [];
+                                    if (totalPages <= 7) {
+                                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                    } else {
+                                        if (activePage <= 4) {
+                                            pages.push(1, 2, 3, 4, 5, "...", totalPages);
+                                        } else if (activePage >= totalPages - 3) {
+                                            pages.push(1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                                        } else {
+                                            pages.push(1, "...", activePage - 1, activePage, activePage + 1, "...", totalPages);
+                                        }
+                                    }
+                                    return pages.map((page, idx) =>
+                                        page === "..." ? (
+                                            <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-neutral-400 select-none">
+                                                ...
+                                            </span>
+                                        ) : (
+                                            <button
+                                                key={page}
+                                                onClick={() => handlePageChange(page)}
+                                                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${activePage === page
+                                                        ? "bg-black text-white shadow-xs"
+                                                        : "text-neutral-500 hover:text-black hover:bg-neutral-100"
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    );
+                                })()}
+
+                                {/* Next Page Button */}
+                                <button
+                                    disabled={activePage === totalPages}
+                                    onClick={() => handlePageChange(activePage + 1)}
+                                    className={`p-2 rounded-full border border-neutral-200 hover:border-black transition-colors cursor-pointer flex items-center justify-center ${activePage === totalPages ? "opacity-30 cursor-not-allowed border-neutral-100" : ""
+                                        }`}
+                                    aria-label="Next Page"
+                                >
+                                    <ChevronRight className="h-4 w-4 stroke-[1.75]" />
+                                </button>
                             </div>
-                        );
-                    })}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -749,15 +837,15 @@ export default function AccountOrdersPage() {
                                                 { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true },
                                                 { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
                                                 { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
-                                                { 
-                                                    title: "Refund Initiated", 
-                                                    desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)", 
-                                                    completed: ["Refund Initiated", "Refunded"].includes(reqStatus) 
+                                                {
+                                                    title: "Refund Initiated",
+                                                    desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)",
+                                                    completed: ["Refund Initiated", "Refunded"].includes(reqStatus)
                                                 },
-                                                { 
-                                                    title: "Refunded", 
-                                                    desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account", 
-                                                    completed: reqStatus === "Refunded" 
+                                                {
+                                                    title: "Refunded",
+                                                    desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account",
+                                                    completed: reqStatus === "Refunded"
                                                 }
                                             ];
 
@@ -768,20 +856,20 @@ export default function AccountOrdersPage() {
                                                 { title: "Exchange Requested", desc: `Reason: ${reqReason}`, completed: true },
                                                 { title: "Exchange Approved", desc: "Exchange request approved by seller", completed: isApproved },
                                                 { title: "Product Picked Up", desc: "Product picked up by seller for quality inspection", completed: isReceived },
-                                                { 
-                                                    title: "Replacement Ready to Pack & Ship", 
-                                                    desc: "Replacement item undergoing quality check & packing", 
-                                                    completed: isReadyToShip 
+                                                {
+                                                    title: "Replacement Ready to Pack & Ship",
+                                                    desc: "Replacement item undergoing quality check & packing",
+                                                    completed: isReadyToShip
                                                 },
-                                                { 
-                                                    title: "Replacement Dispatched", 
-                                                    desc: "Replacement item dispatched & in transit", 
-                                                    completed: isDispatched 
+                                                {
+                                                    title: "Replacement Dispatched",
+                                                    desc: "Replacement item dispatched & in transit",
+                                                    completed: isDispatched
                                                 },
-                                                { 
-                                                    title: "Exchange Completed", 
-                                                    desc: "Replacement item delivered successfully to customer", 
-                                                    completed: isExchangedDone 
+                                                {
+                                                    title: "Exchange Completed",
+                                                    desc: "Replacement item delivered successfully to customer",
+                                                    completed: isExchangedDone
                                                 }
                                             ];
 

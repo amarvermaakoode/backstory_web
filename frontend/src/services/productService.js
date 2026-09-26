@@ -38,6 +38,7 @@ export const mapProductItem = (item) => {
         subCategorySlug: item.subCategory?.slug || "",
         subCategoryName: item.subCategory?.name || "",
         link: `/products/${item.slug || item._id}`,
+        featured: item.featured === true || item.isFeatured === true,
         variantStock: item.variantStock || {},
         inventory: item.inventory || []
     };

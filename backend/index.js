@@ -35,6 +35,7 @@ const frontendSupportRoutes = require("./routes/frontend/supportFrntRoutes");
 const adminQRCodeRoutes = require("./routes/admin/qrCodeRoutes");
 const adminClaimCodeRoutes = require("./routes/admin/claimCodeRoutes");
 const adminOrderRoutes = require("./routes/admin/orderAdminRoutes");
+const adminDashboardRoutes = require("./routes/admin/dashboardRoutes");
 const frontendQRRoutes = require("./routes/frontend/qrFrntRoutes");
 const frontendOrderRoutes = require("./routes/frontend/orderFrntRoutes");
 const walletRoutes = require("./routes/frontend/walletRoutes");
@@ -83,10 +84,12 @@ app.use("/api/admin/size-guides", sizeGuideRoutes);
 app.use("/api/admin/products", productRoutes);
 app.use("/api/admin/reviews", adminReviewRoutes);
 app.use("/api/admin/promo-codes", adminPromoCodeRoutes);
+app.use("/api/admin/coupons", adminPromoCodeRoutes);
 app.use("/api/admin/support-tickets", adminSupportRoutes);
 app.use("/api/admin/qr-codes", adminQRCodeRoutes);
 app.use("/api/admin/claim-codes", adminClaimCodeRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/shipping-rates", adminShippingRoutes);
 
 //frontend routes
@@ -102,6 +105,7 @@ app.use("/api/frontend/auth", frontendAuthRoutes);
 app.use("/api/frontend/wishlist", frontendWishlistRoutes);
 app.use("/api/frontend/cart", frontendCartRoutes);
 app.use("/api/frontend/promo-codes", frontendPromoCodeRoutes);
+app.use("/api/frontend/coupons", frontendPromoCodeRoutes);
 app.use("/api/frontend/support", frontendSupportRoutes);
 app.use("/api/frontend/qr", frontendQRRoutes);
 app.use("/api/frontend/orders", frontendOrderRoutes);
@@ -111,6 +115,14 @@ app.use("/api/frontend/shipping-rates", frontendShippingRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.send("Backend is running successfully");
+});
+
+// JSON 404 Handler for undefined API routes (prevents HTML doctype response errors)
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `API route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
 
 // Global Error Handler Middleware

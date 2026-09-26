@@ -22,6 +22,13 @@ const defaultPromoCodes = [
     minOrderAmount: 3000,
     status: true,
   },
+  {
+    code: "BOGO",
+    discountType: "percentage",
+    discountValue: 50,
+    minOrderAmount: 0,
+    status: true,
+  },
 ];
 
 // get all active promo codes
@@ -70,6 +77,15 @@ const validatePromoCode = async (req, res) => {
 
     const cleanCode = code.trim().toUpperCase();
     let promoCode = await PromoCode.findOne({ code: cleanCode });
+
+    // Handle 0 vs O ambiguity (e.g. BOGO vs B0G0)
+    if (!promoCode) {
+      const swappedZeroToO = cleanCode.replace(/0/g, "O");
+      const swappedOToZero = cleanCode.replace(/O/g, "0");
+      promoCode = await PromoCode.findOne({
+        $or: [{ code: swappedZeroToO }, { code: swappedOToZero }]
+      });
+    }
 
     if (!promoCode) {
       const defaultMatch = defaultPromoCodes.find((p) => p.code === cleanCode);

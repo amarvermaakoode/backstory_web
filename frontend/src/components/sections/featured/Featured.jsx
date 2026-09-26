@@ -50,13 +50,13 @@ export default function FeaturedProducts() {
                     <h2 className="heading-section">
                         Featured Products
                     </h2>
-                    <Button href="/product-list" hasArrow={false} variant="outline" className="whitespace-nowrap">
+                    <Button href="/product-list?featured=true" hasArrow={false} variant="outline" className="whitespace-nowrap">
                         See All
                     </Button>
                 </div>
 
                 {/* Grid layout for featured products on desktop, carousel on mobile */}
-                <div className="flex md:grid md:grid-cols-3 gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0 pl-6 sm:pl-10 md:pl-0 pr-6 sm:pr-10 md:pr-0">
+                <div className={`flex md:grid ${products.length >= 4 ? "md:grid-cols-4" : products.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4 md:gap-8 overflow-x-auto md:overflow-visible no-scrollbar pb-4 md:pb-0 pl-6 sm:pl-10 md:pl-0 pr-6 sm:pr-10 md:pr-0`}>
                     <style jsx global>{`
                         .no-scrollbar::-webkit-scrollbar {
                             display: none;
@@ -66,7 +66,7 @@ export default function FeaturedProducts() {
                             scrollbar-width: none;
                         }
                     `}</style>
-                    {products.slice(0, 3).map((product) => (
+                    {products.map((product) => (
                         <Link
                             key={product.id}
                             href={product.link || `/products/${product.slug || product.id}`}
