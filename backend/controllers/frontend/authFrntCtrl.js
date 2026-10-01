@@ -1,6 +1,7 @@
 const User = require("../../models/user");
 const Otp = require("../../models/otp");
 const { generateToken } = require("../../config/jwt");
+const { sendOtpEmail } = require("../../services/emailService");
 
 // Send OTP
 const sendOtp = async (req, res) => {
@@ -57,7 +58,7 @@ const sendOtp = async (req, res) => {
       }
     }
 
-    // Generate a mock 6-digit OTP
+    // Generate a 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Clean up any existing OTPs for this email/phone number
@@ -73,11 +74,38 @@ const sendOtp = async (req, res) => {
       otp,
     });
 
-    // In a production app, we would send the OTP via SMS or Email here.
-    // For now, we return it in the response as requested.
+    // If email is provided, send real OTP email via SendGrid
+    if (formattedEmail) {
+      console.log(`[Auth] Dispatching ${authType} OTP email via SendGrid to ${formattedEmail}...`);
+      const emailResult = await sendOtpEmail({
+        to: formattedEmail,
+        otp,
+        type: authType,
+      });
+
+      if (!emailResult.success) {
+        console.error(`[Auth] Failed to send OTP email to ${formattedEmail}:`, emailResult.error);
+        return res.status(500).json({
+          success: false,
+          message: emailResult.error || "Failed to send verification email. Please try again.",
+        });
+      }
+
+      console.log(`[Auth] OTP email successfully dispatched via SendGrid to ${formattedEmail}. Code: ${otp}`);
+
+      return res.status(200).json({
+        success: true,
+        message: `Verification code sent to ${formattedEmail}. Please check your email inbox.`,
+        emailSent: true,
+        mockOtp: process.env.SHOW_EMAIL_MOCK_OTP === "true" ? otp : undefined,
+      });
+    }
+
+    // Mobile pathway (mock OTP returned while SMS service is pending)
+    console.log(`[Auth] Mock OTP generated for phone ${formattedPhone}: ${otp}`);
     return res.status(200).json({
       success: true,
-      message: `Mock OTP sent successfully to ${email || phoneNumber}.`,
+      message: `OTP sent successfully to +91 ${formattedPhone}.`,
       mockOtp: otp,
     });
   } catch (error) {
@@ -112,14 +140,17 @@ const verifyOtp = async (req, res) => {
     const formattedEmail = email ? email.toLowerCase().trim() : undefined;
     const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
 
+    // Clean OTP string
+    const cleanOtp = String(otp).trim();
+
     // Check if verification code is valid
     let isValid = false;
 
     // Support static universal mock OTP for testing
-    if (otp === "123456") {
+    if (cleanOtp === "123456") {
       isValid = true;
     } else {
-      const query = { otp };
+      const query = { otp: cleanOtp };
       if (formattedEmail) query.email = formattedEmail;
       if (formattedPhone) query.phoneNumber = formattedPhone;
 

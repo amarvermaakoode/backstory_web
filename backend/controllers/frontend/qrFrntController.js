@@ -5,6 +5,7 @@ const User = require("../../models/user");
 const Otp = require("../../models/otp");
 const Order = require("../../models/Order");
 const { generateToken } = require("../../config/jwt");
+const { sendOtpEmail } = require("../../services/emailService");
 
 // Helper function to verify if contact (email or phone) matches a registered User account profile
 async function checkContactMatchesRegisteredUser(identifier, order) {
@@ -214,6 +215,8 @@ exports.sendClaimOTP = async (req, res) => {
     if (cleanEmail) {
       await Otp.deleteMany({ email: cleanEmail });
       await Otp.create({ email: cleanEmail, otp });
+      // Send real email OTP via SendGrid
+      await sendOtpEmail({ to: cleanEmail, otp, type: "claim" });
     } else {
       await Otp.deleteMany({ phoneNumber: cleanPhone });
       await Otp.create({ phoneNumber: cleanPhone, otp });
@@ -789,6 +792,8 @@ exports.sendGiftClaimOTP = async (req, res) => {
     if (cleanEmail) {
       await Otp.deleteMany({ email: cleanEmail });
       await Otp.create({ email: cleanEmail, otp });
+      // Send real email OTP via SendGrid
+      await sendOtpEmail({ to: cleanEmail, otp, type: "claim" });
     } else {
       await Otp.deleteMany({ phoneNumber: cleanPhone });
       await Otp.create({ phoneNumber: cleanPhone, otp });
