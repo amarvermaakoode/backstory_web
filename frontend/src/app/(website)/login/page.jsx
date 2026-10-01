@@ -19,7 +19,7 @@ const slideshowImages = [
 export default function LoginPage() {
   const router = useRouter();
   const { sendOtp, verifyOtp } = useUserAuth();
-  const [activeTab, setActiveTab] = useState("mobile");
+  const [activeTab, setActiveTab] = useState("email");
 
   // Mobile Auth States
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -275,14 +275,14 @@ export default function LoginPage() {
                     </h1>
                     <p className="text-xs sm:text-sm text-neutral-400 font-medium">
                       {otpSent
-                        ? `We've sent an OTP to ${activeTab === "mobile" ? `+91 ${phoneNumber}` : email}`
-                        : "Welcome back! Enter your details to continue"
+                        ? `We've sent an OTP to ${email}`
+                        : "Welcome back! Enter your email to continue"
                       }
                     </p>
                   </div>
 
-                  {/* Segmented Tab Bar Control */}
-                  {!otpSent && (
+                  {/* Mobile number login tab commented out for now - Email only */}
+                  {/* {!otpSent && (
                     <div className="bg-neutral-100 p-1.5 rounded-2xl flex gap-1 mb-8">
                       <button
                         type="button"
@@ -315,11 +315,11 @@ export default function LoginPage() {
                         Email Address
                       </button>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Form Block */}
                   {otpSent ? (
-                    /* OTP Verification Form (shared by both Mobile and Email) */
+                    /* OTP Verification Form */
                     <form onSubmit={handleVerifyOtp} className="space-y-6">
                       {mockOtpCode && (
                         <div className="bg-amber-50 border border-amber-200/50 rounded-xl p-3 text-center">
@@ -380,8 +380,8 @@ export default function LoginPage() {
                         </div>
                       )}
 
-                      {activeTab === "mobile" ? (
-                        /* Mobile Phone Input */
+                      {/* Mobile Phone Input commented out for now */}
+                      {/* {activeTab === "mobile" && (
                         <div>
                           <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
                             Mobile Number
@@ -409,39 +409,36 @@ export default function LoginPage() {
                             We&apos;ll send an OTP to verify your number
                           </p>
                         </div>
-                      ) : (
-                        /* Email Address Input (Passwordless) */
-                        <div>
-                          <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => {
-                              setEmail(e.target.value);
-                              if (authError) {
-                                setAuthError("");
-                                setIsAccountNotFound(false);
-                              }
-                            }}
-                            placeholder="johndoe@gmail.com"
-                            className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
-                          />
-                          <p className="text-[11px] text-neutral-400 mt-2 font-medium">
-                            We&apos;ll send an OTP to verify your email
-                          </p>
-                        </div>
-                      )}
+                      )} */}
+
+                      {/* Email Address Input (Passwordless) */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (authError) {
+                              setAuthError("");
+                              setIsAccountNotFound(false);
+                            }
+                          }}
+                          placeholder="johndoe@gmail.com"
+                          className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
+                        />
+                        <p className="text-[11px] text-neutral-400 mt-2 font-medium">
+                          We&apos;ll send a 6-digit OTP to verify your email
+                        </p>
+                      </div>
 
                       <button
                         type="submit"
-                        disabled={
-                          (activeTab === "mobile" ? phoneNumber.length !== 10 : !email.includes("@")) ||
-                          loading
-                        }
-                        className={`w-full h-14 rounded-full font-bold text-sm transition-all duration-300 active:scale-[0.99] cursor-pointer flex items-center justify-center ${((activeTab === "mobile" ? phoneNumber.length === 10 : email.includes("@")) && !loading)
+                        disabled={!email.includes("@") || loading}
+                        className={`w-full h-14 rounded-full font-bold text-sm transition-all duration-300 active:scale-[0.99] cursor-pointer flex items-center justify-center ${email.includes("@") && !loading
                           ? "bg-black text-white hover:bg-neutral-800 hover:shadow-md"
                           : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                           }`}

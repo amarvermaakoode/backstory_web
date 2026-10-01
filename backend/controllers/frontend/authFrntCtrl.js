@@ -9,23 +9,29 @@ const sendOtp = async (req, res) => {
     const { email, phoneNumber, type, mode } = req.body;
     const authType = type || mode; // "login" | "signup"
 
-    if (!email && !phoneNumber) {
+    // Mobile authentication commented out for now - Email only
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Please provide either email or phone number",
+        message: "Please provide your email address. Mobile login/signup is temporarily disabled.",
       });
     }
 
     const formattedEmail = email ? email.toLowerCase().trim() : undefined;
-    const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
+    // Mobile authentication is disabled for now:
+    // const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
+    const formattedPhone = undefined;
 
     // Check existing user for login / signup validation
     let existingUser = null;
     if (formattedEmail) {
       existingUser = await User.findOne({ email: formattedEmail });
-    } else if (formattedPhone) {
+    }
+    /*
+    else if (formattedPhone) {
       existingUser = await User.findOne({ phoneNumber: formattedPhone });
     }
+    */
 
     if (authType === "login") {
       if (!existingUser) {
@@ -101,12 +107,18 @@ const sendOtp = async (req, res) => {
       });
     }
 
-    // Mobile pathway (mock OTP returned while SMS service is pending)
+    /*
+    // Mobile pathway (mock OTP returned while SMS service is pending) - Commented out for now
     console.log(`[Auth] Mock OTP generated for phone ${formattedPhone}: ${otp}`);
     return res.status(200).json({
       success: true,
       message: `OTP sent successfully to +91 ${formattedPhone}.`,
       mockOtp: otp,
+    });
+    */
+    return res.status(400).json({
+      success: false,
+      message: "Please provide a valid email address.",
     });
   } catch (error) {
     console.error("Send OTP error:", error.message);
@@ -130,15 +142,18 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    if (!email && !phoneNumber) {
+    // Mobile authentication commented out for now - Email only
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Please provide either email or phone number",
+        message: "Please provide your email address. Mobile login/signup is temporarily disabled.",
       });
     }
 
     const formattedEmail = email ? email.toLowerCase().trim() : undefined;
-    const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
+    // Mobile authentication is disabled for now:
+    // const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
+    const formattedPhone = undefined;
 
     // Clean OTP string
     const cleanOtp = String(otp).trim();
