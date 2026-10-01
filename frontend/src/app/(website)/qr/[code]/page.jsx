@@ -501,36 +501,6 @@ export default function PublicQRCodePage() {
                     {/* Horizontal Divider Line */}
                     <div className="border-b border-neutral-200/70 my-4" />
 
-                    {/* Claim Method Tabs */}
-                    {!otpSent && (
-                      <div className="flex bg-[#EFECE6] p-1 rounded-2xl mb-4 text-xs font-semibold">
-                        <button
-                          type="button"
-                          onClick={() => setClaimMethod("order")}
-                          className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                            claimMethod === "order"
-                              ? "bg-white text-neutral-900 shadow-xs font-bold"
-                              : "text-neutral-600 hover:text-neutral-900"
-                          }`}
-                        >
-                          <ShoppingBag className="w-3.5 h-3.5" />
-                          <span>Order ID Claim</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setClaimMethod("gift")}
-                          className={`flex-1 py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                            claimMethod === "gift"
-                              ? "bg-white text-neutral-900 shadow-xs font-bold"
-                              : "text-neutral-600 hover:text-neutral-900"
-                          }`}
-                        >
-                          <Ticket className="w-3.5 h-3.5 text-[#767A59]" />
-                          <span>Marketing / Promo Code</span>
-                        </button>
-                      </div>
-                    )}
-
                     {!otpSent ? (
                       claimMethod === "order" ? (
                         /* Step 1 Form (Order Flow): 2-Row Spacious Layout */
@@ -720,11 +690,6 @@ export default function PublicQRCodePage() {
                             <p>
                               We sent a 6-digit OTP code to <strong>{claimMethod === "gift" ? giftContact : email}</strong>.
                             </p>
-                            {mockOtpHint && (
-                              <p className="text-[11px] font-mono text-emerald-700 pt-1">
-                                (Dev OTP: <strong>{mockOtpHint}</strong>)
-                              </p>
-                            )}
                           </div>
                         </div>
 

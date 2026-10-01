@@ -225,7 +225,6 @@ exports.sendClaimOTP = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `OTP sent successfully to ${contactInput}.`,
-      mockOtp: process.env.NODE_ENV === "production" ? undefined : otp,
     });
   } catch (error) {
     console.error("Error sending claim OTP:", error);
@@ -802,7 +801,6 @@ exports.sendGiftClaimOTP = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `OTP sent successfully to ${contactInput}.`,
-      mockOtp: process.env.NODE_ENV === "production" ? undefined : otp,
     });
   } catch (error) {
     console.error("Error sending gift claim OTP:", error);

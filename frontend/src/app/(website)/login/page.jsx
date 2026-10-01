@@ -321,13 +321,6 @@ export default function LoginPage() {
                   {otpSent ? (
                     /* OTP Verification Form */
                     <form onSubmit={handleVerifyOtp} className="space-y-6">
-                      {mockOtpCode && (
-                        <div className="bg-amber-50 border border-amber-200/50 rounded-xl p-3 text-center">
-                          <p className="text-[11px] font-semibold text-amber-800">
-                            Mock Verification Code: <span className="font-bold text-sm tracking-widest">{mockOtpCode}</span>
-                          </p>
-                        </div>
-                      )}
                       {otpError && (
                         <p className="text-xs font-semibold text-red-500 bg-red-50 border border-red-100 rounded-xl p-3 text-center">
                           {otpError}

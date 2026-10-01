@@ -375,6 +375,22 @@ export default function CheckoutPage() {
     const [promoError, setPromoError] = useState("");
     const [promoSuccess, setPromoSuccess] = useState("");
 
+    // Load persisted promo code from localStorage (e.g. if applied in Cart)
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("activePromoCode");
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed && parsed.code) {
+                    setActivePromo(parsed);
+                    setPromoInput(parsed.code);
+                    const isFull = parsed.discountValue >= 100 || parsed.isMarketingCode || parsed.code === "MARKETING";
+                    setPromoSuccess(isFull ? `100% OFF applied! Total bill is Rs 0` : `Promo code "${parsed.code}" applied!`);
+                }
+            }
+        } catch (e) {}
+    }, []);
+
     // Fetch active shipping rates from backend API
     useEffect(() => {
         const fetchShippingRates = async () => {
@@ -395,6 +411,9 @@ export default function CheckoutPage() {
     useEffect(() => {
         if (activePromo && activeSubtotal < activePromo.minOrderAmount) {
             setActivePromo(null);
+            try {
+                localStorage.removeItem("activePromoCode");
+            } catch (e) {}
             setPromoError(`Promo code cleared: requires minimum spend of Rs ${activePromo.minOrderAmount}`);
             setPromoSuccess("");
         }
@@ -585,8 +604,6 @@ export default function CheckoutPage() {
         return stdRate;
     };
 
-    const shippingCost = getShippingCost();
-
     // Handle Promo Code application
     const handleApplyPromo = async (e) => {
         if (e) e.preventDefault();
@@ -614,10 +631,17 @@ export default function CheckoutPage() {
 
             if (res.ok && data?.success && data?.data) {
                 setActivePromo(data.data);
-                setPromoSuccess(data.message || `Promo code "${data.data.code}" applied!`);
+                try {
+                    localStorage.setItem("activePromoCode", JSON.stringify(data.data));
+                } catch (e) {}
+                const isFull = data.data.discountValue >= 100 || data.data.isMarketingCode || data.data.code === "MARKETING";
+                setPromoSuccess(data.message || (isFull ? `100% OFF applied! Total bill is Rs 0` : `Promo code "${data.data.code}" applied!`));
             } else {
                 setActivePromo(null);
-                setPromoError(data?.message || "Invalid promo code. Please check and try again.");
+                try {
+                    localStorage.removeItem("activePromoCode");
+                } catch (e) {}
+                setPromoError(data?.message || "Invalid promo code. Try 'MARKETING'");
             }
         } catch (error) {
             console.error("Error applying promo code:", error);
@@ -626,21 +650,33 @@ export default function CheckoutPage() {
         }
     };
 
-    // Calculation values
-    const discountAmount = activePromo
-        ? (activePromo.discountType === "percentage"
-            ? Math.round(activeSubtotal * (activePromo.discountValue / 100))
-            : Math.min(activeSubtotal, activePromo.discountValue))
-        : 0;
-    const taxableAmount = activeSubtotal - discountAmount;
-    const taxAmount = 0; // Tax (GST) removed
-    const totalAmount = taxableAmount + shippingCost;
+    // Calculation values - Full discount turns the entire bill to Rs 0
+    const isFullDiscount = Boolean(
+        activePromo && (
+            activePromo.discountValue >= 100 ||
+            activePromo.isMarketingCode ||
+            activePromo.code === "MARKETING"
+        )
+    );
 
-    // BacStory Wallet calculations
+    const discountAmount = isFullDiscount
+        ? activeSubtotal
+        : activePromo
+            ? (activePromo.discountType === "percentage"
+                ? Math.round(activeSubtotal * (activePromo.discountValue / 100))
+                : Math.min(activeSubtotal, activePromo.discountValue))
+            : 0;
+
+    const shippingCost = isFullDiscount ? 0 : getShippingCost();
+    const taxableAmount = Math.max(0, activeSubtotal - discountAmount);
+    const taxAmount = 0; // Tax (GST) removed
+    const totalAmount = isFullDiscount ? 0 : taxableAmount + shippingCost;
+
+    // BacStory Wallet calculations (No deduction if free order!)
     const userWalletBalance = user?.walletBalance || 0;
-    const isWalletActive = (useWallet || selectedPaymentChoice === "wallet") && userWalletBalance > 0;
+    const isWalletActive = !isFullDiscount && (useWallet || selectedPaymentChoice === "wallet") && userWalletBalance > 0;
     const walletDeduction = isWalletActive ? Math.min(userWalletBalance, totalAmount) : 0;
-    const payableTotal = Math.max(0, totalAmount - walletDeduction);
+    const payableTotal = isFullDiscount ? 0 : Math.max(0, totalAmount - walletDeduction);
 
     // Helper to dynamically load Razorpay SDK if needed
     const loadRazorpayScript = () => {
@@ -655,43 +691,102 @@ export default function CheckoutPage() {
         });
     };
 
-    // Checkout submission with Razorpay Standard Web Checkout
-    const handleCheckoutSubmit = async (e) => {
-        e.preventDefault();
-        setPaymentError("");
-
-        // Validate Contact Email if news & offers checkbox is selected
-        if (formData.newsletter && !formData.contactEmail?.trim()) {
-            setContactEmailError("Please enter your email to receive news and offers.");
-            const el = document.getElementById("contactEmailInput");
+    // Smooth scroll and focus helper for form validation
+    const scrollToField = (id) => {
+        if (typeof window === "undefined" || typeof document === "undefined") return;
+        setTimeout(() => {
+            const el = document.getElementById(id);
             if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
-                el.focus();
+                try { el.focus(); } catch (e) {}
             }
-            return;
-        }
-        setContactEmailError("");
+        }, 50);
+    };
 
+    // Checkout submission with Razorpay Standard Web Checkout
+    const handleCheckoutSubmit = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        setPaymentError("");
+
+        // 1. Validate active items in cart
         if (!activeItems || activeItems.length === 0) {
             setPaymentError("No items are selected for checkout. Please select items from your cart.");
             return;
         }
 
-        // Validate Phone Number according to Country
-        const phoneCheck = validatePhoneNumber(formData.phoneNumber, formData.country);
-        if (!phoneCheck.isValid) {
-            setPhoneError(phoneCheck.error);
+        // 2. Validate Contact Email if news & offers checkbox is selected
+        if (formData.newsletter && !formData.contactEmail?.trim()) {
+            setContactEmailError("Please enter your email to receive news and offers.");
+            setPaymentError("Please provide your email address under Contact Details.");
+            scrollToField("contactEmailInput");
             return;
         }
-        setPhoneError("");
+        setContactEmailError("");
 
-        // Validate PIN code dynamically according to selected Country
-        const pinCheck = validatePostalCode(formData.pinCode, formData.country);
-        if (!pinCheck.isValid) {
-            setPinCodeError(pinCheck.error);
-            return;
+        // 3. Validate Delivery Address details
+        const isUsingSavedAddress = user && user.addresses && user.addresses.length > 0 && !isWritingAddress;
+        if (!isUsingSavedAddress) {
+            if (!formData.firstName?.trim()) {
+                setPaymentError("Please enter your First Name.");
+                scrollToField("firstNameInput");
+                return;
+            }
+            if (!formData.lastName?.trim()) {
+                setPaymentError("Please enter your Last Name.");
+                scrollToField("lastNameInput");
+                return;
+            }
+            if (!formData.deliveryEmail?.trim() && !formData.contactEmail?.trim()) {
+                setPaymentError("Please enter your Delivery Email address.");
+                scrollToField("deliveryEmailInput");
+                return;
+            }
+            if (!formData.phoneNumber?.trim()) {
+                setPhoneError("Phone number is required.");
+                setPaymentError("Please enter your Phone Number.");
+                scrollToField("phoneInput");
+                return;
+            }
+            const phoneCheck = validatePhoneNumber(formData.phoneNumber, formData.country);
+            if (!phoneCheck.isValid) {
+                setPhoneError(phoneCheck.error);
+                setPaymentError(phoneCheck.error || "Please enter a valid phone number.");
+                scrollToField("phoneInput");
+                return;
+            }
+            setPhoneError("");
+
+            if (!formData.pinCode?.trim()) {
+                setPinCodeError("PIN code is required.");
+                setPaymentError("Please enter your PIN / Postal code.");
+                scrollToField("pinCodeInput");
+                return;
+            }
+            const pinCheck = validatePostalCode(formData.pinCode, formData.country);
+            if (!pinCheck.isValid) {
+                setPinCodeError(pinCheck.error);
+                setPaymentError(pinCheck.error || "Please enter a valid PIN code.");
+                scrollToField("pinCodeInput");
+                return;
+            }
+            setPinCodeError("");
+
+            if (!formData.streetAddress?.trim()) {
+                setPaymentError("Please enter your Street Address.");
+                scrollToField("streetAddressInput");
+                return;
+            }
+            if (!formData.city?.trim()) {
+                setPaymentError("Please enter your City.");
+                scrollToField("cityInput");
+                return;
+            }
+            if (!formData.state?.trim()) {
+                setPaymentError("Please enter your State.");
+                scrollToField("stateInput");
+                return;
+            }
         }
-        setPinCodeError("");
 
         setIsProcessingPayment(true);
 
@@ -701,6 +796,123 @@ export default function CheckoutPage() {
 
             const localOrderId = "BAC-" + Math.floor(100000 + Math.random() * 900000);
             const token = typeof window !== "undefined" ? localStorage.getItem("userToken") : null;
+
+            // CASE 0: 100% Free Order via Marketing / Promo Code (Total is Rs 0, NO payment deduction)
+            if (isFullDiscount || (totalAmount === 0 && payableTotal === 0 && !isWalletActive)) {
+                const promoOrderId = "order_FREE_" + Date.now();
+                const promoPaymentId = "pay_PROMO_" + Date.now();
+
+                // 1. Reduce stock
+                try {
+                    const checkoutItems = activeItems.map(item => ({
+                        productId: item.productId || item.id,
+                        size: item.size,
+                        color: item.color,
+                        quantity: item.quantity
+                    }));
+                    await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ items: checkoutItems })
+                    });
+                } catch (stockErr) {
+                    console.error("Error reducing stock:", stockErr);
+                }
+
+                // 2. Create Order in DB (Rs 0 Total, No wallet deduction, No Razorpay)
+                try {
+                    await fetch(`${API_BASE_URL}/frontend/orders`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(token && { Authorization: `Bearer ${token}` })
+                        },
+                        body: JSON.stringify({
+                            orderId: localOrderId,
+                            razorpayOrderId: promoOrderId,
+                            razorpayPaymentId: promoPaymentId,
+                            razorpaySignature: "promo_signature",
+                            shippingAddress: {
+                                firstName: formData.firstName,
+                                lastName: formData.lastName,
+                                email: formData.deliveryEmail || formData.contactEmail,
+                                phoneNumber: formData.phoneNumber,
+                                streetAddress: formData.streetAddress,
+                                city: formData.city,
+                                state: formData.state,
+                                pinCode: formData.pinCode,
+                                country: formData.country
+                            },
+                            items: activeItems.map(item => ({
+                                productId: item.productId || item.id,
+                                name: item.name || item.title || "Product",
+                                category: item.tag || "COLLECTION",
+                                size: item.size || "M",
+                                color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                                colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                                price: item.price || `Rs ${item.priceNum || 0}`,
+                                priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
+                                quantity: item.quantity || 1,
+                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
+                            })),
+                            subtotal: activeSubtotal,
+                            discountAmount: activeSubtotal,
+                            shippingCost: 0,
+                            taxAmount: 0,
+                            totalAmount: 0,
+                            walletDeduction: 0,
+                            paymentMethod: `Marketing / Promo Code (${activePromo?.code || "100% OFF"})`,
+                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
+                        })
+                    });
+                } catch (dbErr) {
+                    console.error("Error saving free order to MongoDB:", dbErr);
+                }
+
+                // 3. Mark ClaimCode as used if it was a claim code
+                if (activePromo?.claimCodeId || activePromo?.isMarketingCode) {
+                    try {
+                        await fetch(`${API_BASE_URL}/frontend/promo-codes/consume-claim`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                ...(token && { Authorization: `Bearer ${token}` })
+                            },
+                            body: JSON.stringify({
+                                claimCodeId: activePromo?.claimCodeId,
+                                code: activePromo?.code,
+                                orderId: localOrderId
+                            })
+                        });
+                    } catch (claimErr) {
+                        console.error("Error consuming claim code:", claimErr);
+                    }
+                }
+
+                if (refreshUser && token) {
+                    refreshUser(token);
+                }
+
+                setGeneratedOrderNum(localOrderId);
+                setCompletedOrderSummary({
+                    orderNum: localOrderId,
+                    totalAmount: 0,
+                    walletDeduction: 0,
+                    payableTotal: 0,
+                    paymentMethod: `Marketing / Promo Code (${activePromo?.code || "100% OFF"})`,
+                    recipientName: formData.firstName,
+                    email: formData.deliveryEmail || formData.contactEmail
+                });
+                setIsOrderComplete(true);
+                if (!isCartEmpty) {
+                    clearCart();
+                }
+                try {
+                    localStorage.removeItem("activePromoCode");
+                } catch (e) {}
+                setIsProcessingPayment(false);
+                return;
+            }
 
             // CASE 1: Full Payment via BacStory Wallet (payableTotal === 0)
             if (isWalletActive && payableTotal === 0) {
@@ -1056,7 +1268,7 @@ export default function CheckoutPage() {
                     </div>
                 )}
 
-                <form onSubmit={handleCheckoutSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                <form onSubmit={handleCheckoutSubmit} noValidate className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
                     {/* Left Column: Form Cards */}
                     <div className="lg:col-span-7 space-y-8">
 
@@ -1163,6 +1375,7 @@ export default function CheckoutPage() {
                                                     FIRST NAME
                                                 </label>
                                                 <input
+                                                    id="firstNameInput"
                                                     type="text"
                                                     required
                                                     value={formData.firstName}
@@ -1177,6 +1390,7 @@ export default function CheckoutPage() {
                                                     LAST NAME
                                                 </label>
                                                 <input
+                                                    id="lastNameInput"
                                                     type="text"
                                                     required
                                                     value={formData.lastName}
@@ -1194,6 +1408,7 @@ export default function CheckoutPage() {
                                                 EMAIL ADDRESS
                                             </label>
                                             <input
+                                                id="deliveryEmailInput"
                                                 type="email"
                                                 required
                                                 value={formData.deliveryEmail}
@@ -1220,6 +1435,7 @@ export default function CheckoutPage() {
                                                                 </span>
                                                             )}
                                                             <input
+                                                                id="phoneInput"
                                                                 type="tel"
                                                                 required
                                                                 maxLength={countryObj.phoneMaxLength || 15}
@@ -1255,6 +1471,7 @@ export default function CheckoutPage() {
                                                     PIN CODE
                                                 </label>
                                                 <input
+                                                    id="pinCodeInput"
                                                     type="text"
                                                     required
                                                     value={formData.pinCode}
@@ -1285,6 +1502,7 @@ export default function CheckoutPage() {
                                                 STREET ADDRESS
                                             </label>
                                             <input
+                                                id="streetAddressInput"
                                                 type="text"
                                                 required
                                                 value={formData.streetAddress}
@@ -1302,6 +1520,7 @@ export default function CheckoutPage() {
                                                     CITY
                                                 </label>
                                                 <input
+                                                    id="cityInput"
                                                     type="text"
                                                     required
                                                     value={formData.city}
@@ -1316,6 +1535,7 @@ export default function CheckoutPage() {
                                                     STATE
                                                 </label>
                                                 <input
+                                                    id="stateInput"
                                                     type="text"
                                                     required
                                                     value={formData.state}
@@ -1438,74 +1658,99 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
 
+                                {/* Payment Section Options */}
                                 <div className="space-y-3 pt-1">
-                                    {/* BacStory Wallet Option (if user has wallet balance) */}
-                                    {user && userWalletBalance > 0 && (
-                                        <label
-                                            className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "wallet" || useWallet
-                                                ? "border-black bg-neutral-900 text-white shadow-md"
-                                                : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
-                                                }`}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <input
-                                                    type="radio"
-                                                    name="paymentChoice"
-                                                    value="wallet"
-                                                    checked={selectedPaymentChoice === "wallet" || useWallet}
-                                                    onChange={() => {
-                                                        setSelectedPaymentChoice("wallet");
-                                                        setUseWallet(true);
-                                                    }}
-                                                    className="w-4.5 h-4.5 text-black accent-black cursor-pointer mt-0.5"
-                                                />
+                                    {isFullDiscount || totalAmount === 0 ? (
+                                        /* 100% Free Order via Marketing / Promo Code */
+                                        <div className="border-2 border-emerald-500 bg-emerald-50/70 rounded-2xl p-5 flex items-center justify-between shadow-xs">
+                                            <div className="flex items-center gap-3.5">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs">
+                                                    <Check className="w-5 h-5 stroke-[2.5]" />
+                                                </div>
                                                 <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <p className="text-sm font-bold">BacStory Wallet / Store Credit</p>
-                                                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
-                                                            Balance: Rs {userWalletBalance.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                    <p className={`text-xs mt-1 ${selectedPaymentChoice === "wallet" || useWallet ? "text-neutral-300" : "text-neutral-500"}`}>
-                                                        {userWalletBalance >= totalAmount
-                                                            ? "Pay 100% of this order using your store credit balance."
-                                                            : `Apply Rs ${Math.min(userWalletBalance, totalAmount).toLocaleString()} from your wallet, pay remaining Rs ${(totalAmount - Math.min(userWalletBalance, totalAmount)).toLocaleString()} via Razorpay.`
-                                                        }
+                                                    <p className="text-sm font-bold text-emerald-950">
+                                                        100% Free Order ({activePromo?.code || "Marketing Code"} Applied)
+                                                    </p>
+                                                    <p className="text-xs text-emerald-700 mt-0.5">
+                                                        No payment required. Total bill is Rs 0. No amount will be deducted.
                                                     </p>
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${selectedPaymentChoice === "wallet" || useWallet ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-800"
-                                                }`}>
-                                                - Rs {Math.min(userWalletBalance, totalAmount).toLocaleString()}
+                                            <span className="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                                                Rs 0
                                             </span>
-                                        </label>
-                                    )}
-
-                                    {/* Razorpay Online Payment Option */}
-                                    <label
-                                        className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
-                                            ? "border-black bg-neutral-50/80 shadow-xs text-black"
-                                            : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="radio"
-                                                name="paymentChoice"
-                                                value="online"
-                                                checked={selectedPaymentChoice === "online" && !useWallet}
-                                                onChange={() => {
-                                                    setSelectedPaymentChoice("online");
-                                                    setUseWallet(false);
-                                                }}
-                                                className="w-4.5 h-4.5 text-black accent-black cursor-pointer"
-                                            />
-                                            <div>
-                                                <p className="text-sm font-bold text-black">Pay Online (UPI, Cards, NetBanking)</p>
-                                                <p className="text-xs text-neutral-400">Fast & 100% Secure Payment via Razorpay</p>
-                                            </div>
                                         </div>
-                                    </label>
+                                    ) : (
+                                        <>
+                                            {/* BacStory Wallet Option (if user has wallet balance) */}
+                                            {user && userWalletBalance > 0 && (
+                                                <label
+                                                    className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "wallet" || useWallet
+                                                        ? "border-black bg-neutral-900 text-white shadow-md"
+                                                        : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <input
+                                                            type="radio"
+                                                            name="paymentChoice"
+                                                            value="wallet"
+                                                            checked={selectedPaymentChoice === "wallet" || useWallet}
+                                                            onChange={() => {
+                                                                setSelectedPaymentChoice("wallet");
+                                                                setUseWallet(true);
+                                                            }}
+                                                            className="w-4.5 h-4.5 text-black accent-black cursor-pointer mt-0.5"
+                                                        />
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-bold">BacStory Wallet / Store Credit</p>
+                                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
+                                                                    Balance: Rs {userWalletBalance.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <p className={`text-xs mt-1 ${selectedPaymentChoice === "wallet" || useWallet ? "text-neutral-300" : "text-neutral-500"}`}>
+                                                                {userWalletBalance >= totalAmount
+                                                                    ? "Pay 100% of this order using your store credit balance."
+                                                                    : `Apply Rs ${Math.min(userWalletBalance, totalAmount).toLocaleString()} from your wallet, pay remaining Rs ${(totalAmount - Math.min(userWalletBalance, totalAmount)).toLocaleString()} via Razorpay.`
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${selectedPaymentChoice === "wallet" || useWallet ? "bg-neutral-800 text-white" : "bg-neutral-100 text-neutral-800"
+                                                        }`}>
+                                                        - Rs {Math.min(userWalletBalance, totalAmount).toLocaleString()}
+                                                    </span>
+                                                </label>
+                                            )}
+
+                                            {/* Razorpay Online Payment Option */}
+                                            <label
+                                                className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
+                                                    ? "border-black bg-neutral-50/80 shadow-xs text-black"
+                                                    : "border-neutral-200 hover:border-neutral-300 bg-white text-black"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="radio"
+                                                        name="paymentChoice"
+                                                        value="online"
+                                                        checked={selectedPaymentChoice === "online" && !useWallet}
+                                                        onChange={() => {
+                                                            setSelectedPaymentChoice("online");
+                                                            setUseWallet(false);
+                                                        }}
+                                                        className="w-4.5 h-4.5 text-black accent-black cursor-pointer"
+                                                    />
+                                                    <div>
+                                                        <p className="text-sm font-bold text-black">Pay Online (UPI, Cards, NetBanking)</p>
+                                                        <p className="text-xs text-neutral-400">Fast & 100% Secure Payment via Razorpay</p>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -1517,9 +1762,10 @@ export default function CheckoutPage() {
                                 </div>
                             )}
 
-                            {/* Continue to Payment Button */}
+                            {/* Continue / Place Order Button */}
                             <Button
                                 type="submit"
+                                onClick={handleCheckoutSubmit}
                                 variant="dark"
                                 hasArrow={!isProcessingPayment}
                                 disabled={isProcessingPayment}
@@ -1528,8 +1774,10 @@ export default function CheckoutPage() {
                                 {isProcessingPayment ? (
                                     <span className="flex items-center justify-center gap-2.5">
                                         <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
-                                        <span>Processing Payment...</span>
+                                        <span>Placing Order...</span>
                                     </span>
+                                ) : isFullDiscount || payableTotal === 0 ? (
+                                    `Place Order (Rs 0 - Free Order)`
                                 ) : isWalletActive && payableTotal === 0 ? (
                                     `Pay Rs ${totalAmount.toLocaleString()} via BacStory Wallet`
                                 ) : isWalletActive ? (
@@ -1622,6 +1870,9 @@ export default function CheckoutPage() {
                                                 setPromoInput("");
                                                 setPromoSuccess("");
                                                 setPromoError("");
+                                                try {
+                                                    localStorage.removeItem("activePromoCode");
+                                                } catch (e) {}
                                             }}
                                             className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer underline transition-colors"
                                         >
@@ -1665,7 +1916,7 @@ export default function CheckoutPage() {
 
                                 {activePromo && (
                                     <div className="flex justify-between text-green-600 font-medium">
-                                        <span>Discount ({activePromo.code} - {activePromo.discountType === "percentage" ? `${activePromo.discountValue}% off` : `Rs ${activePromo.discountValue} off`})</span>
+                                        <span>Discount ({activePromo.code} - {isFullDiscount ? "100% OFF (Bill is Rs 0)" : activePromo.discountType === "percentage" ? `${activePromo.discountValue}% off` : `Rs ${activePromo.discountValue} off`})</span>
                                         <span className="font-semibold">-Rs {discountAmount.toLocaleString()}</span>
                                     </div>
                                 )}
@@ -1758,12 +2009,14 @@ export default function CheckoutPage() {
 
                             <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-1">
                                 <span className="text-neutral-800 font-bold">
-                                    {(completedOrderSummary ? completedOrderSummary.payableTotal : payableTotal) === 0 ? "Amount Paid via Wallet:" : "Amount Paid via Razorpay:"}
+                                    {(completedOrderSummary ? completedOrderSummary.payableTotal : payableTotal) === 0 ? (
+                                        (completedOrderSummary?.walletDeduction > 0 || isWalletActive) ? "Amount Paid via Wallet:" : "Amount Paid:"
+                                    ) : "Amount Paid via Razorpay:"}
                                 </span>
                                 <span className="font-bold text-black font-clashDisplay">
                                     Rs {(completedOrderSummary
-                                        ? (completedOrderSummary.payableTotal === 0 ? completedOrderSummary.totalAmount : completedOrderSummary.payableTotal)
-                                        : (payableTotal === 0 ? totalAmount : payableTotal)).toLocaleString()}
+                                        ? completedOrderSummary.payableTotal
+                                        : payableTotal).toLocaleString()}
                                 </span>
                             </div>
                         </div>

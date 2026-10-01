@@ -44,6 +44,28 @@ export default function CartPage() {
     const [promoSuccess, setPromoSuccess] = useState("");
     const [activePromo, setActivePromo] = useState(null);
 
+    // Load persisted promo code from localStorage on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("activePromoCode");
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed && parsed.code) {
+                    setActivePromo(parsed);
+                    setPromoCode(parsed.code);
+                    const isFull = parsed.discountValue >= 100 || parsed.isMarketingCode || parsed.code === "MARKETING";
+                    const disc = isFull
+                        ? subtotal
+                        : parsed.discountType === "percentage"
+                            ? Math.round(subtotal * (parsed.discountValue / 100))
+                            : Math.min(subtotal, parsed.discountValue);
+                    setDiscount(disc);
+                    setPromoSuccess(isFull ? `100% OFF applied! Bill is Rs 0.` : `Promo code "${parsed.code}" applied!`);
+                }
+            }
+        } catch (e) {}
+    }, []);
+
     const handleBulkDelete = () => {
         if (selectedItems.length === 0) return;
         if (confirm("Are you sure you want to remove selected items?")) {
@@ -136,41 +158,47 @@ export default function CartPage() {
 
             if (data.success && data.data) {
                 setActivePromo(data.data);
-                const disc = data.data.discountType === "percentage"
-                    ? Math.round(subtotal * (data.data.discountValue / 100))
-                    : Math.min(subtotal, data.data.discountValue);
+                try {
+                    localStorage.setItem("activePromoCode", JSON.stringify(data.data));
+                } catch (e) {}
+                const isFull = data.data.discountValue >= 100 || data.data.isMarketingCode || data.data.code === "MARKETING";
+                const disc = isFull
+                    ? subtotal
+                    : data.data.discountType === "percentage"
+                        ? Math.round(subtotal * (data.data.discountValue / 100))
+                        : Math.min(subtotal, data.data.discountValue);
                 setDiscount(disc);
-                setPromoSuccess(data.message || "Promo code applied successfully!");
-            } else {
-                if (code === "BACSTORY10") {
-                    const disc = Math.round(subtotal * 0.1);
-                    setDiscount(disc);
-                    setPromoSuccess("10% discount applied successfully!");
-                } else {
-                    setDiscount(0);
-                    setActivePromo(null);
-                    setPromoError(data.message || "Invalid promo code. Try 'BACSTORY10'");
-                }
-            }
-        } catch (error) {
-            console.error("Error applying promo code:", error);
-            if (code === "BACSTORY10") {
-                const disc = Math.round(subtotal * 0.1);
-                setDiscount(disc);
-                setPromoSuccess("10% discount applied successfully!");
+                setPromoSuccess(data.message || (isFull ? `100% OFF applied! Bill is Rs 0.` : "Promo code applied successfully!"));
             } else {
                 setDiscount(0);
                 setActivePromo(null);
-                setPromoError("Invalid promo code. Try 'BACSTORY10'");
+                try {
+                    localStorage.removeItem("activePromoCode");
+                } catch (e) {}
+                setPromoError(data.message || "Invalid promo code. Try 'MARKETING'");
             }
+        } catch (error) {
+            console.error("Error applying promo code:", error);
+            setDiscount(0);
+            setActivePromo(null);
+            setPromoError("Failed to apply promo code. Please check and try again.");
         }
     };
 
-    // Calculate Summary based on selected items only (Shipping: ₹99 below ₹999, Free ₹999+)
+    // Calculate Summary based on selected items only
     const subtotal = selectedCartItems.reduce((acc, item) => acc + (item.priceNum * item.quantity), 0);
-    const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
+    const isFullPromo = Boolean(
+        activePromo && (
+            activePromo.discountValue >= 100 ||
+            activePromo.isMarketingCode ||
+            activePromo.code === "MARKETING" ||
+            discount >= subtotal
+        )
+    );
+    const effectiveDiscount = isFullPromo ? subtotal : discount;
+    const shipping = isFullPromo || subtotal === 0 || subtotal >= 999 ? 0 : 99;
     const tax = 0;
-    const total = subtotal + shipping - discount;
+    const total = isFullPromo ? 0 : Math.max(0, subtotal + shipping - effectiveDiscount);
 
     const allSelected = cartItems.length > 0 && cartItems.every(item => selectedItems.includes(item.id));
 
@@ -423,10 +451,32 @@ export default function CartPage() {
                                             {promoError}
                                         </p>
                                     )}
-                                    {promoSuccess && (
+                                    {promoSuccess && !activePromo && (
                                         <p className="text-xs text-emerald-600 font-semibold mt-2 ml-1">
                                             {promoSuccess}
                                         </p>
+                                    )}
+                                    {activePromo && (
+                                        <div className="flex items-center justify-between text-xs bg-emerald-50 text-emerald-900 p-2.5 rounded-xl border border-emerald-200 mt-3 animate-fadeIn">
+                                            <span className="font-medium">
+                                                Code <strong className="uppercase">{activePromo.code}</strong> applied ({isFullPromo ? "100% OFF - Bill is Rs 0" : `${activePromo.discountValue}% OFF`})
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setActivePromo(null);
+                                                    setPromoCode("");
+                                                    setDiscount(0);
+                                                    setPromoSuccess("");
+                                                    try {
+                                                        localStorage.removeItem("activePromoCode");
+                                                    } catch (e) {}
+                                                }}
+                                                className="text-red-500 hover:text-red-700 font-bold ml-2 underline cursor-pointer text-xs"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
 
@@ -442,10 +492,10 @@ export default function CartPage() {
                                             {shipping === 0 ? "Free" : `Rs ${shipping}`}
                                         </span>
                                     </div>
-                                    {discount > 0 && (
+                                    {effectiveDiscount > 0 && (
                                         <div className="flex justify-between items-center text-green-600">
-                                            <span>Coupon Discount</span>
-                                            <span className="font-semibold">- Rs {discount.toLocaleString()}</span>
+                                            <span>Coupon Discount ({activePromo?.code || "PROMO"}{isFullPromo ? " - 100% OFF" : ""})</span>
+                                            <span className="font-semibold">- Rs {effectiveDiscount.toLocaleString()}</span>
                                         </div>
                                     )}
                                 </div>
@@ -453,7 +503,7 @@ export default function CartPage() {
                                 {/* Total Row */}
                                 <div className="flex justify-between items-baseline pt-2">
                                     <span className="font-medium text-base text-black">Total</span>
-                                    <span className="font-clashDisplay text-xl font-medium text-black">
+                                    <span className={`font-clashDisplay text-xl font-medium ${isFullPromo ? "text-emerald-700 font-bold" : "text-black"}`}>
                                         Rs {total.toLocaleString()}
                                     </span>
                                 </div>
