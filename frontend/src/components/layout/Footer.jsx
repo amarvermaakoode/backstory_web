@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -26,6 +27,48 @@ export default function Footer() {
         { name: "How It Works", href: "/about-us#qr-concept" },
         { name: "Our Philosophy", href: "/about-us#philosophy" },
     ];
+
+    const [isLogoHovered, setIsLogoHovered] = useState(false);
+    const [cursorPos, setCursorPos] = useState({ x: -999, y: -999 });
+    const logoContainerRef = useRef(null);
+
+    const handleLogoMouseMove = (e) => {
+        if (!logoContainerRef.current) return;
+        const rect = logoContainerRef.current.getBoundingClientRect();
+        setCursorPos({
+            x: Math.round(e.clientX - rect.left),
+            y: Math.round(e.clientY - rect.top),
+        });
+        setIsLogoHovered(true);
+    };
+
+    const handleLogoTouchMove = (e) => {
+        if (!logoContainerRef.current || !e.touches[0]) return;
+        const rect = logoContainerRef.current.getBoundingClientRect();
+        setCursorPos({
+            x: Math.round(e.touches[0].clientX - rect.left),
+            y: Math.round(e.touches[0].clientY - rect.top),
+        });
+        setIsLogoHovered(true);
+    };
+
+    const MadeWithBadge = ({ className = "" }) => (
+        <a
+            href="https://www.akoode.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Akoode Technology - AI & Software Company"
+            className={`relative items-center gap-1 group hover:text-white transition-colors shrink-0 font-light text-white ${className}`}
+        >
+            <span>Made with</span>
+            <Heart className="text-white fill-white w-3.5 h-3.5" aria-hidden="true" />
+            <span className="sr-only">Akoode Technology</span>
+
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mb-2.5 hidden group-hover:block bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
+                AI & Software company in India | USA
+            </span>
+        </a>
+    );
 
     return (
         <footer role="contentinfo" className="w-full bg-[#101820] text-white pt-20 pb-0 px-6 sm:px-10 md:px-12 overflow-hidden">
@@ -74,23 +117,9 @@ export default function Footer() {
                             </div>
                         </div>
 
-                        {/* Copyright Details */}
-                        <div className="flex items-end gap-8 sm:gap-14 text-sm md:text-base text-white font-sans">
-                            <a
-                                href="https://www.akoode.com"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label="Akoode Technology - AI & Software Company"
-                                className="relative inline-flex items-center gap-1 group hover:text-white transition-colors shrink-0 font-light text-white"
-                            >
-                                <span>Made with</span>
-                                <Heart className="text-white fill-white w-3.5 h-3.5" aria-hidden="true" />
-                                <span className="sr-only">Akoode Technology</span>
-
-                                <span className="absolute bottom-full left-0 mb-2.5 hidden group-hover:block bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
-                                    AI & Software company in India | USA
-                                </span>
-                            </a>
+                        {/* Copyright Details (Desktop Only) */}
+                        <div className="hidden md:flex items-end gap-8 sm:gap-14 text-sm md:text-base text-white font-sans">
+                            <MadeWithBadge className="inline-flex" />
                             <div className="space-y-1">
                                 <p className="font-normal text-white">© {new Date().getFullYear()} Bacstory</p>
                                 <p className="whitespace-nowrap space-x-1.5 text-neutral-300 font-light">
@@ -163,15 +192,64 @@ export default function Footer() {
                 </div>
 
                 {/* Bottom Watermark Logo */}
-                <div className="pt-8 border-t border-white/5 flex justify-center w-full">
-                    <Image
-                        src="/images/landing-page/footer.png"
-                        alt="BACSTORY"
-                        width={1920}
-                        height={450}
-                        className="w-full h-auto select-none"
-                        priority
-                    />
+                <div className="pt-8 border-t border-white/5 flex flex-col items-center justify-center w-full">
+                    {/* Mobile Copyright & Legal & Made with (Above Logo) */}
+                    <div className="md:hidden flex flex-col items-center text-center gap-2 pb-6 text-xs text-neutral-400 font-sans">
+                        <div className="flex items-center justify-center gap-1.5 text-neutral-300 flex-wrap">
+                            <span>© {new Date().getFullYear()} Bacstory.</span>
+                            <MadeWithBadge className="inline-flex" />
+                        </div>
+                        <div className="flex items-center justify-center gap-6">
+                            <Link href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+                            <a href="#terms" className="hover:text-white transition-colors">Terms & Conditions</a>
+                        </div>
+                    </div>
+
+                    {/* Interactive Spotlight Logo */}
+                    <div
+                        ref={logoContainerRef}
+                        onMouseMove={handleLogoMouseMove}
+                        onMouseEnter={() => setIsLogoHovered(true)}
+                        onMouseLeave={() => setIsLogoHovered(false)}
+                        onTouchStart={() => setIsLogoHovered(true)}
+                        onTouchMove={handleLogoTouchMove}
+                        onTouchEnd={() => setIsLogoHovered(false)}
+                        className="relative w-full flex justify-center overflow-hidden select-none cursor-pointer"
+                    >
+                        {/* Base Dark Logo */}
+                        <Image
+                            src="/images/landing-page/footer.png"
+                            alt="BACSTORY"
+                            width={1920}
+                            height={450}
+                            className="w-full h-auto select-none pointer-events-none"
+                            priority
+                        />
+
+                        {/* Spotlight Highlighted Logo */}
+                        <div
+                            className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
+                                isLogoHovered ? "opacity-65" : "opacity-0"
+                            }`}
+                            style={{
+                                maskImage: `radial-gradient(circle 180px at ${cursorPos.x}px ${cursorPos.y}px, black 0%, rgba(0,0,0,0.3) 50%, transparent 100%)`,
+                                WebkitMaskImage: `radial-gradient(circle 180px at ${cursorPos.x}px ${cursorPos.y}px, black 0%, rgba(0,0,0,0.3) 50%, transparent 100%)`,
+                            }}
+                        >
+                            <Image
+                                src="/images/landing-page/footer.png"
+                                alt=""
+                                aria-hidden="true"
+                                width={1920}
+                                height={450}
+                                className="w-full h-auto select-none"
+                                style={{
+                                    filter: "brightness(0) invert(0.85) drop-shadow(0 0 10px rgba(255,255,255,0.4)) drop-shadow(0 0 20px rgba(186,215,255,0.2))",
+                                }}
+                                priority
+                            />
+                        </div>
+                    </div>
                 </div>
 
             </div>
