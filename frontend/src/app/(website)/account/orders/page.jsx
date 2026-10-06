@@ -49,6 +49,57 @@ const getStepIndex = (statusStr) => {
     return 0; // Default: Order Confirmed
 };
 
+const formatTimelineDate = (dateVal) => {
+    if (!dateVal) return null;
+    try {
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return null;
+        return d.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        });
+    } catch {
+        return null;
+    }
+};
+
+const getStepTimelineDate = (stepTitle, stepIdx, order, activeStepIdx) => {
+    if (!order) return null;
+    const timeline = Array.isArray(order.statusTimeline) ? order.statusTimeline : [];
+
+    const titleNorm = (stepTitle || "").toLowerCase().trim();
+    const foundEntry = timeline.find((item) => {
+        const s = (item.status || "").toLowerCase().trim();
+        if (s === titleNorm) return true;
+        if (titleNorm.includes("confirmed") && (s.includes("confirmed") || s === "placed")) return true;
+        if (titleNorm.includes("pack") && (s.includes("pack") || s.includes("ready"))) return true;
+        if (titleNorm.includes("transit") && (s.includes("transit") || s.includes("dispatched"))) return true;
+        if (titleNorm.includes("out") && s.includes("out")) return true;
+        if (titleNorm.includes("delivered") && s.includes("delivered")) return true;
+        return false;
+    });
+
+    if (foundEntry && foundEntry.timestamp) {
+        return formatTimelineDate(foundEntry.timestamp);
+    }
+
+    // Fallbacks for completed steps when explicit statusTimeline entry is not yet recorded:
+    if (stepIdx <= activeStepIdx) {
+        if (stepIdx === 0 && order.createdAt) {
+            return formatTimelineDate(order.createdAt);
+        }
+        if (stepIdx === activeStepIdx && order.updatedAt) {
+            return formatTimelineDate(order.updatedAt);
+        }
+    }
+
+    return null;
+};
+
 export default function AccountOrdersPage() {
     const { showToast } = useToast();
     const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
@@ -156,6 +207,10 @@ export default function AccountOrdersPage() {
                             id: o.orderId || o._id,
                             orderId: o.orderId || o._id,
                             createdAt: o.createdAt,
+                            updatedAt: o.updatedAt,
+                            statusTimeline: Array.isArray(o.statusTimeline) ? o.statusTimeline : [],
+                            paymentMethod: o.paymentMethod || "Razorpay / Prepaid",
+                            walletDeduction: o.walletDeduction || 0,
                             orderStatus: o.orderStatus || "Order Confirmed",
                             paymentStatus: o.paymentStatus || "Confirmed",
                             totalAmount: o.totalAmount || 0,
@@ -767,21 +822,45 @@ export default function AccountOrdersPage() {
                                 const refundMethod = isCancelWallet ? "BacStory Wallet" : rawCancelMethod;
 
                                 const CANCEL_STEPS = [
-                                    { title: "Order Confirmed", desc: "Your order was successfully placed", completed: true, current: false },
-                                    { title: "Order Cancelled", desc: `Reason: ${cancelReason}`, completed: true, current: refundStatus !== "Refunded" },
-                                    { title: `Refund Status: ${refundStatus}`, desc: `Rs ${refundAmount?.toLocaleString()} via ${refundMethod}`, completed: refundStatus === "Refunded", current: refundStatus === "Refunded" }
+                                    {
+                                        title: "Order Confirmed",
+                                        desc: "Your order was successfully placed",
+                                        completed: true,
+                                        current: false,
+                                        date: formatTimelineDate(selectedTrackOrder.createdAt)
+                                    },
+                                    {
+                                        title: "Order Cancelled",
+                                        desc: `Reason: ${cancelReason}`,
+                                        completed: true,
+                                        current: refundStatus !== "Refunded",
+                                        date: formatTimelineDate(selectedTrackOrder.cancellation?.cancelledAt || selectedTrackOrder.updatedAt)
+                                    },
+                                    {
+                                        title: `Refund Status: ${refundStatus}`,
+                                        desc: `Rs ${refundAmount?.toLocaleString()} via ${refundMethod}`,
+                                        completed: refundStatus === "Refunded",
+                                        current: refundStatus === "Refunded",
+                                        date: refundStatus === "Refunded" ? formatTimelineDate(selectedTrackOrder.refundDetails?.updatedAt || selectedTrackOrder.updatedAt) : null
+                                    }
                                 ];
 
                                 return (
                                     <div className="space-y-6 relative pl-6 border-l-2 border-red-200">
                                         {CANCEL_STEPS.map((step, idx) => (
                                             <div key={idx} className="relative space-y-0.5">
-                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${step.completed ? "bg-red-500 ring-4 ring-red-100" : "bg-neutral-300"
+                                                <span className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-white transition-all ${step.completed ? "bg-red-500 ring-4 ring-red-100" : "bg-neutral-300"
                                                     }`} />
-                                                <p className={`text-sm font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"
-                                                    }`}>
-                                                    <span>{step.title}</span>
-                                                </p>
+                                                <div className="flex flex-wrap sm:flex-nowrap items-baseline sm:items-center justify-between gap-1 sm:gap-2">
+                                                    <p className={`text-sm font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"}`}>
+                                                        <span>{step.title}</span>
+                                                    </p>
+                                                    {step.date && (
+                                                        <span className="text-[11px] font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md shrink-0">
+                                                            {step.date}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
                                             </div>
                                         ))}
@@ -834,18 +913,20 @@ export default function AccountOrdersPage() {
                                             const isExchangedDone = reqStatus === "Exchange Completed";
 
                                             const RETURN_STEPS = [
-                                                { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true },
-                                                { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved },
-                                                { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived },
+                                                { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true, date: formatTimelineDate(req.requestedAt) },
+                                                { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved, date: isApproved ? formatTimelineDate(req.updatedAt || req.requestedAt) : null },
+                                                { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived, date: isReceived ? formatTimelineDate(req.updatedAt) : null },
                                                 {
                                                     title: "Refund Initiated",
                                                     desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)",
-                                                    completed: ["Refund Initiated", "Refunded"].includes(reqStatus)
+                                                    completed: ["Refund Initiated", "Refunded"].includes(reqStatus),
+                                                    date: ["Refund Initiated", "Refunded"].includes(reqStatus) ? formatTimelineDate(selectedTrackOrder.refundDetails?.initiatedAt || req.updatedAt) : null
                                                 },
                                                 {
                                                     title: "Refunded",
                                                     desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account",
-                                                    completed: reqStatus === "Refunded"
+                                                    completed: reqStatus === "Refunded",
+                                                    date: reqStatus === "Refunded" ? formatTimelineDate(selectedTrackOrder.refundDetails?.updatedAt || req.updatedAt) : null
                                                 }
                                             ];
 
@@ -853,23 +934,26 @@ export default function AccountOrdersPage() {
                                             const reqColorPref = req.requestedColor || selectedTrackOrder.returnExchange?.requestedColor || "";
 
                                             const EXCHANGE_STEPS = [
-                                                { title: "Exchange Requested", desc: `Reason: ${reqReason}`, completed: true },
-                                                { title: "Exchange Approved", desc: "Exchange request approved by seller", completed: isApproved },
-                                                { title: "Product Picked Up", desc: "Product picked up by seller for quality inspection", completed: isReceived },
+                                                { title: "Exchange Requested", desc: `Reason: ${reqReason}`, completed: true, date: formatTimelineDate(req.requestedAt) },
+                                                { title: "Exchange Approved", desc: "Exchange request approved by seller", completed: isApproved, date: isApproved ? formatTimelineDate(req.updatedAt || req.requestedAt) : null },
+                                                { title: "Product Picked Up", desc: "Product picked up by seller for quality inspection", completed: isReceived, date: isReceived ? formatTimelineDate(req.updatedAt) : null },
                                                 {
                                                     title: "Replacement Ready to Pack & Ship",
                                                     desc: "Replacement item undergoing quality check & packing",
-                                                    completed: isReadyToShip
+                                                    completed: isReadyToShip,
+                                                    date: isReadyToShip ? formatTimelineDate(req.updatedAt) : null
                                                 },
                                                 {
                                                     title: "Replacement Dispatched",
                                                     desc: "Replacement item dispatched & in transit",
-                                                    completed: isDispatched
+                                                    completed: isDispatched,
+                                                    date: isDispatched ? formatTimelineDate(req.updatedAt) : null
                                                 },
                                                 {
                                                     title: "Exchange Completed",
                                                     desc: "Replacement item delivered successfully to customer",
-                                                    completed: isExchangedDone
+                                                    completed: isExchangedDone,
+                                                    date: isExchangedDone ? formatTimelineDate(req.updatedAt) : null
                                                 }
                                             ];
 
@@ -952,11 +1036,18 @@ export default function AccountOrdersPage() {
                                                         <div className="space-y-4 relative pl-5 border-l-2 border-purple-200">
                                                             {TRACKING_STEPS.map((step, idx) => (
                                                                 <div key={idx} className="relative space-y-0.5">
-                                                                    <span className={`absolute -left-[27px] top-0 w-3.5 h-3.5 rounded-full border-2 border-white transition-all ${step.completed ? "bg-purple-600 ring-4 ring-purple-100" : "bg-neutral-300"
+                                                                    <span className={`absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white transition-all ${step.completed ? "bg-purple-600 ring-4 ring-purple-100" : "bg-neutral-300"
                                                                         }`} />
-                                                                    <p className={`text-xs font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"}`}>
-                                                                        <span>{step.title}</span>
-                                                                    </p>
+                                                                    <div className="flex flex-wrap sm:flex-nowrap items-baseline sm:items-center justify-between gap-1 sm:gap-2">
+                                                                        <p className={`text-xs font-semibold ${step.completed ? "text-neutral-900" : "text-neutral-400"}`}>
+                                                                            <span>{step.title}</span>
+                                                                        </p>
+                                                                        {step.date && (
+                                                                            <span className="text-[10px] font-medium text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded shrink-0">
+                                                                                {step.date}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <p className="text-[11px] text-neutral-500 font-normal">{step.desc}</p>
                                                                 </div>
                                                             ))}
@@ -976,16 +1067,24 @@ export default function AccountOrdersPage() {
                                     {ORDER_STEPS.map((step, idx) => {
                                         const isCompleted = idx <= activeStepIdx;
                                         const isCurrent = idx === activeStepIdx;
+                                        const stepDate = getStepTimelineDate(step.title, idx, selectedTrackOrder, activeStepIdx);
 
                                         return (
                                             <div key={idx} className="relative space-y-0.5">
-                                                <span className={`absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-white transition-all ${isCompleted
+                                                <span className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-white transition-all ${isCompleted
                                                     ? "bg-emerald-500 ring-4 ring-emerald-100"
                                                     : "bg-neutral-300"
                                                     }`} />
-                                                <p className={`text-sm font-semibold ${isCompleted ? "text-neutral-900" : "text-neutral-400"}`}>
-                                                    <span>{step.title}</span>
-                                                </p>
+                                                <div className="flex flex-wrap sm:flex-nowrap items-baseline sm:items-center justify-between gap-1 sm:gap-2">
+                                                    <p className={`text-sm font-semibold ${isCompleted ? "text-neutral-900" : "text-neutral-400"}`}>
+                                                        <span>{step.title}</span>
+                                                    </p>
+                                                    {stepDate && (
+                                                        <span className="text-[11px] font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md shrink-0">
+                                                            {stepDate}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-xs text-neutral-500 font-normal">{step.desc}</p>
                                             </div>
                                         );

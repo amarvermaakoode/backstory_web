@@ -10,7 +10,7 @@ import { useUserAuth } from "@/context/UserAuthContext";
 import Button from "@/components/ui/Button";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 import CountrySelect from "@/components/ui/CountrySelect";
-import { COUNTRIES, getCountryByNameOrCode, getCountryCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, validatePostalCodeFormat, verifyPostalCode, fetchPostalCodeDetails, fetchIndiaPincodeDetails } from "@/lib/countryPhoneValidation";
+import { getCountryByNameOrCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, validatePostalCodeFormat, verifyPostalCode, fetchPostalCodeDetails } from "@/lib/countryPhoneValidation";
 
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, selectedCartItems, selectedSubtotal, selectedCount, removeFromCart, openCart, clearCart } = useCart();
@@ -395,7 +395,7 @@ export default function CheckoutPage() {
                     setPromoSuccess(isFull ? `100% OFF applied! Total bill is Rs 0` : `Promo code "${parsed.code}" applied!`);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }, []);
 
     // Fetch active shipping rates from backend API
@@ -420,7 +420,7 @@ export default function CheckoutPage() {
             setActivePromo(null);
             try {
                 localStorage.removeItem("activePromoCode");
-            } catch (e) {}
+            } catch (e) { }
             setPromoError(`Promo code cleared: requires minimum spend of Rs ${activePromo.minOrderAmount}`);
             setPromoSuccess("");
         }
@@ -640,14 +640,14 @@ export default function CheckoutPage() {
                 setActivePromo(data.data);
                 try {
                     localStorage.setItem("activePromoCode", JSON.stringify(data.data));
-                } catch (e) {}
+                } catch (e) { }
                 const isFull = data.data.discountValue >= 100 || data.data.isMarketingCode || data.data.code === "MARKETING";
                 setPromoSuccess(data.message || (isFull ? `100% OFF applied! Total bill is Rs 0` : `Promo code "${data.data.code}" applied!`));
             } else {
                 setActivePromo(null);
                 try {
                     localStorage.removeItem("activePromoCode");
-                } catch (e) {}
+                } catch (e) { }
                 setPromoError(data?.message || "Invalid promo code. Try 'MARKETING'");
             }
         } catch (error) {
@@ -719,7 +719,7 @@ export default function CheckoutPage() {
             const el = document.getElementById(id);
             if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
-                try { el.focus(); } catch (e) {}
+                try { el.focus(); } catch (e) { }
             }
         }, 50);
     };
@@ -930,7 +930,7 @@ export default function CheckoutPage() {
                 }
                 try {
                     localStorage.removeItem("activePromoCode");
-                } catch (e) {}
+                } catch (e) { }
                 setIsProcessingPayment(false);
                 return;
             }
@@ -1161,7 +1161,7 @@ export default function CheckoutPage() {
                 }
                 try {
                     localStorage.removeItem("activePromoCode");
-                } catch (e) {}
+                } catch (e) { }
                 setIsProcessingPayment(false);
                 return;
             }
@@ -2091,7 +2091,7 @@ export default function CheckoutPage() {
                                                 setPromoError("");
                                                 try {
                                                     localStorage.removeItem("activePromoCode");
-                                                } catch (e) {}
+                                                } catch (e) { }
                                             }}
                                             className="text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer underline transition-colors"
                                         >

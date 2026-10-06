@@ -1,5 +1,6 @@
 const Order = require("../../models/Order");
 const QRCode = require("../../models/QRCode");
+const { sendOrderStatusUpdateEmail } = require("../../services/emailService");
 
 // Helper to unclaim QR codes & delete story/profile data when a product return/exchange is completed
 const unclaimOrderQRCodes = async (orderId) => {
@@ -120,11 +121,13 @@ const updateReturnRequestStatus = (order, newStatus, additionalData = {}, target
     }
     if (order.returnRequestsHistory[targetIdx]) {
       order.returnRequestsHistory[targetIdx].status = newStatus;
+      order.returnRequestsHistory[targetIdx].updatedAt = new Date();
       Object.assign(order.returnRequestsHistory[targetIdx], additionalData);
       order.returnExchange = { ...order.returnRequestsHistory[targetIdx] };
     }
   } else {
     order.returnExchange.status = newStatus;
+    order.returnExchange.updatedAt = new Date();
     Object.assign(order.returnExchange, additionalData);
   }
 };
@@ -162,6 +165,11 @@ const syncRazorpayRefundStatus = async (order) => {
           }
           await order.save();
           await unclaimOrderQRCodes(order.orderId || order._id);
+          sendOrderStatusUpdateEmail({
+            order,
+            statusType: "refund",
+            newStatus: "Refunded",
+          }).catch((err) => console.error("[Order Email] Auto-sync refund completed email error:", err));
         }
       } else if (rzpRefund.status === "processed" || rzpRefund.status === "pending") {
         // Stage 6: Razorpay gateway processed -> Refund Initiated & Processing (5-7 working days for bank credit)
@@ -181,6 +189,12 @@ const syncRazorpayRefundStatus = async (order) => {
             });
           }
           await order.save();
+          sendOrderStatusUpdateEmail({
+            order,
+            statusType: "refund",
+            newStatus: "Refund Processing",
+            notes: "5-7 Business Days",
+          }).catch((err) => console.error("[Order Email] Auto-sync refund processing email error:", err));
         }
       }
     }
@@ -252,6 +266,36 @@ const updateOrderStatus = async (req, res) => {
 
     order.orderStatus = status;
 
+    if (!Array.isArray(order.statusTimeline)) {
+      order.statusTimeline = [];
+    }
+
+    // Ensure Order Confirmed entry exists with original createdAt
+    const hasConfirmed = order.statusTimeline.some(entry => 
+      entry.status === "Order Confirmed" || entry.status === "Placed"
+    );
+    if (!hasConfirmed) {
+      order.statusTimeline.unshift({
+        status: "Order Confirmed",
+        timestamp: order.createdAt || new Date(),
+        note: "Order confirmed"
+      });
+    }
+
+    // Check if status is already in timeline; update timestamp or append
+    const existingIndex = order.statusTimeline.findIndex(
+      (entry) => (entry.status || "").toLowerCase().trim() === status.toLowerCase().trim()
+    );
+    if (existingIndex !== -1) {
+      order.statusTimeline[existingIndex].timestamp = new Date();
+    } else {
+      order.statusTimeline.push({
+        status: status,
+        timestamp: new Date(),
+        note: `Order status updated to ${status}`
+      });
+    }
+
     // Update items inside this order to match the new status
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
@@ -301,6 +345,12 @@ const updateOrderStatus = async (req, res) => {
     }
 
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "orderStatus",
+      newStatus: status,
+    }).catch((err) => console.error("[Order Email] Admin status update email error:", err));
 
     if (status === "Returned" || status === "Exchanged") {
       await unclaimOrderQRCodes(order.orderId || order._id);
@@ -369,6 +419,13 @@ const updateRefundStatus = async (req, res) => {
 
     order.refundDetails.updatedAt = new Date();
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "refund",
+      newStatus: refundStatus,
+      notes: estimatedCreditWindow || "",
+    }).catch((err) => console.error("[Order Email] Admin refund status email error:", err));
 
     if (refundStatus === "Refunded" || order.orderStatus === "Returned" || order.orderStatus === "Exchanged") {
       await unclaimOrderQRCodes(order.orderId || order._id);
@@ -447,6 +504,12 @@ const approveReturnRequest = async (req, res) => {
     updateReturnRequestStatus(order, appStatus, { approvedAt: new Date() }, requestId);
     await order.save();
 
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: reqType,
+      newStatus: appStatus,
+    }).catch((err) => console.error("[Order Email] Admin approve return email error:", err));
+
     return res.status(200).json({
       success: true,
       message: `${reqType === "return" ? "Return request approved" : "Exchange request approved"} successfully!`,
@@ -502,6 +565,11 @@ const markProductReceived = async (req, res) => {
         });
       }
       await order.save();
+      sendOrderStatusUpdateEmail({
+        order,
+        statusType: "exchange",
+        newStatus: "Product Picked Up",
+      }).catch((err) => console.error("[Order Email] Mark exchange product picked up email error:", err));
       return res.status(200).json({
         success: true,
         message: "Product marked as picked up for exchange successfully!",
@@ -520,6 +588,11 @@ const markProductReceived = async (req, res) => {
     }
 
     await order.save();
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "return",
+      newStatus: "Product Received",
+    }).catch((err) => console.error("[Order Email] Mark return product received email error:", err));
 
     return res.status(200).json({
       success: true,
@@ -656,6 +729,16 @@ const processReturnRefund = async (req, res) => {
       await order.save();
       await unclaimOrderQRCodes(order.orderId || order._id);
 
+      sendOrderStatusUpdateEmail({
+        order,
+        statusType: "refund",
+        newStatus: "Refunded",
+        meta: {
+          refundAmount: refundAmountRs,
+          refundMethod: "BacStory Wallet",
+        },
+      }).catch((err) => console.error("[Order Email] Wallet refund email error:", err));
+
       const { syncUserWalletBalance } = require("../../config/walletHelper");
       await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
 
@@ -737,6 +820,17 @@ const processReturnRefund = async (req, res) => {
 
     await order.save();
 
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "refund",
+      newStatus: "Refund Processing",
+      notes: "5-7 Working Days",
+      meta: {
+        refundAmount: refundAmountRs,
+        refundMethod: "Original Payment Method",
+      },
+    }).catch((err) => console.error("[Order Email] Razorpay refund email error:", err));
+
     return res.status(200).json({
       success: true,
       message: `Razorpay refund of Rs ${refundAmountRs.toLocaleString()} initiated successfully (Refund ID: ${refundResult.id})!`,
@@ -788,6 +882,13 @@ const rejectReturnRequest = async (req, res) => {
     }, requestId);
 
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: targetReturn?.requestType || "return",
+      newStatus: "Return Rejected",
+      notes: rejectionReason || "Request does not meet return policy criteria.",
+    }).catch((err) => console.error("[Order Email] Reject return email error:", err));
 
     return res.status(200).json({
       success: true,
@@ -869,6 +970,12 @@ const updateExchangeStatus = async (req, res) => {
     }
 
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "exchange",
+      newStatus: status,
+    }).catch((err) => console.error("[Order Email] Update exchange status email error:", err));
 
     if (status === "Exchange Completed") {
       await unclaimOrderQRCodes(order.orderId || order._id);

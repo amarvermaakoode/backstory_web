@@ -1,4 +1,5 @@
 const Order = require("../../models/Order");
+const { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } = require("../../services/emailService");
 
 // Save new order to MongoDB
 const createOrderRecord = async (req, res) => {
@@ -96,6 +97,13 @@ const createOrderRecord = async (req, res) => {
       shippingMethod: shippingMethod || "Standard Delivery",
       paymentStatus: finalPaymentStatus,
       orderStatus: "Order Confirmed",
+      statusTimeline: [
+        {
+          status: "Order Confirmed",
+          timestamp: new Date(),
+          note: "Order placed and payment confirmed"
+        }
+      ],
     });
 
     // Auto-save/update shipping address in user's saved addresses in database
@@ -138,6 +146,39 @@ const createOrderRecord = async (req, res) => {
       } catch (addrErr) {
         console.error("Error auto-saving order address to user profile:", addrErr);
       }
+    }
+
+    // Send order confirmation email to customer
+    try {
+      let recipientEmail = (shippingAddress?.email || "").trim().toLowerCase();
+      if (!recipientEmail && userId) {
+        const User = require("../../models/user");
+        const userDoc = await User.findById(userId).select("email");
+        if (userDoc?.email) {
+          recipientEmail = userDoc.email.trim().toLowerCase();
+        }
+      }
+
+      if (recipientEmail) {
+        sendOrderConfirmationEmail({
+          order: newOrder,
+          recipientEmail,
+        })
+          .then((mailRes) => {
+            if (mailRes.success) {
+              console.log(`[Order] Confirmation email dispatched successfully to ${recipientEmail} for order #${newOrder.orderId}`);
+            } else {
+              console.warn(`[Order] Confirmation email dispatch notice for ${recipientEmail}:`, mailRes.error || mailRes.message);
+            }
+          })
+          .catch((mailErr) => {
+            console.error(`[Order] Background error sending confirmation email to ${recipientEmail}:`, mailErr.message || mailErr);
+          });
+      } else {
+        console.warn(`[Order] No recipient email provided for order #${newOrder.orderId}; confirmation email skipped.`);
+      }
+    } catch (triggerErr) {
+      console.error("[Order] Error triggering confirmation email:", triggerErr);
     }
 
     return res.status(201).json({
@@ -230,6 +271,7 @@ const getTrackOrderStatus = async (req, res) => {
         returnExchange: order.returnExchange,
         returnRequestsHistory: order.returnRequestsHistory || [],
         refundDetails: order.refundDetails,
+        statusTimeline: order.statusTimeline || [],
       },
     });
   } catch (error) {
@@ -297,6 +339,15 @@ const cancelUserOrder = async (req, res) => {
       refundAmount: fullRefundAmount
     };
 
+    if (!Array.isArray(order.statusTimeline)) {
+      order.statusTimeline = [];
+    }
+    order.statusTimeline.push({
+      status: "Cancelled",
+      timestamp: new Date(),
+      note: reason || "Cancelled by customer before dispatch"
+    });
+
     if (isPrepaid) {
       let razorpayRefundId = "";
       let isRefundProcessed = false;
@@ -350,6 +401,16 @@ const cancelUserOrder = async (req, res) => {
     }
 
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: "cancellation",
+      newStatus: "Cancelled",
+      notes: reason || "Cancelled by customer before dispatch",
+      meta: {
+        refundAmount: isPrepaid ? order.totalAmount : 0,
+      },
+    }).catch((emailErr) => console.error("[Order Email] Cancel notification error:", emailErr));
 
     return res.status(200).json({
       success: true,
@@ -754,6 +815,16 @@ const submitReturnExchange = async (req, res) => {
     }
 
     await order.save();
+
+    sendOrderStatusUpdateEmail({
+      order,
+      statusType: requestType,
+      newStatus: initialStatus,
+      notes: reason || "",
+      meta: {
+        refundAmount,
+      },
+    }).catch((emailErr) => console.error("[Order Email] Return/Exchange submit notification error:", emailErr));
 
     return res.status(200).json({
       success: true,

@@ -201,6 +201,12 @@ const handleRazorpayWebhook = async (req, res) => {
             });
           }
           await order.save();
+          const { sendOrderStatusUpdateEmail } = require("../services/emailService");
+          sendOrderStatusUpdateEmail({
+            order,
+            statusType: "refund",
+            newStatus: "Refunded",
+          }).catch(err => console.error("Webhook refund completed email error:", err));
           console.log(`Razorpay Webhook: Automatically updated order ${order.orderId} refund status to 'Refunded'`);
         }
       }
@@ -221,6 +227,13 @@ const handleRazorpayWebhook = async (req, res) => {
             order.returnRequestsHistory[order.returnRequestsHistory.length - 1].status = "Refund Initiated";
           }
           await order.save();
+          const { sendOrderStatusUpdateEmail } = require("../services/emailService");
+          sendOrderStatusUpdateEmail({
+            order,
+            statusType: "refund",
+            newStatus: "Refund Processing",
+            notes: "5-7 Business Days",
+          }).catch(err => console.error("Webhook refund processing email error:", err));
           console.log(`Razorpay Webhook: Order ${order.orderId} marked as Refund Processing (Credited in 5-7 days)`);
         }
       }

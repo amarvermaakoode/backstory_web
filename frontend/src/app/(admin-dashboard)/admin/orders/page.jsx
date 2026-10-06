@@ -719,6 +719,57 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            {/* Status Change History / Timeline */}
+            {((selectedOrder.statusTimeline && selectedOrder.statusTimeline.length > 0) || selectedOrder.createdAt) && (
+              <div className="bg-neutral-50/80 p-4 rounded-2xl border border-neutral-200/60 space-y-2.5">
+                <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                  Status Transition History
+                </span>
+                <div className="space-y-2">
+                  {(() => {
+                    const timeline = Array.isArray(selectedOrder.statusTimeline) && selectedOrder.statusTimeline.length > 0
+                      ? selectedOrder.statusTimeline
+                      : [
+                          {
+                            status: "Order Confirmed",
+                            timestamp: selectedOrder.createdAt,
+                            note: "Order confirmed"
+                          },
+                          ...(selectedOrder.orderStatus && selectedOrder.orderStatus !== "Order Confirmed"
+                            ? [{
+                                status: selectedOrder.orderStatus,
+                                timestamp: selectedOrder.updatedAt || selectedOrder.createdAt,
+                                note: "Current status"
+                              }]
+                            : [])
+                        ];
+
+                    return timeline.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs bg-white p-2.5 rounded-xl border border-neutral-200/70">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="font-semibold text-neutral-900">{item.status}</span>
+                          {item.note && (
+                            <span className="text-[11px] text-neutral-400 hidden sm:inline">({item.note})</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md">
+                          {new Date(item.timestamp).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true
+                          })}
+                        </span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
             {/* Shipping Address Section */}
             <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200/60 space-y-2">
               <div className="flex items-center justify-between">
