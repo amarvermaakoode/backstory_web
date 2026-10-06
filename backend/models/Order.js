@@ -115,6 +115,13 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "Placed",
     },
+    statusTimeline: [
+      {
+        status: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now },
+        note: { type: String, default: "" },
+      },
+    ],
     cancellation: {
       isCancelled: { type: Boolean, default: false },
       cancelledAt: { type: Date },
