@@ -1,26 +1,182 @@
+const fs = require("fs");
+const path = require("path");
 const sgMail = require("@sendgrid/mail");
-const nodemailer = require("nodemailer");
+let nodemailer = null;
+try {
+  nodemailer = require("nodemailer");
+} catch (_err) {
+  // Optional SMTP fallback
+}
 
 /**
  * Get base URL for frontend links in emails
  */
 const getFrontendUrl = () => {
-  const rawUrl = process.env.FRONTEND_URL || process.env.FORNTEND_URL || "http://localhost:3000";
+  const rawUrl =
+    process.env.FRONTEND_URL ||
+    process.env.FORNTEND_URL ||
+    process.env.CLIENT_URL ||
+    "http://localhost:3000";
   if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
-    return `http://${rawUrl}`;
+    return `https://${rawUrl}`;
   }
-  return rawUrl;
+  return rawUrl.replace(/\/+$/, "");
 };
 
 /**
- * Get the logo URL for emails
+ * Get base URL for backend API / uploads in emails
+ */
+const getBackendUrl = () => {
+  const rawUrl =
+    process.env.BACKEND_URL ||
+    process.env.API_URL ||
+    process.env.SERVER_URL ||
+    `http://localhost:${process.env.PORT || 5000}`;
+  if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+    return `https://${rawUrl}`;
+  }
+  return rawUrl.replace(/\/+$/, "");
+};
+
+/**
+ * Resolve the brand logo for emails.
+ * Automatically embeds the local brand logo as an inline CID attachment
+ * (cid:bacstory_logo), ensuring it displays reliably in email clients
+ * on both local dev and live production without needing a separate logo URL.
+ * Falls back to the frontend public URL if file is missing.
+ */
+const resolveEmailLogo = () => {
+  const candidatePaths = [
+    path.join(__dirname, "../uploads/bacstory-logo.png"),
+    path.join(__dirname, "../../frontend/public/images/bacstory-logo.png"),
+    path.join(process.cwd(), "uploads/bacstory-logo.png"),
+    path.join(__dirname, "../uploads/logo.png"),
+    path.join(__dirname, "../../frontend/public/images/logo.png"),
+  ];
+
+  for (const filePath of candidatePaths) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const fileBuffer = fs.readFileSync(filePath);
+        return {
+          url: "cid:bacstory_logo",
+          attachment: {
+            content: fileBuffer.toString("base64"),
+            filename: "bacstory-logo.png",
+            type: "image/png",
+            disposition: "inline",
+            content_id: "bacstory_logo",
+            cid: "bacstory_logo",
+          },
+        };
+      } catch (err) {
+        console.warn("[EmailService] Failed reading logo file:", err.message);
+      }
+    }
+  }
+
+  const baseUrl = getFrontendUrl();
+  return { url: `${baseUrl}/images/bacstory-logo.png`, attachment: null };
+};
+
+/**
+ * Helper to resolve product item image.
+ * If local upload file exists and we are testing on localhost (or file size < 3MB),
+ * embeds as an inline CID attachment so images never break in Gmail/Outlook.
+ * Otherwise resolves against BACKEND_URL or FRONTEND_URL.
+ */
+const resolveItemImage = (imagePath, itemIndex = 0) => {
+  if (!imagePath || typeof imagePath !== "string" || !imagePath.trim()) {
+    return { url: "", attachment: null };
+  }
+  const clean = imagePath.trim();
+
+  // If already a live external URL (S3, Cloudinary, etc.)
+  if (
+    (clean.startsWith("http://") || clean.startsWith("https://")) &&
+    !clean.includes("localhost") &&
+    !clean.includes("127.0.0.1")
+  ) {
+    return { url: clean, attachment: null };
+  }
+
+  // Look for file on local disk
+  const relativeFilePath = clean.replace(/^[/\\]+/, "");
+  const candidatePaths = [
+    path.join(__dirname, "..", relativeFilePath),
+    path.join(process.cwd(), relativeFilePath),
+    path.join(__dirname, "../../frontend/public", relativeFilePath),
+  ];
+
+  if (relativeFilePath.startsWith("uploads/")) {
+    const filenameOnly = relativeFilePath.replace(/^uploads[/\\]+/, "");
+    candidatePaths.push(path.join(__dirname, "../uploads", filenameOnly));
+    candidatePaths.push(path.join(process.cwd(), "uploads", filenameOnly));
+  }
+
+  let foundFile = null;
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      foundFile = p;
+      break;
+    }
+  }
+
+  const backendUrl = getBackendUrl();
+  const isBackendLive =
+    !backendUrl.includes("localhost") &&
+    !backendUrl.includes("127.0.0.1") &&
+    backendUrl.startsWith("https://");
+
+  if (foundFile) {
+    try {
+      const stats = fs.statSync(foundFile);
+      if (!isBackendLive || stats.size < 3 * 1024 * 1024) {
+        const ext = path.extname(foundFile).toLowerCase().replace(".", "");
+        const mimeType =
+          ext === "jpg" || ext === "jpeg"
+            ? "image/jpeg"
+            : ext === "webp"
+            ? "image/webp"
+            : "image/png";
+        const cidName = `order_item_${itemIndex}`;
+        const fileBuffer = fs.readFileSync(foundFile);
+        return {
+          url: `cid:${cidName}`,
+          attachment: {
+            content: fileBuffer.toString("base64"),
+            filename: path.basename(foundFile),
+            type: mimeType,
+            disposition: "inline",
+            content_id: cidName,
+            cid: cidName,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn(`[EmailService] Failed reading item image ${foundFile}:`, err.message);
+    }
+  }
+
+  if (clean.startsWith("/uploads") || clean.startsWith("uploads")) {
+    return {
+      url: `${backendUrl}/${clean.replace(/^[/\\]+/, "")}`,
+      attachment: null,
+    };
+  }
+
+  const frontendUrl = getFrontendUrl();
+  return {
+    url: `${frontendUrl}/${clean.replace(/^[/\\]+/, "")}`,
+    attachment: null,
+  };
+};
+
+/**
+ * Get the logo URL for emails (backwards-compatibility helper)
  */
 const getEmailLogoUrl = () => {
-  if (process.env.EMAIL_LOGO_URL) {
-    return process.env.EMAIL_LOGO_URL;
-  }
-  const baseUrl = getFrontendUrl();
-  return `${baseUrl}/images/bacstory-logo.png`;
+  return resolveEmailLogo().url;
 };
 
 /**
@@ -103,7 +259,14 @@ const getNodemailerTransporter = () => {
  * Unified Email Dispatcher
  * Priority: 1. SendGrid -> 2. Nodemailer (SMTP) -> 3. Local Simulation
  */
-const dispatchEmail = async ({ to, subject, html, text, purpose = "Notification" }) => {
+const dispatchEmail = async ({
+  to,
+  subject,
+  html,
+  text,
+  purpose = "Notification",
+  attachments = [],
+}) => {
   const cleanEmail = String(to).toLowerCase().trim();
   const fromEmail =
     process.env.SENDGRID_FROM_EMAIL ||
@@ -119,13 +282,25 @@ const dispatchEmail = async ({ to, subject, html, text, purpose = "Notification"
   // 1. SendGrid Provider
   if (process.env.SENDGRID_API_KEY && initSendGrid()) {
     try {
-      const response = await sgMail.send({
+      const msg = {
         to: cleanEmail,
         from: { email: fromEmail, name: fromName },
         subject,
         html,
         text,
-      });
+      };
+
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        msg.attachments = attachments.map((att) => ({
+          content: att.content,
+          filename: att.filename,
+          type: att.type || "image/png",
+          disposition: att.disposition || "inline",
+          content_id: att.content_id || att.cid,
+        }));
+      }
+
+      const response = await sgMail.send(msg);
       const messageId = response?.[0]?.headers?.["x-message-id"];
       console.log(`[SendGrid] ${purpose} email successfully sent to ${cleanEmail} (MessageId: ${messageId || "ok"})`);
       return { success: true, provider: "sendgrid", messageId };
@@ -139,13 +314,23 @@ const dispatchEmail = async ({ to, subject, html, text, purpose = "Notification"
   const transporter = getNodemailerTransporter();
   if (transporter) {
     try {
-      const info = await transporter.sendMail({
+      const mailOptions = {
         from: `"${fromName}" <${fromEmail}>`,
         to: cleanEmail,
         subject,
         html,
         text,
-      });
+      };
+
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        mailOptions.attachments = attachments.map((att) => ({
+          filename: att.filename,
+          content: Buffer.from(att.content, "base64"),
+          cid: att.content_id || att.cid,
+        }));
+      }
+
+      const info = await transporter.sendMail(mailOptions);
       console.log(`[SMTP] ${purpose} email successfully sent to ${cleanEmail} (MessageId: ${info.messageId})`);
       return { success: true, provider: "smtp", messageId: info.messageId };
     } catch (smtpError) {
@@ -188,8 +373,13 @@ const dispatchEmail = async ({ to, subject, html, text, purpose = "Notification"
  * Helper to generate brand HTML template for OTP verification
  */
 const generateOtpEmailHtml = ({ otp, type = "login", recipientEmail }) => {
+  const attachments = [];
+  const logoInfo = resolveEmailLogo();
+  if (logoInfo.attachment) {
+    attachments.push(logoInfo.attachment);
+  }
+  const logoUrl = logoInfo.url;
   const baseUrl = getFrontendUrl();
-  const logoUrl = getEmailLogoUrl();
   const isSignup = type === "signup";
   const isClaim = type === "claim";
   const title = isSignup ? "Verify Your Email" : isClaim ? "Claim Your QR Code" : "Your Login Code";
@@ -200,7 +390,7 @@ const generateOtpEmailHtml = ({ otp, type = "login", recipientEmail }) => {
       ? "Use the one-time code below to verify your identity and link your BACSTORY piece to your personal narrative."
       : "We received a request to log in to your BACSTORY account. Use the one-time code below to complete your sign in.";
 
-  return `
+  const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -291,14 +481,21 @@ const generateOtpEmailHtml = ({ otp, type = "login", recipientEmail }) => {
 </body>
 </html>
   `.trim();
+
+  return { html, attachments };
 };
 
 /**
  * Helper to generate brand HTML template for Order Confirmation
  */
 const generateOrderEmailHtml = ({ order, recipientEmail }) => {
+  const attachments = [];
+  const logoInfo = resolveEmailLogo();
+  if (logoInfo.attachment) {
+    attachments.push(logoInfo.attachment);
+  }
+  const logoUrl = logoInfo.url;
   const baseUrl = getFrontendUrl();
-  const logoUrl = getEmailLogoUrl();
   const addr = order.shippingAddress || {};
   const recipientName = `${addr.firstName || ""} ${addr.lastName || ""}`.trim() || "Customer";
   const orderId = order.orderId || "N/A";
@@ -336,16 +533,18 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
   ].filter(Boolean);
 
   const itemsRows = (order.items || [])
-    .map((item) => {
+    .map((item, idx) => {
       const itemPrice =
         Number(item.priceNum) ||
         Number(String(item.price || "").replace(/[^0-9.]/g, "")) ||
         0;
       const itemTotal = itemPrice * (item.quantity || 1);
-      let imageUrl = item.image || "";
-      if (imageUrl && imageUrl.startsWith("/")) {
-        imageUrl = `${baseUrl}${imageUrl}`;
+      
+      const imgInfo = resolveItemImage(item.image, idx);
+      if (imgInfo.attachment) {
+        attachments.push(imgInfo.attachment);
       }
+      const imageUrl = imgInfo.url;
 
       return `
       <tr>
@@ -390,7 +589,7 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
     })
     .join("");
 
-  return `
+  const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -583,6 +782,8 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
 </body>
 </html>
   `.trim();
+
+  return { html, attachments };
 };
 
 /**
@@ -620,11 +821,13 @@ const sendOtpEmail = async ({ to, otp, type = "login" }) => {
 
     const fromEmail = process.env.SENDGRID_FROM_EMAIL || "ceo@bacstory.com";
     const textContent = `BACSTORY - Wear Your Narrative\n\nYour one-time verification code is: ${otp}\n\nThis code will expire in 5 minutes. Please do not share this code with anyone.\n\nIf you did not request this code, you can safely ignore this email.\n\nSupport: ${fromEmail}`;
-    const htmlContent = generateOtpEmailHtml({
+    const otpResult = generateOtpEmailHtml({
       otp,
       type,
       recipientEmail: cleanEmail,
     });
+    const htmlContent = typeof otpResult === "object" && otpResult.html ? otpResult.html : otpResult;
+    const attachments = typeof otpResult === "object" && otpResult.attachments ? otpResult.attachments : [];
 
     return await dispatchEmail({
       to: cleanEmail,
@@ -632,6 +835,7 @@ const sendOtpEmail = async ({ to, otp, type = "login" }) => {
       html: htmlContent,
       text: textContent,
       purpose: `${type} OTP`,
+      attachments,
     });
   } catch (error) {
     console.error("[EmailService] Error sending OTP email:", error);
@@ -662,7 +866,9 @@ const sendOrderConfirmationEmail = async ({ order, recipientEmail }) => {
 
     const orderId = order.orderId || "N/A";
     const subject = `Order Confirmed: #${orderId} - BACSTORY`;
-    const htmlContent = generateOrderEmailHtml({ order, recipientEmail: toEmail });
+    const orderResult = generateOrderEmailHtml({ order, recipientEmail: toEmail });
+    const htmlContent = typeof orderResult === "object" && orderResult.html ? orderResult.html : orderResult;
+    const attachments = typeof orderResult === "object" && orderResult.attachments ? orderResult.attachments : [];
     const textContent = generateOrderEmailText({ order });
 
     return await dispatchEmail({
@@ -671,6 +877,7 @@ const sendOrderConfirmationEmail = async ({ order, recipientEmail }) => {
       html: htmlContent,
       text: textContent,
       purpose: `Order Confirmation #${orderId}`,
+      attachments,
     });
   } catch (error) {
     console.error("[EmailService] Error generating/sending order confirmation email:", error);
@@ -815,8 +1022,13 @@ const getStatusDetails = (status, type = "orderStatus", order = {}, notes = "", 
  * Generate brand HTML template for Order Status / Refund / Return / Exchange Update
  */
 const generateOrderStatusEmailHtml = ({ order, statusDetails, notes = "", meta = {} }) => {
+  const attachments = [];
+  const logoInfo = resolveEmailLogo();
+  if (logoInfo.attachment) {
+    attachments.push(logoInfo.attachment);
+  }
+  const logoUrl = logoInfo.url;
   const baseUrl = getFrontendUrl();
-  const logoUrl = getEmailLogoUrl();
   const addr = order.shippingAddress || {};
   const recipientName = `${addr.firstName || ""} ${addr.lastName || ""}`.trim() || order.user?.name || "Customer";
   const orderId = order.orderId || "N/A";
@@ -826,16 +1038,18 @@ const generateOrderStatusEmailHtml = ({ order, statusDetails, notes = "", meta =
     year: "numeric",
   });
 
-  const itemsRows = (order.items || []).map((item) => {
+  const itemsRows = (order.items || []).map((item, idx) => {
     const itemPrice =
       Number(item.priceNum) ||
       Number(String(item.price || "").replace(/[^0-9.]/g, "")) ||
       0;
     const itemTotal = itemPrice * (item.quantity || 1);
-    let imageUrl = item.image || "";
-    if (imageUrl && imageUrl.startsWith("/")) {
-      imageUrl = `${baseUrl}${imageUrl}`;
+    
+    const imgInfo = resolveItemImage(item.image, idx);
+    if (imgInfo.attachment) {
+      attachments.push(imgInfo.attachment);
     }
+    const imageUrl = imgInfo.url;
 
     return `
       <tr>
@@ -941,7 +1155,7 @@ const generateOrderStatusEmailHtml = ({ order, statusDetails, notes = "", meta =
           </tr>
   ` : "";
 
-  return `
+  const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1035,6 +1249,8 @@ const generateOrderStatusEmailHtml = ({ order, statusDetails, notes = "", meta =
 </body>
 </html>
   `.trim();
+
+  return { html, attachments };
 };
 
 /**
@@ -1083,12 +1299,14 @@ const sendOrderStatusUpdateEmail = async ({
     }
 
     const statusDetails = getStatusDetails(newStatus, statusType, order, notes, meta);
-    const htmlContent = generateOrderStatusEmailHtml({
+    const orderResult = generateOrderStatusEmailHtml({
       order,
       statusDetails,
       notes,
       meta,
     });
+    const htmlContent = typeof orderResult === "object" && orderResult.html ? orderResult.html : orderResult;
+    const attachments = typeof orderResult === "object" && orderResult.attachments ? orderResult.attachments : [];
     const textContent = generateOrderStatusEmailText({
       order,
       statusDetails,
@@ -1102,6 +1320,7 @@ const sendOrderStatusUpdateEmail = async ({
       html: htmlContent,
       text: textContent,
       purpose: `Order #${order.orderId || ""} update (${newStatus})`,
+      attachments,
     });
   } catch (error) {
     console.error("[EmailService] Error sending order status update email:", error);
@@ -1120,5 +1339,8 @@ module.exports = {
   generateOrderStatusEmailText,
   initSendGrid,
   dispatchEmail,
+  getFrontendUrl,
+  getBackendUrl,
+  getEmailLogoUrl,
 };
 
