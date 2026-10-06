@@ -28,8 +28,7 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
     const router = useRouter();
     const { cartCount, openCart } = useCart();
     const { wishlistCount, openWishlist } = useWishlist();
-    const { user, logout } = useUserAuth();
-
+    const { user, logout, loading } = useUserAuth();
     // Opens the built-in search overlay unless a custom handler is supplied
     const handleSearchClick = onSearchClick || (() => setIsSearchOpen(true));
     const closeSearch = useCallback(() => setIsSearchOpen(false), []);
@@ -177,57 +176,87 @@ export default function Navbar({ onSearchClick, solid = false, light = false }) 
                                 </span>
                             )}
                         </button>
-                        {user ? (
-                            <div className="relative group select-none flex items-center">
-                                <Link href="/account" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Account menu">
-                                    <Image
-                                        src="/images/landing-page/user.svg"
-                                        alt=""
-                                        aria-hidden="true"
-                                        width={22}
-                                        height={22}
-                                        className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
-                                    />
-                                </Link>
-                                <div className="absolute right-0 top-full pt-2 w-56 hidden group-hover:block transition-all z-50">
-                                    <div className="bg-white border border-neutral-200/80 rounded-2xl shadow-xl shadow-black/10 p-2 space-y-0.5 text-neutral-900">
-                                        {userMenuItems.map((item) => {
-                                            const Icon = item.icon;
-                                            return (
-                                                <Link
-                                                    key={item.label}
-                                                    href={item.href}
-                                                    className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-neutral-900 hover:bg-[#f4f4f5] transition-colors"
-                                                >
-                                                    <Icon className="w-4.5 h-4.5 text-neutral-800 stroke-[1.6]" aria-hidden="true" />
-                                                    <span>{item.label}</span>
-                                                </Link>
-                                            );
-                                        })}
-                                        <div className="pt-1 mt-1 border-t border-neutral-100">
-                                            <button
-                                                onClick={logout}
-                                                className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left"
-                                            >
-                                                <LogOut className="w-4.5 h-4.5 stroke-[1.6]" aria-hidden="true" />
-                                                <span>Log Out</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <Link href="/login" className={`transition-colors cursor-pointer ${light ? "md:hover:text-black hover:text-white" : "hover:text-white"}`} aria-label="Sign in to your account">
-                                <Image
-                                    src="/images/landing-page/user.svg"
-                                    alt=""
-                                    aria-hidden="true"
-                                    width={22}
-                                    height={22}
-                                    className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${light ? "md:invert" : ""}`}
-                                />
-                            </Link>
-                        )}
+                        {loading ? (
+  <div
+    className="w-5.5 h-5.5 sm:w-6 sm:h-6"
+    aria-hidden="true"
+  />
+) : user ? (
+  <div className="relative group select-none flex items-center">
+    <Link
+      href="/account"
+      className={`transition-colors cursor-pointer ${
+        light ? "md:hover:text-black hover:text-white" : "hover:text-white"
+      }`}
+      aria-label="Account menu"
+    >
+      <Image
+        src="/images/landing-page/user.svg"
+        alt=""
+        aria-hidden="true"
+        width={22}
+        height={22}
+        className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${
+          light ? "md:invert" : ""
+        }`}
+      />
+    </Link>
+
+    <div className="absolute right-0 top-full pt-2 w-56 hidden group-hover:block transition-all z-50">
+      <div className="bg-white border border-neutral-200/80 rounded-2xl shadow-xl shadow-black/10 p-2 space-y-0.5 text-neutral-900">
+        {userMenuItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-neutral-900 hover:bg-[#f4f4f5] transition-colors"
+            >
+              <Icon
+                className="w-4.5 h-4.5 text-neutral-800 stroke-[1.6]"
+                aria-hidden="true"
+              />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <div className="pt-1 mt-1 border-t border-neutral-100">
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer text-left"
+          >
+            <LogOut
+              className="w-4.5 h-4.5 stroke-[1.6]"
+              aria-hidden="true"
+            />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+) : (
+  <Link
+    href="/login"
+    className={`transition-colors cursor-pointer ${
+      light ? "md:hover:text-black hover:text-white" : "hover:text-white"
+    }`}
+    aria-label="Sign in to your account"
+  >
+    <Image
+      src="/images/landing-page/user.svg"
+      alt=""
+      aria-hidden="true"
+      width={22}
+      height={22}
+      className={`h-5.5 w-5.5 sm:h-6 sm:w-6 object-contain transition-transform hover:scale-105 ${
+        light ? "md:invert" : ""
+      }`}
+    />
+  </Link>
+)}
                     </div>
                 </div>
 
