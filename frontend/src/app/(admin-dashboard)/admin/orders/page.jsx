@@ -610,8 +610,13 @@ export default function AdminOrdersPage() {
                         <span className="font-clashDisplay text-base font-semibold text-neutral-900 block">
                           Rs {order.totalAmount ? order.totalAmount.toLocaleString() : 0}
                         </span>
-
-
+                        <span className={`inline-block text-[10px] font-semibold mt-1 px-2 py-0.5 rounded-md border ${
+                          (order.paymentMethod?.toLowerCase().includes("cod") || order.paymentStatus === "COD")
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        }`}>
+                          {(order.paymentMethod?.toLowerCase().includes("cod") || order.paymentStatus === "COD") ? "Cash on Delivery" : "Prepaid"}
+                        </span>
                       </td>
 
                       {/* Fulfillment Status Display Badge */}

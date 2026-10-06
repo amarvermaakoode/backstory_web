@@ -75,6 +75,7 @@ const orderSchema = new mongoose.Schema(
     ],
     subtotal: { type: Number, required: true, default: 0 },
     discountAmount: { type: Number, default: 0 },
+    prepaidDiscount: { type: Number, default: 0 },
     shippingCost: { type: Number, default: 0 },
     taxAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true, default: 0 },

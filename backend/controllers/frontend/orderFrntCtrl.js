@@ -12,21 +12,28 @@ const createOrderRecord = async (req, res) => {
       items,
       subtotal,
       discountAmount,
+      prepaidDiscount,
       shippingCost,
       taxAmount,
       totalAmount,
       walletDeduction,
       paymentMethod,
       shippingMethod,
+      paymentStatus,
     } = req.body;
 
-    if (!orderId || !razorpayOrderId || !razorpayPaymentId || !items || !Array.isArray(items)) {
+    const isCod = paymentMethod === "Cash on Delivery (COD)" || paymentMethod === "COD" || paymentStatus === "COD";
+    const finalRazorpayOrderId = razorpayOrderId || (isCod ? `order_COD_${Date.now()}` : "");
+    const finalRazorpayPaymentId = razorpayPaymentId || (isCod ? `pay_COD_${Date.now()}` : "");
+
+    if (!orderId || !finalRazorpayOrderId || !finalRazorpayPaymentId || !items || !Array.isArray(items)) {
       return res.status(400).json({
         success: false,
         message: "Missing required order details",
       });
     }
 
+    const finalPaymentStatus = isCod ? "COD" : (paymentStatus || "Paid");
     const userId = req.user ? (req.user.id || req.user._id) : null;
 
     // Handle wallet deduction if wallet payment was used
@@ -59,8 +66,8 @@ const createOrderRecord = async (req, res) => {
     const newOrder = await Order.create({
       user: userId,
       orderId,
-      razorpayOrderId,
-      razorpayPaymentId,
+      razorpayOrderId: finalRazorpayOrderId,
+      razorpayPaymentId: finalRazorpayPaymentId,
       razorpaySignature: razorpaySignature || "",
       shippingAddress: shippingAddress || {},
       items: items.map((item) => ({
@@ -75,18 +82,19 @@ const createOrderRecord = async (req, res) => {
         quantity: item.quantity || 1,
         image: item.image || "",
         orderStatus: "Order Confirmed",
-        paymentStatus: "Paid",
+        paymentStatus: finalPaymentStatus,
         deliveryDate: "Estimated Delivery: 3-5 Business Days",
       })),
       subtotal: subtotal || 0,
       discountAmount: discountAmount || 0,
+      prepaidDiscount: Number(prepaidDiscount) || 0,
       shippingCost: shippingCost || 0,
       taxAmount: taxAmount || 0,
       totalAmount: totalAmount || 0,
       walletDeduction: Number(walletDeduction) || 0,
-      paymentMethod: paymentMethod || "Razorpay / Prepaid",
+      paymentMethod: paymentMethod || (isCod ? "Cash on Delivery (COD)" : "Razorpay / Prepaid"),
       shippingMethod: shippingMethod || "Standard Delivery",
-      paymentStatus: "Paid",
+      paymentStatus: finalPaymentStatus,
       orderStatus: "Order Confirmed",
     });
 

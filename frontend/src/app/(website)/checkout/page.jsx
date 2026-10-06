@@ -370,6 +370,13 @@ export default function CheckoutPage() {
         express: { rate: 150, deliveryDays: "1–2 business days" },
         international: { rate: 638, deliveryDays: "7–14 business days" }
     });
+
+    // Auto-switch payment choice to online if international shipping is selected while on COD
+    useEffect(() => {
+        if (shippingMethod === "international" && selectedPaymentChoice === "cod") {
+            setSelectedPaymentChoice("online");
+        }
+    }, [shippingMethod, selectedPaymentChoice]);
     const [promoInput, setPromoInput] = useState("");
     const [activePromo, setActivePromo] = useState(null);
     const [promoError, setPromoError] = useState("");
@@ -659,13 +666,27 @@ export default function CheckoutPage() {
         )
     );
 
-    const discountAmount = isFullDiscount
+    const promoDiscountAmount = isFullDiscount
         ? activeSubtotal
         : activePromo
             ? (activePromo.discountType === "percentage"
                 ? Math.round(activeSubtotal * (activePromo.discountValue / 100))
                 : Math.min(activeSubtotal, activePromo.discountValue))
             : 0;
+
+    const subtotalAfterPromo = Math.max(0, activeSubtotal - promoDiscountAmount);
+
+    // 5% discount for prepaid (online) payment method
+    const isPrepaidSelected = selectedPaymentChoice === "online" && !useWallet;
+    const prepaidDiscountAmount = (!isFullDiscount && isPrepaidSelected)
+        ? Math.round(subtotalAfterPromo * 0.05)
+        : 0;
+
+    const potentialPrepaidSavings = (!isFullDiscount)
+        ? Math.round(subtotalAfterPromo * 0.05)
+        : 0;
+
+    const discountAmount = promoDiscountAmount + prepaidDiscountAmount;
 
     const shippingCost = isFullDiscount ? 0 : getShippingCost();
     const taxableAmount = Math.max(0, activeSubtotal - discountAmount);
@@ -1008,6 +1029,143 @@ export default function CheckoutPage() {
                 return;
             }
 
+            // CASE 1.5: Cash on Delivery (COD) Payment
+            if (selectedPaymentChoice === "cod") {
+                if (shippingMethod === "international") {
+                    setPaymentError("Cash on Delivery is not available for international shipping. Please select Pay Online.");
+                    setIsProcessingPayment(false);
+                    return;
+                }
+
+                const codOrderId = "order_COD_" + Date.now();
+                const codPaymentId = "pay_COD_" + Date.now();
+
+                // 1. Reduce stock
+                try {
+                    const checkoutItems = activeItems.map(item => ({
+                        productId: item.productId || item.id,
+                        size: item.size,
+                        color: item.color,
+                        quantity: item.quantity
+                    }));
+                    await fetch(`${API_BASE_URL}/frontend/products/reduce-stock`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ items: checkoutItems })
+                    });
+                } catch (stockErr) {
+                    console.error("Error reducing stock during COD checkout:", stockErr);
+                }
+
+                // 2. Create Order in DB
+                try {
+                    const resOrder = await fetch(`${API_BASE_URL}/frontend/orders`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(token && { Authorization: `Bearer ${token}` })
+                        },
+                        body: JSON.stringify({
+                            orderId: localOrderId,
+                            razorpayOrderId: codOrderId,
+                            razorpayPaymentId: codPaymentId,
+                            razorpaySignature: "cod_signature",
+                            shippingAddress: {
+                                firstName: formData.firstName,
+                                lastName: formData.lastName,
+                                email: formData.deliveryEmail || formData.contactEmail,
+                                phoneNumber: formData.phoneNumber,
+                                streetAddress: formData.streetAddress,
+                                city: formData.city,
+                                state: formData.state,
+                                pinCode: formData.pinCode,
+                                country: formData.country
+                            },
+                            items: activeItems.map(item => ({
+                                productId: item.productId || item.id,
+                                name: item.name || item.title || "Product",
+                                category: item.tag || "COLLECTION",
+                                size: item.size || "M",
+                                color: typeof item.color === "object" ? item.color?.name || "Standard" : (item.color || "Standard"),
+                                colorHex: typeof item.color === "object" ? item.color?.hex : "#000",
+                                price: item.price || `Rs ${item.priceNum || 0}`,
+                                priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
+                                quantity: item.quantity || 1,
+                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png",
+                                orderStatus: "Order Confirmed",
+                                paymentStatus: "COD"
+                            })),
+                            subtotal: activeSubtotal,
+                            discountAmount: promoDiscountAmount,
+                            prepaidDiscount: 0,
+                            shippingCost,
+                            taxAmount,
+                            totalAmount,
+                            walletDeduction: 0,
+                            paymentMethod: "Cash on Delivery (COD)",
+                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery",
+                            paymentStatus: "COD"
+                        })
+                    });
+
+                    if (!resOrder.ok) {
+                        const errData = await resOrder.json().catch(() => ({}));
+                        throw new Error(errData.message || "Failed to save order");
+                    }
+                } catch (dbErr) {
+                    console.error("Error saving COD order to DB:", dbErr);
+                }
+
+                // 3. Mark ClaimCode as used if it was a claim code
+                if (activePromo?.claimCodeId || activePromo?.isMarketingCode) {
+                    try {
+                        await fetch(`${API_BASE_URL}/frontend/promo-codes/consume-claim`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                ...(token && { Authorization: `Bearer ${token}` })
+                            },
+                            body: JSON.stringify({
+                                claimCodeId: activePromo?.claimCodeId,
+                                code: activePromo?.code,
+                                orderId: localOrderId
+                            })
+                        });
+                    } catch (claimErr) {
+                        console.error("Error consuming claim code:", claimErr);
+                    }
+                }
+
+                if (refreshUser && token) {
+                    refreshUser(token);
+                }
+
+                setGeneratedOrderNum(localOrderId);
+                setCompletedOrderSummary({
+                    orderNum: localOrderId,
+                    totalAmount: totalAmount,
+                    walletDeduction: 0,
+                    payableTotal: payableTotal,
+                    paymentMethod: "Cash on Delivery (COD)",
+                    paymentStatus: "COD",
+                    recipientName: formData.firstName,
+                    email: formData.deliveryEmail || formData.contactEmail
+                });
+                setIsOrderComplete(true);
+                if (!isCartEmpty) {
+                    if (activeItems.length < cartItems.length) {
+                        activeItems.forEach(item => removeFromCart(item.id));
+                    } else {
+                        clearCart();
+                    }
+                }
+                try {
+                    localStorage.removeItem("activePromoCode");
+                } catch (e) {}
+                setIsProcessingPayment(false);
+                return;
+            }
+
             // CASE 2: Razorpay Payment (Full or Partial after Wallet Deduction)
             const scriptLoaded = await loadRazorpayScript();
             if (!scriptLoaded || typeof window.Razorpay === "undefined") {
@@ -1153,12 +1311,14 @@ export default function CheckoutPage() {
                                         })),
                                         subtotal: activeSubtotal,
                                         discountAmount,
+                                        prepaidDiscount: prepaidDiscountAmount,
                                         shippingCost,
                                         taxAmount,
                                         totalAmount,
                                         walletDeduction: walletDeduction,
-                                        paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Razorpay / Prepaid",
-                                        shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
+                                        paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Pay Online (Prepaid 5% Off)",
+                                        shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery",
+                                        paymentStatus: "Paid"
                                     })
                                 });
                             } catch (dbErr) {
@@ -1175,7 +1335,8 @@ export default function CheckoutPage() {
                                 totalAmount: totalAmount,
                                 walletDeduction: walletDeduction,
                                 payableTotal: payableTotal,
-                                paymentMethod: isWalletActive ? "BacStory Wallet + Razorpay" : "Razorpay Online",
+                                paymentMethod: isWalletActive ? "BacStory Wallet + Razorpay" : "Pay Online (Prepaid 5% Off)",
+                                paymentStatus: "Paid",
                                 recipientName: formData.firstName,
                                 email: formData.deliveryEmail || formData.contactEmail
                             });
@@ -1268,7 +1429,7 @@ export default function CheckoutPage() {
                     </div>
                 )}
 
-                <form onSubmit={handleCheckoutSubmit} noValidate className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+                <form onSubmit={handleCheckoutSubmit} noValidate className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
                     {/* Left Column: Form Cards */}
                     <div className="lg:col-span-7 space-y-8">
 
@@ -1724,7 +1885,7 @@ export default function CheckoutPage() {
                                                 </label>
                                             )}
 
-                                            {/* Razorpay Online Payment Option */}
+                                            {/* Razorpay Online Payment Option with 5% Discount */}
                                             <label
                                                 className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 cursor-pointer transition-all ${selectedPaymentChoice === "online" && !useWallet
                                                     ? "border-black bg-neutral-50/80 shadow-xs text-black"
@@ -1744,10 +1905,66 @@ export default function CheckoutPage() {
                                                         className="w-4.5 h-4.5 text-black accent-black cursor-pointer"
                                                     />
                                                     <div>
-                                                        <p className="text-sm font-bold text-black">Pay Online (UPI, Cards, NetBanking)</p>
-                                                        <p className="text-xs text-neutral-400">Fast & 100% Secure Payment via Razorpay</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-bold text-black">Pay Online (UPI, Cards, NetBanking)</p>
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wider uppercase">
+                                                                5% OFF
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-neutral-400 mt-0.5">
+                                                            Fast & 100% Secure via Razorpay • 5% discount applied automatically
+                                                        </p>
                                                     </div>
                                                 </div>
+                                                {prepaidDiscountAmount > 0 && (
+                                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full whitespace-nowrap">
+                                                        - Rs {prepaidDiscountAmount.toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </label>
+
+                                            {/* Cash on Delivery (COD) Option */}
+                                            <label
+                                                className={`flex items-center justify-between border rounded-2xl p-4 sm:p-5 transition-all ${shippingMethod === "international"
+                                                    ? "opacity-50 cursor-not-allowed bg-neutral-50 border-neutral-200 text-neutral-400"
+                                                    : selectedPaymentChoice === "cod" && !useWallet
+                                                        ? "border-black bg-neutral-50/80 shadow-xs text-black cursor-pointer"
+                                                        : "border-neutral-200 hover:border-neutral-300 bg-white text-black cursor-pointer"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="radio"
+                                                        name="paymentChoice"
+                                                        value="cod"
+                                                        disabled={shippingMethod === "international"}
+                                                        checked={selectedPaymentChoice === "cod" && !useWallet}
+                                                        onChange={() => {
+                                                            if (shippingMethod !== "international") {
+                                                                setSelectedPaymentChoice("cod");
+                                                                setUseWallet(false);
+                                                            }
+                                                        }}
+                                                        className="w-4.5 h-4.5 text-black accent-black cursor-pointer disabled:cursor-not-allowed"
+                                                    />
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-bold text-black">Cash on Delivery (COD)</p>
+                                                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                                                Pay upon delivery
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-neutral-400 mt-0.5">
+                                                            {shippingMethod === "international"
+                                                                ? "Not available for international shipping"
+                                                                : "Pay in cash or UPI when your order reaches your doorstep"
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-semibold text-neutral-600 bg-neutral-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                                                    COD Available
+                                                </span>
                                             </label>
                                         </>
                                     )}
@@ -1782,16 +1999,18 @@ export default function CheckoutPage() {
                                     `Pay Rs ${totalAmount.toLocaleString()} via BacStory Wallet`
                                 ) : isWalletActive ? (
                                     `Pay Rs ${payableTotal.toLocaleString()} via Razorpay (Wallet Credit: -Rs ${walletDeduction.toLocaleString()})`
+                                ) : selectedPaymentChoice === "cod" ? (
+                                    `Place Cash on Delivery Order (Rs ${payableTotal.toLocaleString()})`
                                 ) : (
-                                    "Continue to Payment"
+                                    `Pay Rs ${payableTotal.toLocaleString()} Online (5% Saved)`
                                 )}
                             </Button>
                         </div>
                     </div>
 
-                    {/* Right Column: Order Summary Card */}
-                    <div className="lg:col-span-5">
-                        <div className="bg-white rounded-3xl p-6 border border-neutral-200/50 shadow-xs h-fit sticky top-24">
+                    {/* Right Column: Order Summary Card (Sticky on desktop) */}
+                    <div className="lg:col-span-5 lg:sticky lg:top-24 lg:self-start h-fit z-10">
+                        <div className="bg-white rounded-3xl p-6 border border-neutral-200/50 shadow-xs max-h-[calc(100vh-7rem)] overflow-y-auto">
                             <span className="text-xs font-bold text-neutral-400 tracking-wider mb-6 block uppercase">
                                 Order Summary
                             </span>
@@ -1917,7 +2136,26 @@ export default function CheckoutPage() {
                                 {activePromo && (
                                     <div className="flex justify-between text-green-600 font-medium">
                                         <span>Discount ({activePromo.code} - {isFullDiscount ? "100% OFF (Bill is Rs 0)" : activePromo.discountType === "percentage" ? `${activePromo.discountValue}% off` : `Rs ${activePromo.discountValue} off`})</span>
-                                        <span className="font-semibold">-Rs {discountAmount.toLocaleString()}</span>
+                                        <span className="font-semibold">-Rs {promoDiscountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {prepaidDiscountAmount > 0 && (
+                                    <div className="flex justify-between text-emerald-700 font-medium bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200/60 text-xs">
+                                        <span className="flex items-center gap-1.5 font-semibold">
+                                            <span>Prepaid Discount (5% OFF)</span>
+                                        </span>
+                                        <span className="font-bold">-Rs {prepaidDiscountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {selectedPaymentChoice === "cod" && potentialPrepaidSavings > 0 && (
+                                    <div
+                                        onClick={() => setSelectedPaymentChoice("online")}
+                                        className="cursor-pointer bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200/60 p-2.5 rounded-xl flex items-center justify-between text-xs text-emerald-900 transition-colors"
+                                    >
+                                        <span>💡 Pay online to save <strong>Rs {potentialPrepaidSavings.toLocaleString()} (5% OFF)</strong></span>
+                                        <span className="text-[11px] font-bold underline shrink-0 ml-1 text-emerald-800">Switch & Save</span>
                                     </div>
                                 )}
 
@@ -1982,7 +2220,9 @@ export default function CheckoutPage() {
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Payment Status:</span>
-                                <span className="font-bold text-green-600">Paid</span>
+                                <span className={`font-bold ${completedOrderSummary?.paymentStatus === "COD" ? "text-amber-600" : "text-green-600"}`}>
+                                    {completedOrderSummary?.paymentStatus === "COD" ? "Cash on Delivery (Pending)" : "Paid"}
+                                </span>
                             </div>
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Payment Method:</span>
@@ -1991,7 +2231,9 @@ export default function CheckoutPage() {
                                         ? "BacStory Wallet"
                                         : isWalletActive
                                             ? "BacStory Wallet + Razorpay"
-                                            : "Razorpay Online")}
+                                            : selectedPaymentChoice === "cod"
+                                                ? "Cash on Delivery (COD)"
+                                                : "Pay Online (Prepaid 5% Off)")}
                                 </span>
                             </div>
 
@@ -2009,7 +2251,9 @@ export default function CheckoutPage() {
 
                             <div className="flex justify-between text-xs sm:text-sm font-medium border-t border-neutral-200/60 pt-2 mt-1">
                                 <span className="text-neutral-800 font-bold">
-                                    {(completedOrderSummary ? completedOrderSummary.payableTotal : payableTotal) === 0 ? (
+                                    {completedOrderSummary?.paymentStatus === "COD" || selectedPaymentChoice === "cod" ? (
+                                        "Amount to Pay on Delivery:"
+                                    ) : (completedOrderSummary ? completedOrderSummary.payableTotal : payableTotal) === 0 ? (
                                         (completedOrderSummary?.walletDeduction > 0 || isWalletActive) ? "Amount Paid via Wallet:" : "Amount Paid:"
                                     ) : "Amount Paid via Razorpay:"}
                                 </span>
