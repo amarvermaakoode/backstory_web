@@ -46,24 +46,27 @@ const getBackendUrl = () => {
  * Falls back to the frontend public URL if file is missing.
  */
 const resolveEmailLogo = () => {
-  const candidatePaths = [
-    path.join(__dirname, "../uploads/bacstory-logo.png"),
-    path.join(__dirname, "../../frontend/public/images/bacstory-logo.png"),
-    path.join(process.cwd(), "uploads/bacstory-logo.png"),
-    path.join(__dirname, "../uploads/logo.png"),
-    path.join(__dirname, "../../frontend/public/images/logo.png"),
+  const candidateList = [
+    { p: path.join(__dirname, "../uploads/logo-dark.png"), type: "image/png", filename: "logo-dark.png" },
+    { p: path.join(__dirname, "../../frontend/public/images/logo-dark.png"), type: "image/png", filename: "logo-dark.png" },
+    { p: path.join(process.cwd(), "uploads/logo-dark.png"), type: "image/png", filename: "logo-dark.png" },
+    { p: path.join(__dirname, "../uploads/logo-dark.svg"), type: "image/svg+xml", filename: "logo-dark.svg" },
+    { p: path.join(__dirname, "../../frontend/public/images/logo-dark.svg"), type: "image/svg+xml", filename: "logo-dark.svg" },
+    { p: path.join(process.cwd(), "uploads/logo-dark.svg"), type: "image/svg+xml", filename: "logo-dark.svg" },
+    { p: path.join(__dirname, "../uploads/bacstory-logo.png"), type: "image/png", filename: "bacstory-logo.png" },
+    { p: path.join(__dirname, "../../frontend/public/images/bacstory-logo.png"), type: "image/png", filename: "bacstory-logo.png" },
   ];
 
-  for (const filePath of candidatePaths) {
-    if (fs.existsSync(filePath)) {
+  for (const item of candidateList) {
+    if (fs.existsSync(item.p)) {
       try {
-        const fileBuffer = fs.readFileSync(filePath);
+        const fileBuffer = fs.readFileSync(item.p);
         return {
           url: "cid:bacstory_logo",
           attachment: {
             content: fileBuffer.toString("base64"),
-            filename: "bacstory-logo.png",
-            type: "image/png",
+            filename: item.filename,
+            type: item.type,
             disposition: "inline",
             content_id: "bacstory_logo",
             cid: "bacstory_logo",
@@ -76,7 +79,7 @@ const resolveEmailLogo = () => {
   }
 
   const baseUrl = getFrontendUrl();
-  return { url: `${baseUrl}/images/bacstory-logo.png`, attachment: null };
+  return { url: `${baseUrl}/images/logo-dark.png`, attachment: null };
 };
 
 /**
@@ -413,7 +416,7 @@ const generateOtpEmailHtml = ({ otp, type = "login", recipientEmail }) => {
           <tr>
             <td style="padding: 36px 36px 20px; text-align: center;">
               <a href="${baseUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
-                <img src="${logoUrl}" alt="BACSTORY - Wear Your Narrative" width="180" height="52" style="max-width: 180px; width: 100%; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
+                <img src="${logoUrl}" alt="BACSTORY" width="155" height="31" style="max-width: 155px; width: 155px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
               </a>
             </td>
           </tr>
@@ -612,7 +615,7 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
           <tr>
             <td style="padding: 32px 32px 20px; text-align: center;">
               <a href="${baseUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
-                <img src="${logoUrl}" alt="BACSTORY - Wear Your Narrative" width="180" height="52" style="max-width: 180px; width: 100%; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
+                <img src="${logoUrl}" alt="BACSTORY" width="155" height="31" style="max-width: 155px; width: 155px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
               </a>
             </td>
           </tr>
@@ -1178,7 +1181,7 @@ const generateOrderStatusEmailHtml = ({ order, statusDetails, notes = "", meta =
           <tr>
             <td style="padding: 32px 32px 20px; text-align: center;">
               <a href="${baseUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
-                <img src="${logoUrl}" alt="BACSTORY - Wear Your Narrative" width="180" height="52" style="max-width: 180px; width: 100%; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
+                <img src="${logoUrl}" alt="BACSTORY" width="155" height="31" style="max-width: 155px; width: 155px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
               </a>
             </td>
           </tr>

@@ -167,7 +167,15 @@ const getProductById = async (req, res) => {
     if (mongoose.Types.ObjectId.isValid(id)) {
       query = { _id: id };
     } else {
-      query = { slug: id.toLowerCase() };
+      const cleanSlug = id.toLowerCase().trim();
+      const titleGuess = cleanSlug.replace(/-/g, " ");
+      query = {
+        $or: [
+          { slug: cleanSlug },
+          { title: { $regex: new RegExp(`^${titleGuess}$`, "i") } },
+          { title: { $regex: new RegExp(`^${cleanSlug}$`, "i") } },
+        ]
+      };
     }
 
     const product = await Product.findOne(query)

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
@@ -20,23 +21,23 @@ const STATUS_FILTER_OPTIONS = [
 const ORDER_STEPS = [
     {
         title: "Order Confirmed",
-        desc: "Order details processed & payment confirmed via Razorpay"
+        desc: "Order has been placed and confirmed"
     },
     {
         title: "Ready to Pack & Ship",
-        desc: "Admin is packing your order for courier drop-off"
+        desc: "Items are being prepared and packed"
     },
     {
         title: "Dispatched & In Transit",
-        desc: "Package handed over to courier & in transit"
+        desc: "Package has been dispatched and is in transit"
     },
     {
         title: "Out for Delivery",
-        desc: "Courier partner is delivering to your address"
+        desc: "Package is out for delivery to your address"
     },
     {
         title: "Delivered",
-        desc: "Package successfully delivered to your doorstep"
+        desc: "Package has been delivered successfully"
     }
 ];
 
@@ -101,6 +102,7 @@ const getStepTimelineDate = (stepTitle, stepIdx, order, activeStepIdx) => {
 };
 
 export default function AccountOrdersPage() {
+    const router = useRouter();
     const { showToast } = useToast();
     const [selectedTrackOrder, setSelectedTrackOrder] = useState(null);
     const [orders, setOrders] = useState([]);
@@ -221,7 +223,8 @@ export default function AccountOrdersPage() {
                             refundDetails: o.refundDetails || {},
                             items: (o.items || []).map(i => ({
                                 id: i._id || i.productId,
-                                productId: i.product || i.productId,
+                                productId: (i.product && typeof i.product === "object" ? i.product._id : i.product) || i.productId,
+                                slug: (i.product && typeof i.product === "object" ? i.product.slug : null) || i.slug,
                                 name: i.name,
                                 category: i.category,
                                 size: i.size,
@@ -357,28 +360,49 @@ export default function AccountOrdersPage() {
                         {paginatedOrders.map((order) => {
                             const currentOrderStatus = order.orderStatus || "Order Confirmed";
                             return (
-                                <div key={order.id} className="border-b border-neutral-100 pb-8 last:border-0 space-y-5">
+                                <div
+                                    key={order.id}
+                                    onClick={() => router.push(`/account/orders/${encodeURIComponent(order.id)}`)}
+                                    className="border border-neutral-200/80 hover:border-neutral-300 rounded-3xl p-5 sm:p-6 transition-all duration-200 hover:shadow-xs cursor-pointer bg-white group/card space-y-5"
+                                >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="text-xs font-normal text-neutral-400">
                                             Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
                                         </p>
-                                        {order.paymentMethod && (
-                                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
-                                                {order.paymentMethod}
+                                        <div className="flex items-center gap-2">
+                                            {order.paymentMethod && (
+                                                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
+                                                    {order.paymentMethod}
+                                                </span>
+                                            )}
+                                            <span className="text-[11px] font-semibold text-neutral-400 group-hover/card:text-neutral-900 transition-colors flex items-center gap-0.5">
+                                                <span>View Summary</span>
+                                                <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover/card:translate-x-0.5" />
                                             </span>
-                                        )}
+                                        </div>
                                     </div>
 
                                     {/* Items inside this order */}
                                     <div className="space-y-6">
                                         {order.items.map((item) => {
-                                            const productUrl = item.link || `/products/${item.slug || item.productId || item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}`;
+                                            const productSlugOrId =
+                                                item.slug ||
+                                                (item.product && typeof item.product === "object" ? item.product.slug || item.product._id : null) ||
+                                                item.productId ||
+                                                (item.name ? item.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-") : "");
+
+                                            const productUrl = item.link || `/products/${productSlugOrId}`;
                                             const itemStatus = order.orderStatus || item.orderStatus || "Order Confirmed";
 
                                             return (
                                                 <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                                     <div className="flex items-start gap-4">
-                                                        <Link href={productUrl} className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group block cursor-pointer">
+                                                        <Link
+                                                            href={productUrl}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="relative w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 rounded-2xl overflow-hidden shrink-0 group/img block cursor-pointer border border-neutral-200/60"
+                                                            title={`View ${item.name} product details`}
+                                                        >
                                                             <img
                                                                 src={getImageUrl(item.image)}
                                                                 alt={item.name || "Product"}
@@ -386,12 +410,17 @@ export default function AccountOrdersPage() {
                                                                     e.currentTarget.onerror = null;
                                                                     e.currentTarget.src = "/images/landing-page/coding-tshirt.png";
                                                                 }}
-                                                                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                                                                className="w-full h-full object-cover object-center group-hover/img:scale-105 transition-transform duration-300"
                                                             />
                                                         </Link>
                                                         <div className="space-y-1">
-                                                            <Link href={productUrl} className="group block cursor-pointer">
-                                                                <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover:underline transition-colors">
+                                                            <Link
+                                                                href={productUrl}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="group/title block cursor-pointer"
+                                                                title={`View ${item.name} product details`}
+                                                            >
+                                                                <h4 className="font-semibold text-neutral-900 text-sm sm:text-base group-hover/title:underline transition-colors">
                                                                     {item.name}
                                                                 </h4>
                                                             </Link>
@@ -423,10 +452,13 @@ export default function AccountOrdersPage() {
 
 
                                     {/* Footer Action Buttons */}
-                                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neutral-100">
                                         <div className="flex items-center gap-2.5">
                                             <button
-                                                onClick={() => setSelectedTrackOrder(order)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedTrackOrder(order);
+                                                }}
                                                 className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
                                             >
                                                 <Package className="w-3.5 h-3.5 text-neutral-600" />
@@ -460,6 +492,7 @@ export default function AccountOrdersPage() {
                                                     return (
                                                         <Link
                                                             href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                            onClick={(e) => e.stopPropagation()}
                                                             className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
                                                         >
                                                             <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
@@ -484,7 +517,10 @@ export default function AccountOrdersPage() {
                                             {/* Cancellation Action according to Bacstory policy */}
                                             {(currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing") ? (
                                                 <button
-                                                    onClick={() => setCancellingOrder(order)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setCancellingOrder(order);
+                                                    }}
                                                     className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                                                 >
                                                     <X className="w-3.5 h-3.5 text-red-600" />
@@ -508,6 +544,7 @@ export default function AccountOrdersPage() {
                                         </div>
                                         <Link
                                             href="/account/support"
+                                            onClick={(e) => e.stopPropagation()}
                                             className="text-xs font-semibold text-neutral-500 hover:text-neutral-900 flex items-center gap-1 transition-colors cursor-pointer"
                                         >
                                             <HelpCircle className="w-3.5 h-3.5" />

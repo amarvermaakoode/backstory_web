@@ -225,7 +225,9 @@ const getUserOrders = async (req, res) => {
       });
     }
 
-    const orders = await Order.find({ $or: queryConditions }).sort({ createdAt: -1 });
+    const orders = await Order.find({ $or: queryConditions })
+      .populate("items.product", "title slug _id price colors")
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -263,10 +265,19 @@ const getTrackOrderStatus = async (req, res) => {
         orderId: order.orderId,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        shippingMethod: order.shippingMethod,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         items: order.items,
         shippingAddress: order.shippingAddress,
+        subtotal: order.subtotal,
+        discountAmount: order.discountAmount,
+        prepaidDiscount: order.prepaidDiscount,
+        shippingCost: order.shippingCost,
+        taxAmount: order.taxAmount,
+        totalAmount: order.totalAmount,
+        walletDeduction: order.walletDeduction,
         cancellation: order.cancellation,
         returnExchange: order.returnExchange,
         returnRequestsHistory: order.returnRequestsHistory || [],
@@ -279,6 +290,41 @@ const getTrackOrderStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to track order status",
+    });
+  }
+};
+
+// Get complete order details by orderId or _id
+const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Order ID is required" });
+    }
+
+    const mongoose = require("mongoose");
+    const isMongoId = orderId.length === 24 && /^[0-9a-fA-F]{24}$/.test(orderId);
+    const order = await Order.findOne({
+      $or: [
+        { orderId: orderId.trim() },
+        { orderId: { $regex: new RegExp(`^${orderId.trim()}$`, "i") } },
+        { _id: isMongoId ? orderId : null }
+      ]
+    }).populate("items.product", "title slug _id price colors");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch order details",
     });
   }
 };
@@ -844,6 +890,7 @@ module.exports = {
   createOrderRecord,
   getUserOrders,
   getTrackOrderStatus,
+  getOrderDetails,
   cancelUserOrder,
   submitReturnExchange,
   findOrderForReturn,

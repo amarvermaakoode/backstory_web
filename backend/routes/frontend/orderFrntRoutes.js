@@ -4,6 +4,7 @@ const {
   createOrderRecord,
   getUserOrders,
   getTrackOrderStatus,
+  getOrderDetails,
   cancelUserOrder,
   submitReturnExchange,
   findOrderForReturn
@@ -22,6 +23,7 @@ router.post("/", optionalAuth, createOrderRecord);
 router.get("/my-orders", optionalAuth, getUserOrders);
 router.get("/find-order", findOrderForReturn);
 router.get("/track/:orderId", getTrackOrderStatus);
+router.get("/:orderId", optionalAuth, getOrderDetails);
 router.post("/:orderId/cancel", optionalAuth, cancelUserOrder);
 router.post("/return-exchange", optionalAuth, submitReturnExchange);
 
