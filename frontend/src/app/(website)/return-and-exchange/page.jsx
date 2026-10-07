@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -17,6 +17,7 @@ import {
     ChevronDown,
     Loader2,
     Video,
+    Clock,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -148,9 +149,9 @@ export default function ReturnAndExchangePage() {
     const [submitError, setSubmitError] = useState("");
 
     // Look up real order from MongoDB backend
-    const handleFindOrder = async () => {
+    const fetchOrderByNumber = async (ordNo, email = "") => {
         setSearchError("");
-        if (!orderNumber.trim()) {
+        if (!ordNo || !ordNo.trim()) {
             setSearchError("Please enter your Order Number * to proceed.");
             return;
         }
@@ -158,8 +159,8 @@ export default function ReturnAndExchangePage() {
         setSearchLoading(true);
         try {
             const queryParams = new URLSearchParams();
-            if (orderNumber.trim()) queryParams.append("orderId", orderNumber.trim());
-            if (emailAddress.trim()) queryParams.append("email", emailAddress.trim());
+            queryParams.append("orderId", ordNo.trim());
+            if (email && email.trim()) queryParams.append("email", email.trim());
 
             const res = await fetch(`${API_BASE_URL}/frontend/orders/find-order?${queryParams.toString()}`);
             const data = await res.json();
@@ -211,7 +212,7 @@ export default function ReturnAndExchangePage() {
 
                     setOrderItems(mappedItems);
                     const firstSelectable = mappedItems.find(i => i.quantity > 0) || mappedItems[0];
-                    setSelectedItemIds([firstSelectable.id]);
+                    setSelectedItemIds(firstSelectable ? [firstSelectable.id] : []);
 
                     const initialQuantities = {};
                     mappedItems.forEach((i) => {
@@ -249,6 +250,29 @@ export default function ReturnAndExchangePage() {
             setSearchLoading(false);
         }
     };
+
+    const handleFindOrder = () => {
+        fetchOrderByNumber(orderNumber, emailAddress);
+    };
+
+    // Auto-load order if orderId query parameter is present in URL
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const qOrderId = params.get("orderId");
+            if (qOrderId) {
+                setOrderNumber(qOrderId);
+                fetchOrderByNumber(qOrderId);
+            }
+        }
+    }, []);
+
+    // If order window is expired or order is not delivered, prevent navigating past step 2
+    useEffect(() => {
+        if (orderEligibility && (!orderEligibility.isWithin7Days || !orderEligibility.isDelivered) && typeof currentStep === "number" && currentStep > 2) {
+            setCurrentStep(2);
+        }
+    }, [orderEligibility, currentStep]);
 
     // Submit Return or Exchange request to Backend API
     const handleSubmitReturnExchange = async () => {
@@ -328,9 +352,24 @@ export default function ReturnAndExchangePage() {
     const nextStep = () => {
         if (currentStep === "landing") setCurrentStep(1);
         else if (currentStep === 1) handleFindOrder();
-        else if (currentStep === 2) setCurrentStep(3);
-        else if (currentStep === 3) setCurrentStep(4);
-        else if (currentStep === 4) handleSubmitReturnExchange();
+        else if (currentStep === 2) {
+            if (orderEligibility && (!orderEligibility.isWithin7Days || !orderEligibility.isDelivered)) return;
+            setCurrentStep(3);
+        }
+        else if (currentStep === 3) {
+            if (orderEligibility && (!orderEligibility.isWithin7Days || !orderEligibility.isDelivered)) {
+                setCurrentStep(2);
+                return;
+            }
+            setCurrentStep(4);
+        }
+        else if (currentStep === 4) {
+            if (orderEligibility && (!orderEligibility.isWithin7Days || !orderEligibility.isDelivered)) {
+                setCurrentStep(2);
+                return;
+            }
+            handleSubmitReturnExchange();
+        }
     };
 
     const prevStep = () => {
@@ -651,158 +690,208 @@ export default function ReturnAndExchangePage() {
                                 <div className="space-y-8 pt-2">
                                     <div className="space-y-2">
                                         <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-black tracking-tight">
-                                            Select items to return or exchange
+                                            {orderEligibility && !orderEligibility.isWithin7Days
+                                                ? "Return & Exchange Window Closed"
+                                                : orderEligibility && !orderEligibility.isDelivered
+                                                    ? "Order Not Yet Delivered"
+                                                    : "Select items to return or exchange"}
                                         </h2>
                                         {foundOrder && (
                                             <p className="text-xs text-neutral-500">
                                                 Order Number: <strong className="text-neutral-900">{foundOrder.orderId}</strong>
                                             </p>
                                         )}
+                                    </div>
 
-
-                                        {orderEligibility && !orderEligibility.isWithin7Days && (
-                                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs text-amber-900 space-y-1">
-                                                <p className="font-bold text-sm text-amber-950">Notice: 7-Day Window Expired</p>
-                                                <p>Returns and exchanges are accepted within 7 days of delivery according to Bacstory policy.</p>
+                                    {orderEligibility && !orderEligibility.isWithin7Days ? (
+                                        <div className="bg-white border border-neutral-200/90 rounded-3xl p-6 sm:p-10 text-center space-y-5 max-w-lg mx-auto shadow-xs my-4">
+                                            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
+                                                <Clock className="w-7 h-7 stroke-[1.75]" />
                                             </div>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        {orderItems.map((item) => {
-                                            const isSelected = selectedItemIds.includes(item.id);
-                                            const itemOrderedQty = item.quantity || 1;
-                                            const returnQty = selectedQuantities[item.id] || itemOrderedQty;
-
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    className={`border rounded-2xl p-4 sm:p-5 transition-all ${isSelected
-                                                        ? "border-black bg-white shadow-sm"
-                                                        : "border-neutral-200/90 bg-white/70 hover:border-neutral-300"
-                                                        }`}
+                                            <div className="space-y-2">
+                                                <h3 className="text-xl sm:text-2xl font-semibold font-clashDisplay text-neutral-900 tracking-tight">
+                                                    7-Day Policy Window Expired
+                                                </h3>
+                                                <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-sm mx-auto">
+                                                    This order was delivered {orderEligibility.daysSinceDelivery ? `${orderEligibility.daysSinceDelivery} days ago` : "more than 7 days ago"}. In accordance with Bacstory policy, return and exchange requests can only be initiated within <strong>7 days of delivery</strong>.
+                                                </p>
+                                            </div>
+                                            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                                                <Link
+                                                    href="/account/orders"
+                                                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#101820] text-white text-xs font-semibold hover:bg-black transition-colors"
                                                 >
-                                                    <div
-                                                        onClick={() => toggleSelectItem(item.id)}
-                                                        className="flex items-center justify-between cursor-pointer"
-                                                    >
-                                                        <div className="flex items-center gap-4 sm:gap-5">
-                                                            <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
-                                                                <img
-                                                                    src={getImageUrl(item.image)}
-                                                                    alt={item.title || "Product image"}
-                                                                    className="w-full h-full object-cover object-center"
-                                                                    onError={(e) => {
-                                                                        e.target.onerror = null;
-                                                                        e.target.src = "/images/landing-page/coding-tshirt.png";
-                                                                    }}
-                                                                />
-                                                            </div>
+                                                    View Order History
+                                                </Link>
+                                                <Link
+                                                    href="/account/support"
+                                                    className="w-full sm:w-auto px-6 py-3 rounded-full border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-50 transition-colors"
+                                                >
+                                                    Contact Support
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ) : orderEligibility && !orderEligibility.isDelivered ? (
+                                        <div className="bg-white border border-neutral-200/90 rounded-3xl p-6 sm:p-10 text-center space-y-5 max-w-lg mx-auto shadow-xs my-4">
+                                            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200/60 text-blue-700 flex items-center justify-center mx-auto shadow-2xs">
+                                                <Package className="w-7 h-7 stroke-[1.75]" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h3 className="text-xl sm:text-2xl font-semibold font-clashDisplay text-neutral-900 tracking-tight">
+                                                    Order Not Yet Delivered
+                                                </h3>
+                                                <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-sm mx-auto">
+                                                    This order has not been delivered yet. Return and exchange options become available once package delivery has taken place.
+                                                </p>
+                                            </div>
+                                            <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+                                                <Link
+                                                    href="/account/orders"
+                                                    className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#101820] text-white text-xs font-semibold hover:bg-black transition-colors"
+                                                >
+                                                    Track Order
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-4">
+                                                {orderItems.map((item) => {
+                                                    const isSelected = selectedItemIds.includes(item.id);
+                                                    const itemOrderedQty = item.quantity || 1;
+                                                    const returnQty = selectedQuantities[item.id] || itemOrderedQty;
 
-                                                            <div className="space-y-1.5">
-                                                                <h3 className="font-semibold text-base sm:text-lg text-black">
-                                                                    {item.title}
-                                                                </h3>
-                                                                <p className="text-xs text-neutral-400 font-normal">
-                                                                    {item.subtitle}
-                                                                </p>
-                                                                <div className="flex items-center flex-wrap gap-2 text-[11px] text-neutral-600 font-medium">
-                                                                    <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
-                                                                        {item.size}
-                                                                    </span>
-                                                                    <span className="flex items-center gap-1.5 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
-                                                                        <span
-                                                                            className="w-2 h-2 rounded-full inline-block border border-neutral-300"
-                                                                            style={{ backgroundColor: item.colorDot }}
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className={`border rounded-2xl p-4 sm:p-5 transition-all ${isSelected
+                                                                ? "border-black bg-white shadow-sm"
+                                                                : "border-neutral-200/90 bg-white/70 hover:border-neutral-300"
+                                                                }`}
+                                                        >
+                                                            <div
+                                                                onClick={() => toggleSelectItem(item.id)}
+                                                                className="flex items-center justify-between cursor-pointer"
+                                                            >
+                                                                <div className="flex items-center gap-4 sm:gap-5">
+                                                                    <div className="relative w-16 h-20 sm:w-20 sm:h-24 bg-neutral-100 rounded-xl overflow-hidden shrink-0 border border-neutral-200/60">
+                                                                        <img
+                                                                            src={getImageUrl(item.image)}
+                                                                            alt={item.title || "Product image"}
+                                                                            className="w-full h-full object-cover object-center"
+                                                                            onError={(e) => {
+                                                                                e.target.onerror = null;
+                                                                                e.target.src = "/images/landing-page/coding-tshirt.png";
+                                                                            }}
                                                                         />
-                                                                        {item.color}
-                                                                    </span>
-                                                                    {isSelected ? (
-                                                                        <div
-                                                                            className="flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-300 font-semibold text-neutral-800"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                        >
-                                                                            <span className="text-neutral-700">Qty:</span>
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={returnQty <= 1}
-                                                                                onClick={() => {
-                                                                                    if (returnQty > 1) {
-                                                                                        setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty - 1 }));
-                                                                                    }
-                                                                                }}
-                                                                                className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200 ml-0.5"
-                                                                            >
-                                                                                -
-                                                                            </button>
-                                                                            <span className="px-1 text-center font-bold text-neutral-900 text-xs">
-                                                                                {returnQty}
+                                                                    </div>
+
+                                                                    <div className="space-y-1.5">
+                                                                        <h3 className="font-semibold text-base sm:text-lg text-black">
+                                                                            {item.title}
+                                                                        </h3>
+                                                                        <p className="text-xs text-neutral-400 font-normal">
+                                                                            {item.subtitle}
+                                                                        </p>
+                                                                        <div className="flex items-center flex-wrap gap-2 text-[11px] text-neutral-600 font-medium">
+                                                                            <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
+                                                                                {item.size}
                                                                             </span>
-                                                                            <button
-                                                                                type="button"
-                                                                                disabled={returnQty >= itemOrderedQty}
-                                                                                onClick={() => {
-                                                                                    if (returnQty < itemOrderedQty) {
-                                                                                        setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty + 1 }));
-                                                                                    }
-                                                                                }}
-                                                                                className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200"
-                                                                            >
-                                                                                +
-                                                                            </button>
+                                                                            <span className="flex items-center gap-1.5 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60">
+                                                                                <span
+                                                                                    className="w-2 h-2 rounded-full inline-block border border-neutral-300"
+                                                                                    style={{ backgroundColor: item.colorDot }}
+                                                                                />
+                                                                                {item.color}
+                                                                            </span>
+                                                                            {isSelected ? (
+                                                                                <div
+                                                                                    className="flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-300 font-semibold text-neutral-800"
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                >
+                                                                                    <span className="text-neutral-700">Qty:</span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        disabled={returnQty <= 1}
+                                                                                        onClick={() => {
+                                                                                            if (returnQty > 1) {
+                                                                                                setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty - 1 }));
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200 ml-0.5"
+                                                                                    >
+                                                                                        -
+                                                                                    </button>
+                                                                                    <span className="px-1 text-center font-bold text-neutral-900 text-xs">
+                                                                                        {returnQty}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        disabled={returnQty >= itemOrderedQty}
+                                                                                        onClick={() => {
+                                                                                            if (returnQty < itemOrderedQty) {
+                                                                                                setSelectedQuantities((prev) => ({ ...prev, [item.id]: returnQty + 1 }));
+                                                                                            }
+                                                                                        }}
+                                                                                        className="w-4 h-4 flex items-center justify-center rounded bg-white font-bold text-[11px] shadow-2xs hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer text-neutral-900 border border-neutral-200"
+                                                                                    >
+                                                                                        +
+                                                                                    </button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60 font-semibold text-neutral-700">
+                                                                                    Qty: {itemOrderedQty}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
-                                                                    ) : (
-                                                                        <span className="bg-neutral-100 px-2 py-0.5 rounded-md border border-neutral-200/60 font-semibold text-neutral-700">
-                                                                            Qty: {itemOrderedQty}
-                                                                        </span>
-                                                                    )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="text-right space-y-2 shrink-0">
+                                                                    <p className="font-semibold text-base sm:text-lg text-black">
+                                                                        Rs {((item.price || 0) * returnQty)?.toLocaleString()}
+                                                                    </p>
+                                                                    <p className="text-[11px] text-neutral-400">
+                                                                        Order {item.orderId}
+                                                                    </p>
+                                                                    <div className="flex justify-end pt-1">
+                                                                        <div
+                                                                            className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSelected
+                                                                                ? "bg-[#101820] text-white"
+                                                                                : "border-2 border-neutral-300 bg-transparent"
+                                                                                }`}
+                                                                        >
+                                                                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                    );
+                                                })}
+                                            </div>
 
-                                                        <div className="text-right space-y-2 shrink-0">
-                                                            <p className="font-semibold text-base sm:text-lg text-black">
-                                                                Rs {((item.price || 0) * returnQty)?.toLocaleString()}
-                                                            </p>
-                                                            <p className="text-[11px] text-neutral-400">
-                                                                Order {item.orderId}
-                                                            </p>
-                                                            <div className="flex justify-end pt-1">
-                                                                <div
-                                                                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSelected
-                                                                        ? "bg-[#101820] text-white"
-                                                                        : "border-2 border-neutral-300 bg-transparent"
-                                                                        }`}
-                                                                >
-                                                                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                            {(() => {
+                                                const totalSelectedQuantity = selectedItemIds.reduce((sum, id) => {
+                                                    return sum + (selectedQuantities[id] || 1);
+                                                }, 0);
 
-                                    {(() => {
-                                        const totalSelectedQuantity = selectedItemIds.reduce((sum, id) => {
-                                            return sum + (selectedQuantities[id] || 1);
-                                        }, 0);
-
-                                        return (
-                                            <button
-                                                onClick={nextStep}
-                                                className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
-                                            >
-                                                Continue with {totalSelectedQuantity} item{totalSelectedQuantity > 1 ? "s" : ""}
-                                            </button>
-                                        );
-                                    })()}
+                                                return (
+                                                    <button
+                                                        onClick={nextStep}
+                                                        className="w-full py-4 rounded-full bg-[#101820] text-white font-medium text-sm hover:bg-black transition-all cursor-pointer shadow-sm"
+                                                    >
+                                                        Continue with {totalSelectedQuantity} item{totalSelectedQuantity > 1 ? "s" : ""}
+                                                    </button>
+                                                );
+                                            })()}
+                                        </>
+                                    )}
                                 </div>
                             )}
 
                             {/* STEP 3: STATE REASON */}
-                            {currentStep === 3 && (
+                            {currentStep === 3 && (!orderEligibility || (orderEligibility.isWithin7Days && orderEligibility.isDelivered)) && (
                                 <div className="space-y-6 pt-2">
                                     <div className="space-y-2">
                                         <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-black tracking-tight">
@@ -1179,7 +1268,7 @@ export default function ReturnAndExchangePage() {
                             )}
 
                             {/* STEP 4: REVIEW DETAILS */}
-                            {currentStep === 4 && (
+                            {currentStep === 4 && (!orderEligibility || (orderEligibility.isWithin7Days && orderEligibility.isDelivered)) && (
                                 <div className="space-y-6 pt-2">
                                     <div className="space-y-2">
                                         <h2 className="text-2xl sm:text-3xl font-semibold font-clashDisplay text-black tracking-tight">

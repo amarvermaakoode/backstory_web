@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
@@ -508,6 +508,32 @@ export default function AccountOrdersPage() {
                                                             <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
                                                             <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
                                                         </span>
+                                                    );
+                                                }
+
+                                                // 2. If order is delivered and 7-day window has expired, show Return Window Closed badge
+                                                if (isDelivered && isReturnWindowExpired) {
+                                                    return (
+                                                        <span
+                                                            className="border border-neutral-200 bg-neutral-50 text-neutral-400 rounded-full px-3.5 py-1 text-xs font-medium cursor-default select-none flex items-center gap-1.5"
+                                                            title={`The 7-day return and exchange policy window has expired for this order (${daysSinceDelivery} days since delivery)`}
+                                                        >
+                                                            <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                                                            <span>Return Window Closed</span>
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // 3. If delivered, within 7-day window, and has returnable items
+                                                if (isDelivered && remainingReturnableQty > 0 && !isReturnWindowExpired) {
+                                                    return (
+                                                        <Link
+                                                            href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                        >
+                                                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                                            <span>Return or Exchange</span>
+                                                        </Link>
                                                     );
                                                 }
 

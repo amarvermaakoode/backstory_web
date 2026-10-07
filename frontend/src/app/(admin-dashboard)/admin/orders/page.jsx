@@ -47,12 +47,44 @@ const STATUS_BADGE_STYLES = {
   "Dispatched & In Transit": "bg-purple-50 text-purple-700 border-purple-200",
   "Out for Delivery": "bg-indigo-50 text-indigo-700 border-indigo-200",
   "Delivered": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Return Requested": "bg-amber-50 text-amber-800 border-amber-300 font-semibold",
+  "Exchange Requested": "bg-purple-50 text-purple-800 border-purple-300 font-semibold",
   "Return In Progress": "bg-purple-50 text-purple-800 border-purple-200",
   "Returned": "bg-neutral-100 text-neutral-700 border-neutral-300",
   "Exchange In Progress": "bg-purple-50 text-purple-800 border-purple-200",
   "Exchanged": "bg-emerald-50 text-emerald-800 border-emerald-200",
   "Cancelled": "bg-red-50 text-red-700 border-red-200"
 };
+
+// Helper to determine display status if a return or exchange request is active
+export function getOrderDisplayStatus(order) {
+  if (!order) return "Order Confirmed";
+
+  const returnRequestsList = (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0)
+    ? order.returnRequestsHistory
+    : (order.returnExchange?.isRequested ? [order.returnExchange] : []);
+
+  // Look for any pending return or exchange request
+  const pendingReq = returnRequestsList.slice().reverse().find(r =>
+    r.status === "Return Requested" ||
+    r.status === "Exchange Requested" ||
+    r.status === "Pending Verification" ||
+    (r.status === "Requested" && (r.requestType === "return" || r.requestType === "exchange"))
+  );
+
+  if (pendingReq) {
+    if (pendingReq.requestType === "exchange" || pendingReq.status === "Exchange Requested") {
+      return "Exchange Requested";
+    }
+    return "Return Requested";
+  }
+
+  if (order.orderStatus === "Return Requested" || order.orderStatus === "Exchange Requested") {
+    return order.orderStatus;
+  }
+
+  return order.orderStatus || "Order Confirmed";
+}
 
 export default function AdminOrdersPage() {
   const { adminFetch } = useAdminAuth();
@@ -483,9 +515,13 @@ export default function AdminOrdersPage() {
               options={[
                 { value: "All", label: "Filter by Status (All)" },
                 { value: "Return Requested", label: "Return Requested" },
+                { value: "Exchange Requested", label: "Exchange Requested" },
                 ...ORDER_STATUS_STEPS.map((st) => ({ value: st, label: st })),
-                { value: "Cancelled", label: "Cancelled" },
+                { value: "Return In Progress", label: "Return In Progress" },
                 { value: "Returned", label: "Returned" },
+                { value: "Exchange In Progress", label: "Exchange In Progress" },
+                { value: "Exchanged", label: "Exchanged" },
+                { value: "Cancelled", label: "Cancelled" },
               ]}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -526,7 +562,7 @@ export default function AdminOrdersPage() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {paginatedOrders.map((order) => {
-                  const currentStatus = order.orderStatus || "Order Confirmed";
+                  const currentStatus = getOrderDisplayStatus(order);
                   const addr = order.shippingAddress || {};
                   const isUpdating = updatingOrderId === order._id;
 
@@ -694,7 +730,7 @@ export default function AdminOrdersPage() {
                   Order Status
                 </span>
                 <span className="text-xs font-semibold text-neutral-900 mt-0.5 block">
-                  Current: <span className="text-purple-700">{selectedOrder.orderStatus || "Placed"}</span>
+                  Current: <span className="text-purple-700">{getOrderDisplayStatus(selectedOrder)}</span>
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -710,6 +746,8 @@ export default function AdminOrdersPage() {
                       {st}
                     </option>
                   ))}
+                  <option value="Return Requested">Return Requested</option>
+                  <option value="Exchange Requested">Exchange Requested</option>
                   <option value="Return In Progress">Return In Progress</option>
                   <option value="Returned">Returned</option>
                   <option value="Exchange In Progress">Exchange In Progress</option>
