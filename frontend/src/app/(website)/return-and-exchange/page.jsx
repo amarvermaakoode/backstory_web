@@ -35,7 +35,7 @@ const policyItems = [
         number: "02",
         title: "Shipping & Return shipping",
         description:
-            "Shipping is ₹99 for orders below ₹999, and Free on ₹999+. Customer bears return shipping for change of mind. Bacstory bears all shipping costs for defective, damaged, or incorrect items.",
+            "Shipping is ₹99 for orders below ₹999, and Free on ₹999+. Customer bears ₹99 return shipping fee only for 'Changed my mind' or 'Other'. Bacstory bears return shipping for all other reasons.",
     },
     {
         number: "03",
@@ -373,12 +373,11 @@ export default function ReturnAndExchangePage() {
     }, 0);
 
     // Shipping cost rule for returns:
-    // Bacstory bears shipping costs for defective, damaged, or incorrect items.
-    // Customer bears ₹99 return shipping fee for change of mind.
-    const isBacstoryFault = ["Damaged product", "Incorrect product", "Item defective or damaged", "Received wrong item"].some(r =>
-        selectedReason.toLowerCase().includes(r.toLowerCase())
-    );
-    const returnShippingFee = isBacstoryFault ? 0 : 99;
+    // Only if user selects "Changed my mind" or "Other", return shipping fee (₹99) will be applicable.
+    // For all other reasons, return shipping is FREE (covered by Bacstory).
+    const normalizedReason = (selectedReason || "").trim().toLowerCase();
+    const isFeeApplicableReason = normalizedReason.includes("mind") || normalizedReason === "other" || normalizedReason.startsWith("other");
+    const returnShippingFee = (requestType === "return" && isFeeApplicableReason) ? 99 : 0;
     const totalRefund = Math.max(0, itemSubtotal - (requestType === "return" ? returnShippingFee : 0));
 
     return (
@@ -989,6 +988,14 @@ export default function ReturnAndExchangePage() {
                                                 }}
                                                 className="!bg-[#F4F4F4] !border-transparent !rounded-2xl !py-4 !px-6 !text-sm !font-normal text-black hover:!border-neutral-300"
                                             />
+                                            {requestType === "return" && isFeeApplicableReason && (
+                                                <div className="mt-2 text-xs flex items-center gap-1.5 font-medium">
+                                                    <span className="text-amber-700 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                                                        Return shipping fee of ₹99 is applicable for this reason
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Additional Notes Textarea */}
@@ -1255,11 +1262,11 @@ export default function ReturnAndExchangePage() {
                                                 <span>Item Subtotal</span>
                                                 <span className="font-semibold text-neutral-800">Rs {itemSubtotal.toLocaleString()}</span>
                                             </div>
-                                            {requestType === "return" && (
+                                            {requestType === "return" && returnShippingFee > 0 && (
                                                 <div className="flex items-center justify-between text-xs text-neutral-500">
                                                     <span>Return Shipping Fee</span>
-                                                    <span className={returnShippingFee === 0 ? "font-bold text-emerald-600" : "font-semibold text-neutral-800"}>
-                                                        {returnShippingFee === 0 ? "FREE (Bacstory Cover)" : `- Rs ${returnShippingFee}`}
+                                                    <span className="font-semibold text-neutral-800">
+                                                        - Rs {returnShippingFee}
                                                     </span>
                                                 </div>
                                             )}

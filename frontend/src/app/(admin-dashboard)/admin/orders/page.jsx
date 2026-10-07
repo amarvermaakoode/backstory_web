@@ -874,7 +874,9 @@ export default function AdminOrdersPage() {
                         reqItemsSubtotal += (unitPrice * qty);
                       });
                     }
-                    const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : 99;
+                    const normalizedReqReason = (req.reason || "").toLowerCase();
+                    const isFeeApplicableReason = normalizedReqReason.includes("mind") || normalizedReqReason === "other" || normalizedReqReason.startsWith("other");
+                    const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : (isFeeApplicableReason ? 99 : 0);
                     const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
 
                     const reqPayoutMethod = req.refundMethod || selectedOrder.refundDetails?.refundMethod || "Original Payment Method";
@@ -1161,15 +1163,10 @@ export default function AdminOrdersPage() {
             {(!selectedOrder.returnRequestsHistory || selectedOrder.returnRequestsHistory.length === 0) && selectedOrder.refundDetails && selectedOrder.refundDetails.refundMethod !== "None" && (() => {
               const isCancelled = selectedOrder.cancellation?.isCancelled || selectedOrder.orderStatus === "Cancelled";
               const reqReason = selectedOrder.returnExchange?.reason || "";
-              const isFreeShippingReason = [
-                "Defective or damaged product",
-                "Received wrong item",
-                "Parcel received with missing items",
-                "Item damaged during transit",
-                "Item defective or damaged"
-              ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
+              const normalizedReqReason = (reqReason || "").toLowerCase();
+              const isFeeApplicableReason = normalizedReqReason.includes("mind") || normalizedReqReason === "other" || normalizedReqReason.startsWith("other");
 
-              const returnShippingFee = (isCancelled || isFreeShippingReason)
+              const returnShippingFee = (isCancelled || !isFeeApplicableReason)
                 ? 0
                 : (typeof selectedOrder.returnExchange?.returnShippingFee === "number"
                   ? selectedOrder.returnExchange.returnShippingFee

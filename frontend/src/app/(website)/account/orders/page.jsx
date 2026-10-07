@@ -928,15 +928,10 @@ export default function AccountOrdersPage() {
                                                 });
                                             }
 
-                                            const isFreeShippingReason = [
-                                                "Defective or damaged product",
-                                                "Received wrong item",
-                                                "Parcel received with missing items",
-                                                "Item damaged during transit",
-                                                "Item defective or damaged"
-                                            ].some(r => reqReason.toLowerCase().includes(r.toLowerCase()));
+                                            const normalizedReqReason = (reqReason || "").toLowerCase();
+                                            const isFeeApplicableReason = normalizedReqReason.includes("mind") || normalizedReqReason === "other" || normalizedReqReason.startsWith("other");
 
-                                            const reqShippingFee = isFreeShippingReason ? 0 : (typeof req.returnShippingFee === "number" ? req.returnShippingFee : 99);
+                                            const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : (isFeeApplicableReason ? 99 : 0);
                                             const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
                                             const rawMethod = req.refundMethod || selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
                                             const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);

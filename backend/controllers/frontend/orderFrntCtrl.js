@@ -753,8 +753,16 @@ const submitReturnExchange = async (req, res) => {
       }
     }
 
-    // Calculate Return Shipping Fee: Bacstory pays for our fault, customer pays ₹99 for change of mind
-    const returnShippingFee = isDamagedOrWrong ? 0 : 99;
+    // Calculate Return Shipping Fee:
+    // Applicable (₹99) ONLY if customer selects "Changed my mind" or "Other".
+    // For all other reasons, return shipping is free (₹0).
+    const normalizedReason = (reason || "").trim().toLowerCase();
+    const isFeeApplicableReason = requestType === "return" && (
+      normalizedReason.includes("mind") ||
+      normalizedReason === "other" ||
+      normalizedReason.startsWith("other")
+    );
+    const returnShippingFee = isFeeApplicableReason ? 99 : 0;
 
     let finalRefundMethod = "Original Payment Method";
     let refundAmount = 0;
