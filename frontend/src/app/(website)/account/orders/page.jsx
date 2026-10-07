@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight } from "lucide-react";
+import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
@@ -456,7 +456,41 @@ export default function AccountOrdersPage() {
                                                 const remainingReturnableQty = Math.max(0, totalOrderedQty - totalReturnedQty);
                                                 const isDeliveredOrActive = currentOrderStatus === "Delivered" || currentOrderStatus === "Return In Progress" || currentOrderStatus === "Returned" || order.orderStatus === "Delivered" || order.orderStatus === "Return In Progress" || order.orderStatus === "Returned";
 
-                                                if (isDeliveredOrActive && remainingReturnableQty > 0) {
+                                                // Calculate delivery date & elapsed days:
+                                                const deliveredEntry = (order.statusTimeline || []).find(e => (e.status || "").toLowerCase().includes("delivered"));
+                                                const deliveryTimestamp = deliveredEntry?.timestamp || order.updatedAt || order.createdAt;
+                                                const daysSinceDelivery = Math.floor((Date.now() - new Date(deliveryTimestamp).getTime()) / (1000 * 60 * 60 * 24));
+                                                const isDelivered = (currentOrderStatus || "").toLowerCase().trim() === "delivered" ||
+                                                    (order.orderStatus || "").toLowerCase().trim() === "delivered" ||
+                                                    (Array.isArray(order.items) && order.items.some(i => (i.orderStatus || "").toLowerCase().trim() === "delivered"));
+                                                const isReturnWindowExpired = isDelivered && daysSinceDelivery > 7;
+
+                                                // 1. If all items were already requested/returned
+                                                if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
+                                                    const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
+                                                    return (
+                                                        <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
+                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
+                                                            <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // 2. If order is delivered and 7-day window has expired, show Return Window Closed badge
+                                                if (isDelivered && isReturnWindowExpired) {
+                                                    return (
+                                                        <span
+                                                            className="border border-neutral-200 bg-neutral-50 text-neutral-400 rounded-full px-3.5 py-1 text-xs font-medium cursor-default select-none flex items-center gap-1.5"
+                                                            title={`The 7-day return and exchange policy window has expired for this order (${daysSinceDelivery} days since delivery)`}
+                                                        >
+                                                            <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                                                            <span>Return Window Closed</span>
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // 3. If delivered, within 7-day window, and has returnable items
+                                                if (isDelivered && remainingReturnableQty > 0 && !isReturnWindowExpired) {
                                                     return (
                                                         <Link
                                                             href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
@@ -465,16 +499,6 @@ export default function AccountOrdersPage() {
                                                             <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
                                                             <span>Return or Exchange</span>
                                                         </Link>
-                                                    );
-                                                }
-
-                                                if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
-                                                    const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
-                                                    return (
-                                                        <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
-                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
-                                                            <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
-                                                        </span>
                                                     );
                                                 }
 

@@ -325,25 +325,43 @@ exports.getDashboardStats = async (req, res) => {
     );
 
     // 11. Recent Orders (Latest 6)
-    const recentOrders = allOrders.slice(0, 6).map((ord) => ({
-      _id: ord._id,
-      orderId: ord.orderId,
-      customerName:
-        `${ord.shippingAddress?.firstName || ""} ${ord.shippingAddress?.lastName || ""}`.trim() ||
-        "Guest Customer",
-      customerEmail: ord.shippingAddress?.email || "",
-      itemsCount: (ord.items || []).reduce(
-        (sum, item) => sum + (Number(item.quantity) || 1),
-        0
-      ),
-      firstItemName: ord.items?.[0]?.name || "Order Item",
-      firstItemImage: ord.items?.[0]?.image || "",
-      totalAmount: ord.totalAmount,
-      orderStatus: ord.orderStatus,
-      paymentStatus: ord.paymentStatus,
-      paymentMethod: ord.paymentMethod,
-      createdAt: ord.createdAt,
-    }));
+    const recentOrders = allOrders.slice(0, 6).map((ord) => {
+      let displayStatus = ord.orderStatus || "Order Confirmed";
+      const returnRequestsList = (Array.isArray(ord.returnRequestsHistory) && ord.returnRequestsHistory.length > 0)
+        ? ord.returnRequestsHistory
+        : (ord.returnExchange?.isRequested ? [ord.returnExchange] : []);
+      const pendingReq = returnRequestsList.slice().reverse().find(r =>
+        r.status === "Return Requested" ||
+        r.status === "Exchange Requested" ||
+        r.status === "Pending Verification" ||
+        (r.status === "Requested" && (r.requestType === "return" || r.requestType === "exchange"))
+      );
+      if (pendingReq) {
+        displayStatus = pendingReq.requestType === "exchange" || pendingReq.status === "Exchange Requested"
+          ? "Exchange Requested"
+          : "Return Requested";
+      }
+
+      return {
+        _id: ord._id,
+        orderId: ord.orderId,
+        customerName:
+          `${ord.shippingAddress?.firstName || ""} ${ord.shippingAddress?.lastName || ""}`.trim() ||
+          "Guest Customer",
+        customerEmail: ord.shippingAddress?.email || "",
+        itemsCount: (ord.items || []).reduce(
+          (sum, item) => sum + (Number(item.quantity) || 1),
+          0
+        ),
+        firstItemName: ord.items?.[0]?.name || "Order Item",
+        firstItemImage: ord.items?.[0]?.image || "",
+        totalAmount: ord.totalAmount,
+        orderStatus: displayStatus,
+        paymentStatus: ord.paymentStatus,
+        paymentMethod: ord.paymentMethod,
+        createdAt: ord.createdAt,
+      };
+    });
 
     // Response structure
     return res.status(200).json({

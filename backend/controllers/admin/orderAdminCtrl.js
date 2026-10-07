@@ -42,6 +42,8 @@ const ALLOWED_STATUSES = [
   "Dispatched & In Transit",
   "Out for Delivery",
   "Delivered",
+  "Return Requested",
+  "Exchange Requested",
   "Return In Progress",
   "Returned",
   "Exchange In Progress",
@@ -58,7 +60,17 @@ const getAllOrders = async (req, res) => {
 
     if (status && status !== "All") {
       if (status === "Return Requested") {
-        query["returnExchange.isRequested"] = true;
+        query.$or = [
+          { orderStatus: "Return Requested" },
+          { "returnExchange.isRequested": true, "returnExchange.requestType": "return", "returnExchange.status": "Return Requested" },
+          { "returnRequestsHistory.status": "Return Requested" }
+        ];
+      } else if (status === "Exchange Requested") {
+        query.$or = [
+          { orderStatus: "Exchange Requested" },
+          { "returnExchange.isRequested": true, "returnExchange.requestType": "exchange", "returnExchange.status": "Exchange Requested" },
+          { "returnRequestsHistory.status": "Exchange Requested" }
+        ];
       } else {
         query.orderStatus = status;
       }
@@ -486,8 +498,8 @@ const approveReturnRequest = async (req, res) => {
     const appStatus = reqType === "return" ? "Return Approved" : "Exchange Approved";
 
     if (reqType === "return") {
-      // Stage 4: Admin approves return -> Order: Delivered, Return: Return Approved, Payment: Paid
-      order.orderStatus = "Delivered";
+      // Stage 4: Admin approves return -> Order: Return In Progress, Return: Return Approved, Payment: Paid
+      order.orderStatus = "Return In Progress";
       order.paymentStatus = "Paid";
 
       const returnFee = targetReturn?.returnShippingFee || 0;
@@ -498,7 +510,7 @@ const approveReturnRequest = async (req, res) => {
       order.refundDetails.refundStatus = "None";
     } else {
       // Exchange request
-      order.orderStatus = "Ready to Pack & Ship";
+      order.orderStatus = "Exchange In Progress";
     }
 
     updateReturnRequestStatus(order, appStatus, { approvedAt: new Date() }, requestId);
@@ -880,6 +892,15 @@ const rejectReturnRequest = async (req, res) => {
       rejectionReason: rejectionReason || "Request does not meet return policy criteria.",
       rejectedAt: new Date()
     }, requestId);
+
+    if (order.orderStatus === "Return Requested" || order.orderStatus === "Exchange Requested") {
+      order.orderStatus = "Delivered";
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Delivered";
+        });
+      }
+    }
 
     await order.save();
 

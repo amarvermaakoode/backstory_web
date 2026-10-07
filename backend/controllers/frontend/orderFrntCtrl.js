@@ -575,8 +575,12 @@ const findOrderForReturn = async (req, res) => {
     }
 
     // Eligibility check according to Bacstory policy
-    const isDelivered = order.orderStatus === "Delivered";
-    const deliveryDateMs = order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime();
+    const isDelivered = (order.orderStatus || "").toLowerCase().trim() === "delivered" ||
+      (Array.isArray(order.items) && order.items.some(i => (i.orderStatus || "").toLowerCase().trim() === "delivered"));
+    const deliveredTimelineEntry = (order.statusTimeline || []).find(e => (e.status || "").toLowerCase().includes("delivered"));
+    const deliveryDateMs = deliveredTimelineEntry?.timestamp
+      ? new Date(deliveredTimelineEntry.timestamp).getTime()
+      : (order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime());
     const daysSinceDelivery = Math.floor((Date.now() - deliveryDateMs) / (1000 * 60 * 60 * 24));
     const isWithin7Days = daysSinceDelivery <= 7;
     const isWithin48Hours = (Date.now() - deliveryDateMs) <= (48 * 60 * 60 * 1000);
@@ -591,8 +595,8 @@ const findOrderForReturn = async (req, res) => {
         isWithin7Days,
         isWithin48Hours,
         hasAlreadyExchanged,
-        canReturn: isWithin7Days,
-        canExchange: isWithin7Days && !hasAlreadyExchanged
+        canReturn: isDelivered && isWithin7Days,
+        canExchange: isDelivered && isWithin7Days && !hasAlreadyExchanged
       }
     });
   } catch (error) {
@@ -675,9 +679,20 @@ const submitReturnExchange = async (req, res) => {
     }
 
     // Policy Check 2: 7-day return & exchange window
-    const deliveryDateMs = order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime();
+    const deliveredTimelineEntry = (order.statusTimeline || []).find(e => (e.status || "").toLowerCase().includes("delivered"));
+    const deliveryDateMs = deliveredTimelineEntry?.timestamp
+      ? new Date(deliveredTimelineEntry.timestamp).getTime()
+      : (order.updatedAt ? new Date(order.updatedAt).getTime() : new Date(order.createdAt).getTime());
     const daysSinceDelivery = Math.floor((Date.now() - deliveryDateMs) / (1000 * 60 * 60 * 24));
-    if (order.orderStatus === "Delivered" && daysSinceDelivery > 7) {
+    const isOrderDelivered = (order.orderStatus || "").toLowerCase().trim() === "delivered" ||
+      (Array.isArray(order.items) && order.items.some(i => (i.orderStatus || "").toLowerCase().trim() === "delivered"));
+    if (!isOrderDelivered) {
+      return res.status(400).json({
+        success: false,
+        message: "Return or exchange cannot be requested for orders that have not yet been delivered."
+      });
+    }
+    if (isOrderDelivered && daysSinceDelivery > 7) {
       return res.status(400).json({
         success: false,
         message: "The 7-day return and exchange policy window has expired for this order."
@@ -809,6 +824,30 @@ const submitReturnExchange = async (req, res) => {
       order.returnRequestsHistory = [];
     }
     order.returnRequestsHistory.push(newReturnEntry);
+
+    // Update main order status to Return Requested / Exchange Requested
+    order.orderStatus = initialStatus;
+
+    // Update matching items status
+    if (order.items && Array.isArray(order.items)) {
+      const reqItemIds = Array.isArray(items) ? items.map(it => it.itemId) : [];
+      order.items.forEach(it => {
+        const itemIdStr = it._id?.toString() || it.id;
+        if (reqItemIds.length === 0 || reqItemIds.includes(itemIdStr) || reqItemIds.includes(it.name)) {
+          it.orderStatus = initialStatus;
+        }
+      });
+    }
+
+    // Add entry to statusTimeline
+    if (!Array.isArray(order.statusTimeline)) {
+      order.statusTimeline = [];
+    }
+    order.statusTimeline.push({
+      status: initialStatus,
+      timestamp: new Date(),
+      note: reason ? `${reason}` : `${initialStatus} by customer`
+    });
 
     if (order.paymentStatus !== "COD" && order.paymentStatus !== "Cancelled (Unpaid)") {
       order.paymentStatus = "Paid";
