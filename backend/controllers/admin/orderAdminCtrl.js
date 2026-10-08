@@ -142,12 +142,20 @@ const updateReturnRequestStatus = (order, newStatus, additionalData = {}, target
     order.returnExchange.updatedAt = new Date();
     Object.assign(order.returnExchange, additionalData);
   }
+
+  if (typeof order.markModified === "function") {
+    order.markModified("returnRequestsHistory");
+    order.markModified("returnExchange");
+  }
 };
 
 // Helper to auto-sync Razorpay refund status with backend database
 const syncRazorpayRefundStatus = async (order) => {
   try {
-    const refundId = order?.refundDetails?.razorpayRefundId || order?.refundDetails?.refundId;
+    let refundId = order?.refundDetails?.razorpayRefundId || order?.refundDetails?.refundId;
+    if (refundId && refundId.includes(" / ")) {
+      refundId = refundId.split(" / ").find(p => p.startsWith("rfnd_")) || refundId;
+    }
     if (!refundId || !refundId.startsWith("rfnd_")) return;
 
     const keyId = process.env.RAZORPAY_KEY_ID;
@@ -334,8 +342,8 @@ const updateOrderStatus = async (req, res) => {
       order.refundDetails.refundStatus = "Refunded";
 
       const returnFee = typeof order.returnExchange?.returnShippingFee === "number" ? order.returnExchange.returnShippingFee : 0;
-      const orderTotal = order.totalAmount || order.orderTotal || 0;
-      if (!order.refundDetails.refundAmount || order.refundDetails.refundAmount <= 0) {
+      const orderTotal = typeof order.totalAmount === "number" ? order.totalAmount : (order.orderTotal || 0);
+      if (typeof order.refundDetails.refundAmount !== "number") {
         order.refundDetails.refundAmount = Math.max(0, orderTotal - returnFee);
       }
 
@@ -503,7 +511,10 @@ const approveReturnRequest = async (req, res) => {
       order.paymentStatus = "Paid";
 
       const returnFee = targetReturn?.returnShippingFee || 0;
-      const refundAmountRs = targetReturn?.refundAmount || Math.max(0, (order.totalAmount || order.orderTotal || 1100) - returnFee);
+      const orderPaidAmount = typeof order.totalAmount === "number" ? order.totalAmount : (order.orderTotal || 0);
+      const refundAmountRs = typeof targetReturn?.refundAmount === "number"
+        ? targetReturn.refundAmount
+        : Math.max(0, orderPaidAmount - returnFee);
       
       if (!order.refundDetails) order.refundDetails = {};
       order.refundDetails.refundAmount = refundAmountRs;
@@ -684,35 +695,289 @@ const processReturnRefund = async (req, res) => {
       });
     }
 
-    const orderTotal = order.totalAmount || order.orderTotal || 1100;
-    const refundAmountRs = (typeof targetReturn?.refundAmount === "number" && targetReturn.refundAmount > 0)
-      ? targetReturn.refundAmount
-      : Math.max(0, (reqItemsSubtotal > 0 ? reqItemsSubtotal : orderTotal) - returnFee);
+    const orderPaidAmount = typeof order.totalAmount === "number" 
+      ? order.totalAmount 
+      : (parseFloat(String(order.totalAmount ?? order.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
+
+    const orderOriginalSubtotal = order.subtotal > 0
+      ? order.subtotal
+      : (order.items && Array.isArray(order.items)
+          ? order.items.reduce((s, it) => s + ((it.priceNum || parseFloat(String(it.price || 0).replace(/[^0-9.]/g, "")) || 0) * (it.quantity || 1)), 0)
+          : orderPaidAmount);
+    const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
+    const effectivePaidForReturned = orderPaidAmount === 0 ? 0 : Math.min(orderPaidAmount, Math.round(reqItemsSubtotal * paidRatio));
+
+    // Check if this order was placed using a Marketing / Promo Code or has ₹0 paid / zero refund
+    const isMarketingOrZeroOrder = orderPaidAmount <= 0 ||
+      Boolean(req.body?.isZeroRefund) ||
+      (order.paymentMethod || "").toLowerCase().includes("marketing") ||
+      (order.paymentMethod || "").toLowerCase().includes("promo") ||
+      (order.couponCode || "").toLowerCase().startsWith("mkt") ||
+      (order.couponCode || "").toLowerCase().includes("promo") ||
+      String(order.razorpayPaymentId || "").startsWith("pay_PROMO") ||
+      String(order.razorpayOrderId || "").startsWith("order_FREE") ||
+      String(order.paymentDetails?.razorpay_payment_id || "").startsWith("pay_PROMO");
+
+    const refundAmountRs = isMarketingOrZeroOrder
+      ? 0
+      : (typeof targetReturn?.refundAmount === "number"
+          ? targetReturn.refundAmount
+          : Math.max(0, effectivePaidForReturned - returnFee));
 
     if (!order.refundDetails) order.refundDetails = {};
     order.refundDetails.refundAmount = refundAmountRs;
 
-    // Check if customer selected BacStory Wallet payout or original payment method (when original was Wallet)
-    const refundMethodStr = (order.refundDetails?.refundMethod || order.returnExchange?.refundMethod || "").toLowerCase();
-    const originalWasWallet = (order.paymentMethod || "").toLowerCase().includes("wallet") || (order.walletDeduction && order.walletDeduction > 0);
-    const isWalletRefund = refundMethodStr.includes("wallet") || (refundMethodStr.includes("original") && originalWasWallet) || (refundMethodStr === "" && originalWasWallet);
+    // Handle Marketing / Promo Code / ₹0 Order Returns FIRST (No monetary refund needed)
+    if (isMarketingOrZeroOrder || refundAmountRs <= 0) {
+      const zeroRefundId = `MKT-RET-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    if (isWalletRefund) {
-      const User = require("../../models/user");
-      let customer = null;
-      if (order.user) {
-        customer = await User.findById(order.user);
-      }
-      if (!customer && order.shippingAddress?.email) {
-        customer = await User.findOne({ email: order.shippingAddress.email.toLowerCase().trim() });
+      order.orderStatus = "Returned";
+      order.returnExchange.status = "Refunded";
+      order.paymentStatus = "Paid";
+      order.refundDetails.refundStatus = "Refunded";
+      order.refundDetails.refundAmount = 0;
+      order.refundDetails.refundId = zeroRefundId;
+      order.refundDetails.estimatedCreditWindow = "No Refund Required (₹0 Order)";
+      order.refundDetails.updatedAt = new Date();
+
+      updateReturnRequestStatus(order, "Refunded", {
+        refundAmount: 0,
+        refundId: zeroRefundId,
+        note: "Zero refund order (marketing code / promo discount applied). Return completed successfully without monetary refund."
+      }, requestId);
+
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Returned";
+          item.paymentStatus = "Paid";
+        });
       }
 
+      await order.save();
+      await unclaimOrderQRCodes(order.orderId || order._id);
+
+      sendOrderStatusUpdateEmail({
+        order,
+        statusType: "refund",
+        newStatus: "Refunded",
+        meta: {
+          refundAmount: 0,
+          refundMethod: "No Monetary Refund (Marketing Code / ₹0 Order)",
+        },
+      }).catch((err) => console.error("[Order Email] Marketing zero refund email error:", err));
+
+      return res.status(200).json({
+        success: true,
+        message: "Return completed successfully! No Razorpay refund required as order was ₹0 (Marketing / Promo Code).",
+        data: order
+      });
+    }
+
+    // Check payout method requested by customer
+    const refundMethodStr = (targetReturn?.refundMethod || order.refundDetails?.refundMethod || order.returnExchange?.refundMethod || "").toLowerCase();
+
+    // Check if customer explicitly requested 100% store credit / wallet payout (e.g. "BacStory Wallet / Store Credit")
+    const isExplicitWalletPayout = (refundMethodStr.includes("wallet") || refundMethodStr.includes("store credit")) && !refundMethodStr.includes("original");
+
+    const orderWalletDeduction = typeof order.walletDeduction === "number"
+      ? order.walletDeduction
+      : (parseFloat(String(order.walletDeduction || 0).replace(/[^0-9.]/g, "")) || 0);
+
+    const orderRazorpayPaid = Math.max(0, orderPaidAmount - orderWalletDeduction);
+
+    let walletRefundAmount = 0;
+    let razorpayRefundAmount = 0;
+
+    if (isExplicitWalletPayout) {
+      // Customer explicitly chose BacStory Wallet / Store Credit
+      walletRefundAmount = refundAmountRs;
+      razorpayRefundAmount = 0;
+    } else {
+      // Customer selected "Original Payment Method" (or default):
+      // If order was a split payment (both wallet deduction and razorpay payment):
+      if (orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderPaidAmount > 0) {
+        walletRefundAmount = Math.min(orderWalletDeduction, Math.round(refundAmountRs * (orderWalletDeduction / orderPaidAmount)));
+        razorpayRefundAmount = Math.max(0, refundAmountRs - walletRefundAmount);
+      } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
+        // 100% wallet paid order
+        walletRefundAmount = refundAmountRs;
+        razorpayRefundAmount = 0;
+      } else {
+        // 100% Razorpay / prepaid order
+        walletRefundAmount = 0;
+        razorpayRefundAmount = refundAmountRs;
+      }
+    }
+
+    // Prevent double refund if already marked as Refunded
+    if (targetReturn?.status === "Refunded" || order.refundDetails?.refundStatus === "Refunded") {
+      if (targetReturn && targetReturn.status !== "Refunded") {
+        updateReturnRequestStatus(order, "Refunded", {
+          refundAmount: order.refundDetails?.refundAmount || refundAmountRs,
+          refundId: order.refundDetails?.refundId || order.refundDetails?.razorpayRefundId,
+          refundMethod: order.refundDetails?.refundMethod || "Original Payment Method",
+          note: "Refund already processed for this return request."
+        }, requestId);
+        await order.save();
+      }
+      return res.status(400).json({
+        success: false,
+        message: "Refund for this return request has already been completed.",
+        data: order
+      });
+    }
+
+    const User = require("../../models/user");
+    let customer = null;
+    if (order.user) {
+      customer = await User.findById(order.user);
+    }
+    if (!customer && order.shippingAddress?.email) {
+      customer = await User.findOne({ email: order.shippingAddress.email.toLowerCase().trim() });
+    }
+
+    const getRazorpayInstance = () => {
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      if (!keyId || !keySecret) {
+        throw new Error("Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) missing in server environment (.env).");
+      }
+      const Razorpay = require("razorpay");
+      return new Razorpay({ key_id: keyId, key_secret: keySecret });
+    };
+
+    let paymentId = req.body?.razorpayPaymentId || order.razorpayPaymentId || order.paymentInfo?.razorpayPaymentId || order.paymentDetails?.razorpay_payment_id;
+
+    // CASE 1: SPLIT REFUND (Part to BacStory Wallet, Part via Razorpay API)
+    if (walletRefundAmount > 0 && razorpayRefundAmount > 0) {
+      if (!paymentId) {
+        return res.status(400).json({
+          success: false,
+          message: "Razorpay Payment ID (pay_...) is missing on this order. Please provide razorpayPaymentId to refund the online payment portion."
+        });
+      }
+
+      let rzp;
+      try {
+        rzp = getRazorpayInstance();
+      } catch (envErr) {
+        return res.status(500).json({ success: false, message: envErr.message });
+      }
+
+      let refundResult;
+      try {
+        refundResult = await rzp.payments.refund(paymentId, {
+          amount: Math.round(razorpayRefundAmount * 100),
+          notes: {
+            orderId: order.orderId,
+            reason: targetReturn?.reason || "Return split refund post inspection",
+            splitDetails: `Wallet: Rs ${walletRefundAmount}, Razorpay: Rs ${razorpayRefundAmount}`
+          }
+        });
+      } catch (rzpErr) {
+        console.error("Razorpay Split Refund Error:", rzpErr);
+        const errorDescription = rzpErr?.error?.description || rzpErr?.description || rzpErr?.message || "Razorpay API refund failed";
+        return res.status(400).json({
+          success: false,
+          message: `Razorpay Refund Failed: ${errorDescription}`
+        });
+      }
+
+      if (!refundResult || !refundResult.id) {
+        return res.status(400).json({
+          success: false,
+          message: "Razorpay refund call did not return a valid refund object."
+        });
+      }
+
+      // Razorpay successful! Now credit the wallet portion:
       if (customer) {
-        customer.walletBalance = (customer.walletBalance || 0) + refundAmountRs;
+        customer.walletBalance = (customer.walletBalance || 0) + walletRefundAmount;
         if (!customer.walletTransactions) customer.walletTransactions = [];
         customer.walletTransactions.push({
           type: "credit",
-          amount: refundAmountRs,
+          amount: walletRefundAmount,
+          description: `Refund credited for Order #${order.orderId} (Wallet portion: ₹${walletRefundAmount.toLocaleString()})`,
+          orderId: order.orderId,
+          createdAt: new Date()
+        });
+        await customer.save();
+      }
+
+      const walletRefundId = `WLT-${Math.floor(100000 + Math.random() * 900000)}`;
+      const combinedRefundId = `${walletRefundId} / ${refundResult.id}`;
+
+      order.razorpayPaymentId = paymentId;
+      order.orderStatus = "Return In Progress";
+      order.paymentStatus = "Refund Processing";
+      order.refundDetails.refundStatus = "Refund Processing";
+      order.refundDetails.refundAmount = refundAmountRs;
+      order.refundDetails.refundId = combinedRefundId;
+      order.refundDetails.razorpayRefundId = refundResult.id;
+      order.refundDetails.walletRefundId = walletRefundId;
+      order.refundDetails.walletRefundAmount = walletRefundAmount;
+      order.refundDetails.razorpayRefundAmount = razorpayRefundAmount;
+      order.refundDetails.refundMethod = "Original Payment Method (Split)";
+      order.refundDetails.estimatedCreditWindow = `₹${walletRefundAmount.toLocaleString()} Instant to Wallet (Credited) + ₹${razorpayRefundAmount.toLocaleString()} via Razorpay (5-7 Working Days)`;
+      order.refundDetails.initiatedAt = new Date();
+      order.refundDetails.updatedAt = new Date();
+
+      updateReturnRequestStatus(order, "Refund Initiated", {
+        refundAmount: refundAmountRs,
+        walletRefundAmount,
+        razorpayRefundAmount,
+        refundId: combinedRefundId,
+        razorpayRefundId: refundResult.id,
+        walletRefundId: walletRefundId,
+        refundMethod: "Original Payment Method (Split)",
+        note: `Split refund: Rs ${walletRefundAmount.toLocaleString()} credited instantly to BacStory Wallet. Rs ${razorpayRefundAmount.toLocaleString()} processing via Razorpay (5-7 Working Days).`
+      }, requestId);
+
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          item.orderStatus = "Return In Progress";
+          item.paymentStatus = "Refund Processing";
+        });
+      }
+
+      if (typeof order.markModified === "function") {
+        order.markModified("returnRequestsHistory");
+        order.markModified("returnExchange");
+        order.refundDetails && order.markModified("refundDetails");
+        order.items && order.markModified("items");
+      }
+
+      await order.save();
+
+      sendOrderStatusUpdateEmail({
+        order,
+        statusType: "refund",
+        newStatus: "Refund Processing",
+        notes: `₹${walletRefundAmount.toLocaleString()} credited instantly to BacStory Wallet. ₹${razorpayRefundAmount.toLocaleString()} processing via Razorpay (5-7 Working Days).`,
+        meta: {
+          refundAmount: refundAmountRs,
+          refundMethod: `Original Payment Method (Split: ₹${walletRefundAmount.toLocaleString()} Wallet + ₹${razorpayRefundAmount.toLocaleString()} Razorpay)`,
+        },
+      }).catch((err) => console.error("[Order Email] Split refund email error:", err));
+
+      const { syncUserWalletBalance } = require("../../config/walletHelper");
+      await syncUserWalletBalance(order.user, order.shippingAddress?.email, order.shippingAddress?.phoneNumber);
+
+      return res.status(200).json({
+        success: true,
+        message: `Split refund completed successfully! Rs ${walletRefundAmount.toLocaleString()} credited to BacStory Wallet and Rs ${razorpayRefundAmount.toLocaleString()} refunded via Razorpay (Refund ID: ${refundResult.id}).`,
+        data: order
+      });
+    }
+
+    // CASE 2: 100% BACSTORY WALLET REFUND
+    if (walletRefundAmount > 0 && razorpayRefundAmount === 0) {
+      if (customer) {
+        customer.walletBalance = (customer.walletBalance || 0) + walletRefundAmount;
+        if (!customer.walletTransactions) customer.walletTransactions = [];
+        customer.walletTransactions.push({
+          type: "credit",
+          amount: walletRefundAmount,
           description: `Refund credited for Order #${order.orderId}`,
           orderId: order.orderId,
           createdAt: new Date()
@@ -728,14 +993,34 @@ const processReturnRefund = async (req, res) => {
       order.refundDetails.refundStatus = "Refunded";
       order.refundDetails.refundId = walletRefundId;
       order.refundDetails.razorpayRefundId = walletRefundId;
+      order.refundDetails.walletRefundId = walletRefundId;
+      order.refundDetails.walletRefundAmount = walletRefundAmount;
+      order.refundDetails.razorpayRefundAmount = 0;
+      order.refundDetails.refundMethod = isExplicitWalletPayout ? "Bacstory Wallet" : "Original Payment Method (Wallet)";
       order.refundDetails.estimatedCreditWindow = "Instant Credit to BacStory Wallet";
       order.refundDetails.updatedAt = new Date();
+
+      updateReturnRequestStatus(order, "Refunded", {
+        refundAmount: walletRefundAmount,
+        walletRefundAmount,
+        razorpayRefundAmount: 0,
+        refundId: walletRefundId,
+        refundMethod: isExplicitWalletPayout ? "Bacstory Wallet" : "Original Payment Method",
+        note: "Refund credited directly to customer's BacStory Wallet balance."
+      }, requestId);
 
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach((item) => {
           item.orderStatus = "Returned";
           item.paymentStatus = "Refunded";
         });
+      }
+
+      if (typeof order.markModified === "function") {
+        order.markModified("returnRequestsHistory");
+        order.markModified("returnExchange");
+        order.refundDetails && order.markModified("refundDetails");
+        order.items && order.markModified("items");
       }
 
       await order.save();
@@ -746,7 +1031,7 @@ const processReturnRefund = async (req, res) => {
         statusType: "refund",
         newStatus: "Refunded",
         meta: {
-          refundAmount: refundAmountRs,
+          refundAmount: walletRefundAmount,
           refundMethod: "BacStory Wallet",
         },
       }).catch((err) => console.error("[Order Email] Wallet refund email error:", err));
@@ -756,24 +1041,12 @@ const processReturnRefund = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: `Rs ${refundAmountRs.toLocaleString()} credited directly to customer's BacStory Wallet!`,
+        message: `Rs ${walletRefundAmount.toLocaleString()} credited directly to customer's BacStory Wallet!`,
         data: order
       });
     }
 
-    // Retrieve payment ID (from body or order schema) for Razorpay refunds
-    let paymentId = req.body?.razorpayPaymentId || order.razorpayPaymentId || order.paymentInfo?.razorpayPaymentId || order.paymentDetails?.razorpay_payment_id;
-
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-    if (!keyId || !keySecret) {
-      return res.status(500).json({
-        success: false,
-        message: "Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) missing in server environment (.env)."
-      });
-    }
-
+    // CASE 3: 100% RAZORPAY REFUND
     if (!paymentId) {
       return res.status(400).json({
         success: false,
@@ -781,17 +1054,20 @@ const processReturnRefund = async (req, res) => {
       });
     }
 
-    // Call Razorpay API
-    const Razorpay = require("razorpay");
-    const rzp = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    let rzp;
+    try {
+      rzp = getRazorpayInstance();
+    } catch (envErr) {
+      return res.status(500).json({ success: false, message: envErr.message });
+    }
 
     let refundResult;
     try {
       refundResult = await rzp.payments.refund(paymentId, {
-        amount: Math.round(refundAmountRs * 100),
+        amount: Math.round(razorpayRefundAmount * 100),
         notes: {
           orderId: order.orderId,
-          reason: targetReturn.reason || "Return refund post inspection"
+          reason: targetReturn?.reason || "Return refund post inspection"
         }
       });
     } catch (rzpErr) {
@@ -819,15 +1095,24 @@ const processReturnRefund = async (req, res) => {
     order.refundDetails.refundStatus = "Refund Processing";
     order.refundDetails.refundId = refundResult.id;
     order.refundDetails.razorpayRefundId = refundResult.id;
+    order.refundDetails.razorpayRefundAmount = razorpayRefundAmount;
+    order.refundDetails.walletRefundAmount = 0;
     order.refundDetails.estimatedCreditWindow = "5-7 Working Days";
 
-    updateReturnRequestStatus(order, "Refund Initiated", { razorpayRefundId: refundResult.id }, requestId);
+    updateReturnRequestStatus(order, "Refund Initiated", { razorpayRefundId: refundResult.id, refundAmount: razorpayRefundAmount }, requestId);
 
     if (order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
         item.orderStatus = "Return In Progress";
         item.paymentStatus = "Refund Processing";
       });
+    }
+
+    if (typeof order.markModified === "function") {
+      order.markModified("returnRequestsHistory");
+      order.markModified("returnExchange");
+      order.refundDetails && order.markModified("refundDetails");
+      order.items && order.markModified("items");
     }
 
     await order.save();
@@ -838,14 +1123,14 @@ const processReturnRefund = async (req, res) => {
       newStatus: "Refund Processing",
       notes: "5-7 Working Days",
       meta: {
-        refundAmount: refundAmountRs,
+        refundAmount: razorpayRefundAmount,
         refundMethod: "Original Payment Method",
       },
     }).catch((err) => console.error("[Order Email] Razorpay refund email error:", err));
 
     return res.status(200).json({
       success: true,
-      message: `Razorpay refund of Rs ${refundAmountRs.toLocaleString()} initiated successfully (Refund ID: ${refundResult.id})!`,
+      message: `Razorpay refund of Rs ${razorpayRefundAmount.toLocaleString()} initiated successfully (Refund ID: ${refundResult.id})!`,
       data: order
     });
   } catch (error) {

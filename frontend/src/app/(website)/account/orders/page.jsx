@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Package, RotateCcw, HelpCircle, X, Loader2, SlidersHorizontal, Tag, Info, ChevronLeft, ChevronRight, Clock, Video, ExternalLink, CheckCircle2, Check } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
 
@@ -99,6 +99,97 @@ const getStepTimelineDate = (stepTitle, stepIdx, order, activeStepIdx) => {
     }
 
     return null;
+};
+
+const getReturnProcessBadge = (req, order, onTrackClick) => {
+    if (!req) return null;
+    const isExchange = req.requestType === "exchange";
+    const isOrderAlreadyRefunded = order?.refundDetails?.refundStatus === "Refunded" || order?.returnExchange?.status === "Refunded" || order?.orderStatus === "Returned";
+    const status = ((req.status === "Product Received" && isOrderAlreadyRefunded) ? "Refunded" : (req.status || (isExchange ? "Exchange Requested" : "Return Requested"))).trim();
+
+    let label = status;
+    let badgeClass = "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100/80";
+    let icon = <RotateCcw className="w-3.5 h-3.5 text-purple-700" />;
+
+    switch (status) {
+        case "Return Requested":
+            label = "Return Requested";
+            badgeClass = "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100/80";
+            icon = <RotateCcw className="w-3.5 h-3.5 text-amber-700" />;
+            break;
+        case "Return Approved":
+            label = "Return Approved";
+            badgeClass = "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100/80";
+            icon = <CheckCircle2 className="w-3.5 h-3.5 text-blue-700" />;
+            break;
+        case "Product Received":
+        case "Product Picked Up":
+            label = isExchange ? "Product Picked Up" : "Product Received";
+            badgeClass = "border-indigo-200 bg-indigo-50 text-indigo-900 hover:bg-indigo-100/80";
+            icon = <Package className="w-3.5 h-3.5 text-indigo-700" />;
+            break;
+        case "Refund Initiated":
+            label = "Refund Initiated";
+            badgeClass = "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100/80";
+            icon = <Clock className="w-3.5 h-3.5 text-purple-700" />;
+            break;
+        case "Refunded":
+        case "Completed":
+        case "Returned":
+            label = "Refunded";
+            badgeClass = "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100/80";
+            icon = <Check className="w-3.5 h-3.5 text-emerald-700" />;
+            break;
+        case "Exchange Requested":
+            label = "Exchange Requested";
+            badgeClass = "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100/80";
+            icon = <RotateCcw className="w-3.5 h-3.5 text-purple-700" />;
+            break;
+        case "Exchange Approved":
+            label = "Exchange Approved";
+            badgeClass = "border-blue-200 bg-blue-50 text-blue-900 hover:bg-blue-100/80";
+            icon = <CheckCircle2 className="w-3.5 h-3.5 text-blue-700" />;
+            break;
+        case "Replacement Ready to Pack & Ship":
+            label = "Replacement Packing";
+            badgeClass = "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100/80";
+            icon = <Package className="w-3.5 h-3.5 text-amber-700" />;
+            break;
+        case "Replacement Dispatched":
+            label = "Replacement In Transit";
+            badgeClass = "border-indigo-200 bg-indigo-50 text-indigo-900 hover:bg-indigo-100/80";
+            icon = <Package className="w-3.5 h-3.5 text-indigo-700" />;
+            break;
+        case "Exchange Completed":
+            label = "Exchange Completed";
+            badgeClass = "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100/80";
+            icon = <Check className="w-3.5 h-3.5 text-emerald-700" />;
+            break;
+        case "Rejected":
+            label = isExchange ? "Exchange Rejected" : "Return Rejected";
+            badgeClass = "border-red-200 bg-red-50 text-red-900 hover:bg-red-100/80";
+            icon = <X className="w-3.5 h-3.5 text-red-700" />;
+            break;
+        default:
+            label = status;
+            badgeClass = "border-purple-200 bg-purple-50 text-purple-900 hover:bg-purple-100/80";
+            icon = <RotateCcw className="w-3.5 h-3.5 text-purple-700" />;
+    }
+
+    return (
+        <button
+            key={req._id || req.requestId || label}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (onTrackClick) onTrackClick(order);
+            }}
+            className={`border rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${badgeClass}`}
+            title="Click to track detailed return & refund progress"
+        >
+            {icon}
+            <span>{label}</span>
+        </button>
+    );
 };
 
 export default function AccountOrdersPage() {
@@ -486,28 +577,38 @@ export default function AccountOrdersPage() {
                                                 });
 
                                                 const remainingReturnableQty = Math.max(0, totalOrderedQty - totalReturnedQty);
-                                                const isDeliveredOrActive = currentOrderStatus === "Delivered" || currentOrderStatus === "Return In Progress" || currentOrderStatus === "Returned" || order.orderStatus === "Delivered" || order.orderStatus === "Return In Progress" || order.orderStatus === "Returned";
+                                                // Calculate delivery date & elapsed days:
+                                                const deliveredEntry = (order.statusTimeline || []).find(e => (e.status || "").toLowerCase().includes("delivered"));
+                                                const deliveryTimestamp = deliveredEntry?.timestamp || order.updatedAt || order.createdAt;
+                                                const daysSinceDelivery = Math.floor((Date.now() - new Date(deliveryTimestamp).getTime()) / (1000 * 60 * 60 * 24));
+                                                const isDelivered = (currentOrderStatus || "").toLowerCase().trim() === "delivered" ||
+                                                    (order.orderStatus || "").toLowerCase().trim() === "delivered" ||
+                                                    (Array.isArray(order.items) && order.items.some(i => (i.orderStatus || "").toLowerCase().trim() === "delivered"));
+                                                const isReturnWindowExpired = isDelivered && daysSinceDelivery > 7;
 
-                                                if (isDeliveredOrActive && remainingReturnableQty > 0) {
-                                                    return (
-                                                        <Link
-                                                            href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                                        >
-                                                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
-                                                            <span>Return or Exchange</span>
-                                                        </Link>
-                                                    );
+                                                // 1. If all items were already requested/returned
+                                                if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
+                                                    const latestReq = allReturnReqs[allReturnReqs.length - 1];
+                                                    return getReturnProcessBadge(latestReq, order, setSelectedTrackOrder);
                                                 }
 
-                                                if (allReturnReqs.length > 0 && remainingReturnableQty === 0) {
-                                                    const isExchangeReq = allReturnReqs.some(r => r.requestType === "exchange");
+                                                // 2. If order has active return requests but also some returnable items remaining (partial return)
+                                                if (allReturnReqs.length > 0 && remainingReturnableQty > 0) {
+                                                    const latestReq = allReturnReqs[allReturnReqs.length - 1];
                                                     return (
-                                                        <span className="border border-purple-200 bg-purple-50 text-purple-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5">
-                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-700" />
-                                                            <span>{isExchangeReq ? "Exchange Requested" : "All Items Returned"}</span>
-                                                        </span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {getReturnProcessBadge(latestReq, order, setSelectedTrackOrder)}
+                                                            {isDelivered && !isReturnWindowExpired && (
+                                                                <Link
+                                                                    href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                                >
+                                                                    <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                                                    <span>Return Remaining Items ({remainingReturnableQty})</span>
+                                                                </Link>
+                                                            )}
+                                                        </div>
                                                     );
                                                 }
 
@@ -529,6 +630,7 @@ export default function AccountOrdersPage() {
                                                     return (
                                                         <Link
                                                             href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                            onClick={(e) => e.stopPropagation()}
                                                             className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
                                                         >
                                                             <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
@@ -941,28 +1043,89 @@ export default function AccountOrdersPage() {
                                         {returnRequestsList.map((req, reqIndex) => {
                                             const isReturn = req.requestType === "return";
                                             const reqReason = req.reason || "Return requested";
-                                            const reqStatus = req.status || "Return Requested";
+                                            const isOrderAlreadyRefunded = selectedTrackOrder.refundDetails?.refundStatus === "Refunded" || selectedTrackOrder.returnExchange?.status === "Refunded" || selectedTrackOrder.orderStatus === "Returned";
+                                            const reqStatus = (req.status === "Product Received" && isOrderAlreadyRefunded)
+                                                ? "Refunded"
+                                                : (req.status || "Return Requested");
 
                                             let reqItemsSubtotal = 0;
                                             if (req.requestedItems?.length > 0) {
                                                 req.requestedItems.forEach(ritem => {
                                                     const origItem = selectedTrackOrder.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
-                                                    const rawPrice = origItem ? origItem.price : ((selectedTrackOrder.totalAmount || 1100) / (selectedTrackOrder.items?.length || 1));
-                                                    const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
+                                                    const rawPrice = origItem ? (origItem.priceNum ?? origItem.price) : 0;
+                                                    const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice || 0).replace(/[^0-9.]/g, "")) || 0);
                                                     const qty = ritem.returnQuantity || 1;
                                                     reqItemsSubtotal += (unitPrice * qty);
                                                 });
                                             }
 
+                                            const orderPaidAmount = typeof selectedTrackOrder.totalAmount === "number"
+                                                ? selectedTrackOrder.totalAmount
+                                                : (parseFloat(String(selectedTrackOrder.totalAmount ?? selectedTrackOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
+
+                                            const orderOriginalSubtotal = selectedTrackOrder.subtotal > 0
+                                                ? selectedTrackOrder.subtotal
+                                                : (selectedTrackOrder.items && Array.isArray(selectedTrackOrder.items)
+                                                    ? selectedTrackOrder.items.reduce((s, it) => {
+                                                        const rawP = it.priceNum ?? it.price;
+                                                        const p = typeof rawP === "number" ? rawP : (parseFloat(String(rawP || 0).replace(/[^0-9.]/g, "")) || 0);
+                                                        return s + (p * (it.quantity || 1));
+                                                    }, 0)
+                                                    : orderPaidAmount);
+
+                                            const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
+                                            const effectivePaidForReturned = orderPaidAmount === 0
+                                                ? 0
+                                                : Math.min(orderPaidAmount, Math.round(reqItemsSubtotal * paidRatio));
+
+                                            const isZeroOrMarketing = orderPaidAmount <= 0 ||
+                                                (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("marketing") ||
+                                                (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("promo") ||
+                                                (selectedTrackOrder.couponCode || "").toLowerCase().startsWith("mkt") ||
+                                                (selectedTrackOrder.couponCode || "").toLowerCase().includes("promo") ||
+                                                String(selectedTrackOrder.razorpayPaymentId || "").startsWith("pay_PROMO") ||
+                                                String(selectedTrackOrder.razorpayOrderId || "").startsWith("order_FREE");
+
                                             const normalizedReqReason = (reqReason || "").toLowerCase();
                                             const isFeeApplicableReason = normalizedReqReason.includes("mind") || normalizedReqReason === "other" || normalizedReqReason.startsWith("other");
 
                                             const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : (isFeeApplicableReason ? 99 : 0);
-                                            const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
+                                            const reqNetRefund = isZeroOrMarketing
+                                                ? 0
+                                                : (typeof req.refundAmount === "number"
+                                                    ? req.refundAmount
+                                                    : Math.max(0, effectivePaidForReturned - reqShippingFee));
+                                            const orderWalletDeduction = typeof selectedTrackOrder.walletDeduction === "number"
+                                                ? selectedTrackOrder.walletDeduction
+                                                : (parseFloat(String(selectedTrackOrder.walletDeduction || 0).replace(/[^0-9.]/g, "")) || 0);
+                                            const orderRazorpayPaid = Math.max(0, orderPaidAmount - orderWalletDeduction);
+                                            const isOrderSplit = orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderPaidAmount > 0;
+
                                             const rawMethod = req.refundMethod || selectedTrackOrder.refundDetails?.refundMethod || selectedTrackOrder.returnExchange?.refundMethod || "Original Payment Method";
-                                            const originalWasWallet = (selectedTrackOrder.paymentMethod || "").toLowerCase().includes("wallet") || (selectedTrackOrder.walletDeduction && selectedTrackOrder.walletDeduction > 0);
-                                            const isWallet = rawMethod.toLowerCase().includes("wallet") || (rawMethod.toLowerCase().includes("original") && originalWasWallet) || (rawMethod === "" && originalWasWallet);
-                                            const reqPayoutMethod = isWallet ? "BacStory Wallet" : rawMethod;
+                                            const isExplicitWallet = (rawMethod || "").toLowerCase().includes("wallet") && !(rawMethod || "").toLowerCase().includes("original");
+
+                                            let reqWalletPortion = 0;
+                                            let reqRazorpayPortion = 0;
+                                            if (isExplicitWallet) {
+                                                reqWalletPortion = reqNetRefund;
+                                                reqRazorpayPortion = 0;
+                                            } else if (isOrderSplit) {
+                                                reqWalletPortion = Math.min(orderWalletDeduction, Math.round(reqNetRefund * (orderWalletDeduction / orderPaidAmount)));
+                                                reqRazorpayPortion = Math.max(0, reqNetRefund - reqWalletPortion);
+                                            } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
+                                                reqWalletPortion = reqNetRefund;
+                                                reqRazorpayPortion = 0;
+                                            } else {
+                                                reqWalletPortion = 0;
+                                                reqRazorpayPortion = reqNetRefund;
+                                            }
+
+                                            const isSplitRefund = isOrderSplit && !isExplicitWallet;
+                                            const reqPayoutMethod = isZeroOrMarketing 
+                                                ? "None (₹0 / Marketing Order)" 
+                                                : (isSplitRefund
+                                                    ? `Original Payment Method (Split: Rs ${reqWalletPortion.toLocaleString()} to Wallet + Rs ${reqRazorpayPortion.toLocaleString()} via Razorpay)`
+                                                    : (isExplicitWallet ? "BacStory Wallet / Store Credit" : rawMethod));
 
                                             const isApproved = ["Return Approved", "Exchange Approved", "Approved", "Product Received", "Product Picked Up", "Replacement Ready to Pack & Ship", "Refund Initiated", "Replacement Dispatched", "Refunded", "Exchange Completed"].includes(reqStatus);
                                             const isReceived = ["Product Received", "Product Picked Up", "Replacement Ready to Pack & Ship", "Refund Initiated", "Replacement Dispatched", "Refunded", "Exchange Completed"].includes(reqStatus);
@@ -970,19 +1133,37 @@ export default function AccountOrdersPage() {
                                             const isDispatched = ["Replacement Dispatched", "Exchange Completed"].includes(reqStatus);
                                             const isExchangedDone = reqStatus === "Exchange Completed";
 
-                                            const RETURN_STEPS = [
+                                            const RETURN_STEPS = isZeroOrMarketing ? [
+                                                { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true, date: formatTimelineDate(req.requestedAt) },
+                                                { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved, date: isApproved ? formatTimelineDate(req.updatedAt || req.requestedAt) : null },
+                                                { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived, date: isReceived ? formatTimelineDate(req.updatedAt) : null },
+                                                {
+                                                    title: "Return Completed",
+                                                    desc: "Return completed & closed. No monetary refund required as order was ₹0 (Marketing / Promo Code).",
+                                                    completed: ["Refunded", "Returned", "Completed"].includes(reqStatus),
+                                                    date: ["Refunded", "Returned", "Completed"].includes(reqStatus) ? formatTimelineDate(selectedTrackOrder.refundDetails?.updatedAt || req.updatedAt) : null
+                                                }
+                                            ] : [
                                                 { title: "Return Requested", desc: `Reason: ${reqReason}`, completed: true, date: formatTimelineDate(req.requestedAt) },
                                                 { title: "Return Approved", desc: "Return request approved by seller", completed: isApproved, date: isApproved ? formatTimelineDate(req.updatedAt || req.requestedAt) : null },
                                                 { title: "Product Received", desc: "Product picked up & received by seller", completed: isReceived, date: isReceived ? formatTimelineDate(req.updatedAt) : null },
                                                 {
                                                     title: "Refund Initiated",
-                                                    desc: isWallet ? "Refund credited instantly to BacStory Wallet" : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)",
+                                                    desc: isSplitRefund
+                                                        ? `Split Refund: Rs ${reqWalletPortion.toLocaleString()} credited to BacStory Wallet, and Rs ${reqRazorpayPortion.toLocaleString()} processing via Razorpay (5-7 Working Days)`
+                                                        : isExplicitWallet
+                                                            ? "Refund credited instantly to BacStory Wallet"
+                                                            : "Refund payment processing via Razorpay (Credited in 5-7 Working Days)",
                                                     completed: ["Refund Initiated", "Refunded"].includes(reqStatus),
                                                     date: ["Refund Initiated", "Refunded"].includes(reqStatus) ? formatTimelineDate(selectedTrackOrder.refundDetails?.initiatedAt || req.updatedAt) : null
                                                 },
                                                 {
                                                     title: "Refunded",
-                                                    desc: isWallet ? "Refund completed & added to BacStory Wallet balance" : "Refund completed & credited to bank account",
+                                                    desc: isSplitRefund
+                                                        ? `Split Refund Completed: Rs ${reqWalletPortion.toLocaleString()} added to BacStory Wallet balance, and Rs ${reqRazorpayPortion.toLocaleString()} refunded to bank account/card`
+                                                        : isExplicitWallet
+                                                            ? "Refund completed & added to BacStory Wallet balance"
+                                                            : "Refund completed & credited to bank account",
                                                     completed: reqStatus === "Refunded",
                                                     date: reqStatus === "Refunded" ? formatTimelineDate(selectedTrackOrder.refundDetails?.updatedAt || req.updatedAt) : null
                                                 }
@@ -1051,6 +1232,55 @@ export default function AccountOrdersPage() {
                                                         </div>
                                                     )}
 
+                                                    {/* Uploaded Proof Media (Photos & Video) */}
+                                                    {req.proofPhotos?.length > 0 && (
+                                                        <div className="space-y-1.5 pt-1">
+                                                            <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Uploaded Proof Photos:</span>
+                                                            <div className="flex items-center gap-2 overflow-x-auto">
+                                                                {req.proofPhotos.map((img, idx) => (
+                                                                    <a key={idx} href={getImageUrl(img)} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                                                        <img
+                                                                            src={getImageUrl(img)}
+                                                                            alt={`Proof photo ${idx + 1}`}
+                                                                            className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80 bg-neutral-100 hover:opacity-90 transition-opacity"
+                                                                        />
+                                                                    </a>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {req.unboxingVideo && (
+                                                        <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-2">
+                                                            <div className="flex items-center justify-between text-xs">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Video className="w-3.5 h-3.5 text-neutral-500" />
+                                                                    <span className="text-[10px] font-semibold text-neutral-400 uppercase">Unboxing Video Proof:</span>
+                                                                </div>
+                                                                <a
+                                                                    href={getImageUrl(req.unboxingVideo)}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-[11px] text-indigo-600 underline font-medium hover:text-indigo-800"
+                                                                >
+                                                                    <span>Open in new tab</span>
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                </a>
+                                                            </div>
+                                                            <div className="rounded-xl overflow-hidden bg-black border border-neutral-200">
+                                                                <video
+                                                                    controls
+                                                                    playsInline
+                                                                    preload="metadata"
+                                                                    className="w-full max-h-56 object-contain bg-black"
+                                                                    src={getImageUrl(req.unboxingVideo)}
+                                                                >
+                                                                    Your browser does not support the video tag.
+                                                                </video>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     {/* Requested Replacement Box for Exchange */}
                                                     {!isReturn && (reqSizePref || reqColorPref) && (
                                                         <div className="bg-purple-50/70 p-3 rounded-xl border border-purple-200/80 space-y-1 text-xs text-purple-950">
@@ -1071,20 +1301,58 @@ export default function AccountOrdersPage() {
                                                                 <span>Returned Items Subtotal</span>
                                                                 <span className="font-semibold text-neutral-900">Rs {reqItemsSubtotal.toLocaleString()}</span>
                                                             </div>
+                                                            {reqItemsSubtotal > effectivePaidForReturned && (
+                                                                <div className="flex items-center justify-between text-emerald-600 text-[11px]">
+                                                                    <span>Promo / Discount Applied</span>
+                                                                    <span className="font-semibold">- Rs {(reqItemsSubtotal - effectivePaidForReturned).toLocaleString()}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="flex items-center justify-between text-neutral-600">
-                                                                <span>Return Shipping Fee</span>
-                                                                <span className={reqShippingFee === 0 ? "font-semibold text-emerald-600" : "font-semibold text-neutral-800"}>
-                                                                    {reqShippingFee === 0 ? "Rs 0 (Free Return)" : `- Rs ${reqShippingFee}`}
-                                                                </span>
+                                                                <span>Amount Paid for Items</span>
+                                                                <span className="font-semibold text-neutral-900">Rs {effectivePaidForReturned.toLocaleString()}</span>
                                                             </div>
+                                                            {reqShippingFee > 0 && (
+                                                                <div className="flex items-center justify-between text-neutral-600">
+                                                                    <span>Return Shipping Fee</span>
+                                                                    <span className="font-semibold text-neutral-800">
+                                                                        - Rs {reqShippingFee}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                             <div className="border-t border-neutral-200/80 pt-1.5 flex items-center justify-between font-bold text-neutral-900">
                                                                 <span>Net Refund Amount</span>
                                                                 <span className="text-sm font-mono">Rs {reqNetRefund.toLocaleString()}</span>
                                                             </div>
-                                                            <div className="pt-1 text-[11px] text-neutral-500 flex items-center justify-between border-t border-neutral-100">
-                                                                <span>Payout Method:</span>
-                                                                <span className="font-semibold text-neutral-800">{reqPayoutMethod}</span>
-                                                            </div>
+                                                            {isZeroOrMarketing ? (
+                                                                <div className="pt-1.5 text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200/70 font-medium">
+                                                                    Order placed using marketing / promo code (₹0 paid). Return completed with no monetary refund required.
+                                                                </div>
+                                                            ) : (
+                                                                reqNetRefund > 0 && (
+                                                                    <>
+                                                                        <div className="pt-1 text-[11px] text-neutral-500 flex items-center justify-between border-t border-neutral-100">
+                                                                            <span>Payout Method:</span>
+                                                                            <span className="font-semibold text-neutral-800 text-right">{reqPayoutMethod}</span>
+                                                                        </div>
+                                                                        {isSplitRefund && (
+                                                                            <div className="p-2.5 bg-indigo-50/70 rounded-xl border border-indigo-100/90 space-y-1 text-[11px] text-neutral-700">
+                                                                                <div className="flex items-center justify-between font-semibold text-indigo-950">
+                                                                                    <span>Split Refund Distribution</span>
+                                                                                    <span className="text-[10px] text-indigo-600 font-mono">2-Way Split</span>
+                                                                                </div>
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <span>BacStory Wallet Credit:</span>
+                                                                                    <span className="font-semibold text-emerald-700 font-mono">Rs {reqWalletPortion.toLocaleString()}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <span>Razorpay (Original Card/UPI):</span>
+                                                                                    <span className="font-semibold text-indigo-700 font-mono">Rs {reqRazorpayPortion.toLocaleString()}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )
+                                                            )}
                                                         </div>
                                                     )}
 

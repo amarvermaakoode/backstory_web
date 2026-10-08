@@ -802,23 +802,39 @@ const submitReturnExchange = async (req, res) => {
         return isNaN(parsed) ? fallback : parsed;
       };
 
-      const orderTotalNum = parseNumericPrice(order.totalAmount || order.orderTotal, 1100);
+      const orderPaidAmount = parseNumericPrice(order.totalAmount !== undefined ? order.totalAmount : order.orderTotal, 0);
+
+      // Total catalog subtotal of all items in the order
+      const orderOriginalSubtotal = order.subtotal > 0
+        ? order.subtotal
+        : (order.items && Array.isArray(order.items)
+            ? order.items.reduce((s, it) => s + (parseNumericPrice(it.priceNum ?? it.price, 0) * (it.quantity || 1)), 0)
+            : orderPaidAmount);
+
+      // Ratio of actual amount paid to total catalog subtotal
+      const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
 
       if (Array.isArray(items) && items.length > 0) {
         items.forEach(reqItem => {
           const origItem = order.items?.find(i => (i._id?.toString() === reqItem.itemId || i.id === reqItem.itemId || i.name === reqItem.name));
           const unitPrice = origItem
-            ? parseNumericPrice(origItem.price, parseNumericPrice(origItem.priceNum, orderTotalNum / (order.items?.length || 1)))
-            : (orderTotalNum / (items.length || 1));
+            ? parseNumericPrice(origItem.priceNum ?? origItem.price, 0)
+            : 0;
           const qty = parseNumericPrice(reqItem.returnQuantity, 1);
           itemsSubtotal += (unitPrice * qty);
         });
       } else {
-        itemsSubtotal = orderTotalNum;
+        itemsSubtotal = orderOriginalSubtotal;
       }
 
-      const calculatedRefund = Math.max(0, itemsSubtotal - returnShippingFee);
-      refundAmount = parseNumericPrice(calculatedRefund, Math.max(0, orderTotalNum - returnShippingFee));
+      // If customer paid ₹0 (e.g. promo code, marketing giveaway, gift), refund is ₹0.
+      // Otherwise, refund the proportional amount actually paid for the returned items, capped at orderPaidAmount.
+      const effectivePaidForReturned = orderPaidAmount === 0 
+        ? 0 
+        : Math.min(orderPaidAmount, Math.round(itemsSubtotal * paidRatio));
+
+      const calculatedRefund = Math.max(0, effectivePaidForReturned - returnShippingFee);
+      refundAmount = parseNumericPrice(calculatedRefund, 0);
 
       order.refundDetails = {
         refundMethod: finalRefundMethod,
@@ -933,6 +949,37 @@ const submitReturnExchange = async (req, res) => {
   }
 };
 
+// Upload Return/Exchange Proof Photos or Video
+const uploadReturnProofMedia = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No files uploaded.",
+      });
+    }
+
+    const uploaded = req.files.map((file) => ({
+      url: `/uploads/${file.filename}`,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      type: file.mimetype.startsWith("video/") ? "video" : "image"
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: "Proof files uploaded successfully.",
+      data: uploaded,
+    });
+  } catch (error) {
+    console.error("Error uploading return proof files:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload proof files.",
+    });
+  }
+};
+
 module.exports = {
   createOrderRecord,
   getUserOrders,
@@ -941,5 +988,6 @@ module.exports = {
   cancelUserOrder,
   submitReturnExchange,
   findOrderForReturn,
+  uploadReturnProofMedia,
 };
 

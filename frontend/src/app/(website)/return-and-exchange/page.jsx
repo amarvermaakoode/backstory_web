@@ -135,6 +135,8 @@ export default function ReturnAndExchangePage() {
     const [unboxingVideoFile, setUnboxingVideoFile] = useState(null);
     const [stepError, setStepError] = useState("");
     const [uploadedImages, setUploadedImages] = useState([]);
+    const [uploadingPhotos, setUploadingPhotos] = useState(false);
+    const [uploadingVideo, setUploadingVideo] = useState(false);
 
     // Step 4: Payment mode & COD Bank/UPI refund details
     const [paymentMode, setPaymentMode] = useState("original"); // "original" | "wallet" | "bank" | "upi"
@@ -279,8 +281,8 @@ export default function ReturnAndExchangePage() {
         setSubmitError("");
         setSubmitLoading(true);
 
-        // Step 4 Validation for COD refund details
-        if (requestType === "return" && (foundOrder?.paymentStatus === "COD" || foundOrder?.paymentMethod === "COD")) {
+        // Step 4 Validation for COD refund details (only required if refund amount > 0)
+        if (requestType === "return" && totalRefund > 0 && (foundOrder?.paymentStatus === "COD" || foundOrder?.paymentMethod === "COD")) {
             if (paymentMode === "bank") {
                 if (!bankHolderName.trim() || !accountNumber.trim() || !ifscCode.trim()) {
                     setSubmitError("Please fill in all required bank details marked with an asterisk (*).");
@@ -305,7 +307,7 @@ export default function ReturnAndExchangePage() {
                 additionalNotes,
                 requestedSize: requestType === "exchange" ? requestedSize : "",
                 requestedColor: requestType === "exchange" ? requestedColor : "",
-                unboxingVideo: unboxingVideoFile ? (unboxingVideoFile.name || "unboxing_video.mp4") : "",
+                unboxingVideo: unboxingVideoFile?.url || "",
                 proofPhotos: uploadedImages,
                 refundMethod: paymentMode === "bank" ? "Bank Transfer" : (paymentMode === "upi" ? "UPI" : (paymentMode === "wallet" ? "Bacstory Wallet" : "Original Payment Method")),
                 bankHolderName,
@@ -390,11 +392,70 @@ export default function ReturnAndExchangePage() {
         }
     };
 
-    const handleMockUpload = (e) => {
+    const handlePhotoUpload = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        setUploadingPhotos(true);
+        setStepError("");
+
+        try {
+            const formData = new FormData();
+            files.forEach((file) => formData.append("files", file));
+
+            const res = await fetch(`${API_BASE_URL}/frontend/orders/upload-proof`, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success && Array.isArray(data.data)) {
+                const urls = data.data.map((item) => item.url);
+                setUploadedImages((prev) => [...prev, ...urls]);
+            } else {
+                setStepError(data.message || "Failed to upload proof photos. Please try again.");
+            }
+        } catch (err) {
+            console.error("Error uploading proof photos:", err);
+            setStepError("Failed to upload proof photos. Please check your network connection.");
+        } finally {
+            setUploadingPhotos(false);
+            if (e.target) e.target.value = "";
+        }
+    };
+
+    const handleVideoUpload = async (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            setUploadedImages((prev) => [...prev, url]);
+        if (!file) return;
+
+        setUploadingVideo(true);
+        setStepError("");
+
+        try {
+            const formData = new FormData();
+            formData.append("files", file);
+
+            const res = await fetch(`${API_BASE_URL}/frontend/orders/upload-proof`, {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success && Array.isArray(data.data) && data.data[0]) {
+                setUnboxingVideoFile({
+                    name: file.name,
+                    size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
+                    url: data.data[0].url
+                });
+            } else {
+                setStepError(data.message || "Failed to upload video. Please try again.");
+            }
+        } catch (err) {
+            console.error("Error uploading unboxing video:", err);
+            setStepError("Failed to upload unboxing video. Please check your network connection.");
+        } finally {
+            setUploadingVideo(false);
+            if (e.target) e.target.value = "";
         }
     };
 
@@ -411,13 +472,38 @@ export default function ReturnAndExchangePage() {
         return sum + (item ? (item.price * qty) : 0);
     }, 0);
 
+    // Calculate actual amount paid by customer for this order:
+    // If order was zero rupees (e.g. 100% promo code, gift claim) or discounted,
+    // the customer is refunded what was actually paid, not the catalog t-shirt price!
+    const orderPaidAmount = foundOrder
+        ? (typeof foundOrder.totalAmount === "number"
+            ? foundOrder.totalAmount
+            : (parseFloat(String(foundOrder.totalAmount ?? foundOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0))
+        : itemSubtotal;
+
+    const orderOriginalSubtotal = foundOrder
+        ? (foundOrder.subtotal || foundOrder.items?.reduce((s, it) => {
+            const rawP = it.priceNum ?? it.price;
+            const p = typeof rawP === "number" ? rawP : (parseFloat(String(rawP || 0).replace(/[^0-9.]/g, "")) || 0);
+            return s + (p * (it.quantity || 1));
+        }, 0) || itemSubtotal)
+        : itemSubtotal;
+
+    const paidRatio = orderOriginalSubtotal > 0
+        ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal))
+        : 0;
+
+    const effectivePaidForReturned = orderPaidAmount === 0
+        ? 0
+        : Math.min(orderPaidAmount, Math.round(itemSubtotal * paidRatio));
+
     // Shipping cost rule for returns:
     // Only if user selects "Changed my mind" or "Other", return shipping fee (₹99) will be applicable.
     // For all other reasons, return shipping is FREE (covered by Bacstory).
     const normalizedReason = (selectedReason || "").trim().toLowerCase();
     const isFeeApplicableReason = normalizedReason.includes("mind") || normalizedReason === "other" || normalizedReason.startsWith("other");
     const returnShippingFee = (requestType === "return" && isFeeApplicableReason) ? 99 : 0;
-    const totalRefund = Math.max(0, itemSubtotal - (requestType === "return" ? returnShippingFee : 0));
+    const totalRefund = Math.max(0, effectivePaidForReturned - (requestType === "return" ? returnShippingFee : 0));
 
     return (
         <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col font-sans">
@@ -1113,25 +1199,21 @@ export default function ReturnAndExchangePage() {
                                                 <label className={`border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${unboxingVideoFile
                                                     ? "border-emerald-300 bg-emerald-50/40"
                                                     : "border-amber-300 bg-amber-50/50 hover:bg-amber-100/50"
-                                                    } ${orderEligibility?.isWithin48Hours === false ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}>
+                                                    } ${orderEligibility?.isWithin48Hours === false || uploadingVideo ? "opacity-60 cursor-not-allowed pointer-events-none" : ""}`}>
                                                     <input
                                                         type="file"
                                                         accept="video/*"
                                                         className="hidden"
-                                                        disabled={orderEligibility?.isWithin48Hours === false}
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) {
-                                                                setUnboxingVideoFile({
-                                                                    name: file.name,
-                                                                    size: (file.size / (1024 * 1024)).toFixed(2) + " MB",
-                                                                    url: URL.createObjectURL(file)
-                                                                });
-                                                                setStepError("");
-                                                            }
-                                                        }}
+                                                        disabled={orderEligibility?.isWithin48Hours === false || uploadingVideo}
+                                                        onChange={handleVideoUpload}
                                                     />
-                                                    {unboxingVideoFile ? (
+                                                    {uploadingVideo ? (
+                                                        <div className="flex flex-col items-center justify-center py-3 space-y-2">
+                                                            <Loader2 className="w-6 h-6 animate-spin text-amber-800" />
+                                                            <p className="text-xs font-semibold text-amber-950">Uploading Unboxing Video...</p>
+                                                            <p className="text-[10px] text-amber-700 font-normal">Please wait while the video is uploaded</p>
+                                                        </div>
+                                                    ) : unboxingVideoFile ? (
                                                         <div className="flex items-center gap-3 w-full justify-between bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs">
                                                             <div className="flex items-center gap-2.5 min-w-0">
                                                                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
@@ -1182,17 +1264,30 @@ export default function ReturnAndExchangePage() {
 
                                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                                                 {/* Upload Trigger Button */}
-                                                <label className="w-full aspect-square rounded-xl border-2 border-dashed border-neutral-300 bg-[#F8F8F8] flex flex-col items-center justify-center cursor-pointer hover:border-black hover:bg-neutral-100/80 transition-all text-neutral-400 hover:text-black">
+                                                <label className={`w-full aspect-square rounded-xl border-2 border-dashed border-neutral-300 bg-[#F8F8F8] flex flex-col items-center justify-center cursor-pointer hover:border-black hover:bg-neutral-100/80 transition-all text-neutral-400 hover:text-black ${uploadingPhotos ? "opacity-60 pointer-events-none" : ""}`}>
                                                     <input
                                                         type="file"
                                                         accept="image/*"
+                                                        multiple
                                                         className="hidden"
-                                                        onChange={handleMockUpload}
+                                                        disabled={uploadingPhotos}
+                                                        onChange={handlePhotoUpload}
                                                     />
-                                                    <Upload className="w-4 h-4 mb-1" />
-                                                    <span className="text-[10px] font-medium text-center leading-tight">
-                                                        Upload Images
-                                                    </span>
+                                                    {uploadingPhotos ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 mb-1 animate-spin text-black" />
+                                                            <span className="text-[10px] font-medium text-center leading-tight">
+                                                                Uploading...
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Upload className="w-4 h-4 mb-1" />
+                                                            <span className="text-[10px] font-medium text-center leading-tight">
+                                                                Upload Images
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </label>
 
                                                 {/* Thumbnails */}
@@ -1240,8 +1335,12 @@ export default function ReturnAndExchangePage() {
                                                 setStepError("Please fill in the Additional Notes field to specify your reason.");
                                                 return;
                                             }
-                                            if (isDamagedSelected && !unboxingVideoFile) {
-                                                setStepError("Please upload or record an unboxing video to proceed.");
+                                            if (uploadingPhotos || uploadingVideo) {
+                                                setStepError("Please wait for your media files to finish uploading before continuing.");
+                                                return;
+                                            }
+                                            if (isDamagedSelected && (!unboxingVideoFile || !unboxingVideoFile.url)) {
+                                                setStepError("Please upload an unboxing video to proceed.");
                                                 return;
                                             }
                                             if (uploadedImages.length === 0) {
@@ -1351,6 +1450,16 @@ export default function ReturnAndExchangePage() {
                                                 <span>Item Subtotal</span>
                                                 <span className="font-semibold text-neutral-800">Rs {itemSubtotal.toLocaleString()}</span>
                                             </div>
+                                            {itemSubtotal > effectivePaidForReturned && (
+                                                <div className="flex items-center justify-between text-xs text-emerald-600">
+                                                    <span>Promo / Discount Applied</span>
+                                                    <span className="font-semibold">- Rs {(itemSubtotal - effectivePaidForReturned).toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center justify-between text-xs text-neutral-600 font-medium">
+                                                <span>Amount Paid for Items</span>
+                                                <span className="font-semibold text-neutral-900">Rs {effectivePaidForReturned.toLocaleString()}</span>
+                                            </div>
                                             {requestType === "return" && returnShippingFee > 0 && (
                                                 <div className="flex items-center justify-between text-xs text-neutral-500">
                                                     <span>Return Shipping Fee</span>
@@ -1375,38 +1484,62 @@ export default function ReturnAndExchangePage() {
                                             </div>
                                         </div>
 
-                                        {requestType === "return" && (
+                                        {requestType === "return" && totalRefund === 0 && (
+                                            <div className="bg-neutral-50 border border-neutral-200/90 rounded-2xl p-4 text-xs text-neutral-600 space-y-1">
+                                                <p className="font-semibold text-neutral-900">No Refund Payout Required</p>
+                                                <p>The total amount paid for this order was ₹0, so the refunded amount is ₹0.</p>
+                                            </div>
+                                        )}
+
+                                        {requestType === "return" && totalRefund > 0 && (
                                             <div className="space-y-3">
                                                 <label className="block text-xs font-semibold text-black uppercase tracking-wider">
                                                     Select Refund Payout Mode (Initiated within 2 business days after inspection)
                                                 </label>
 
                                                 {/* Option 1: Original Payment Method (Only for Prepaid Orders) */}
-                                                {!(foundOrder?.paymentMethod === "COD" || foundOrder?.paymentStatus === "COD") && (
-                                                    <div
-                                                        onClick={() => setPaymentMode("original")}
-                                                        className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "original"
-                                                            ? "border-black bg-white shadow-sm"
-                                                            : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
-                                                            }`}
-                                                    >
-                                                        <span className="text-sm font-medium text-black">
-                                                            {foundOrder?.paymentMethod?.toLowerCase().includes("wallet") || (foundOrder?.walletDeduction && foundOrder?.walletDeduction > 0)
-                                                                ? "Original Payment Method (BacStory Wallet - Instant Credit)"
-                                                                : "Original Payment Method (Prepaid Orders)"}
-                                                        </span>
+                                                {!(foundOrder?.paymentMethod === "COD" || foundOrder?.paymentStatus === "COD") && (() => {
+                                                    const orderWalletDeduction = Number(foundOrder?.walletDeduction) || 0;
+                                                    const orderTotalPaid = Number(foundOrder?.totalAmount) || 0;
+                                                    const orderRazorpayPaid = Math.max(0, orderTotalPaid - orderWalletDeduction);
+                                                    const isSplit = orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderTotalPaid > 0;
+                                                    const isPureWallet = orderWalletDeduction > 0 && orderRazorpayPaid <= 0;
+
+                                                    let originalLabel = "Original Payment Method (Prepaid Orders)";
+                                                    if (isSplit) {
+                                                        const walletShare = Math.min(orderWalletDeduction, Math.round(totalRefund * (orderWalletDeduction / orderTotalPaid)));
+                                                        const rzpShare = Math.max(0, totalRefund - walletShare);
+                                                        originalLabel = `Original Payment Method (Split: ₹${walletShare.toLocaleString()} to Wallet + ₹${rzpShare.toLocaleString()} via Razorpay)`;
+                                                    } else if (isPureWallet) {
+                                                        originalLabel = "Original Payment Method (BacStory Wallet - Instant Credit)";
+                                                    } else {
+                                                        originalLabel = "Original Payment Method (Card / UPI / Netbanking via Razorpay)";
+                                                    }
+
+                                                    return (
                                                         <div
-                                                            className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"
-                                                                ? "bg-[#101820] text-white"
-                                                                : "border-2 border-neutral-300"
+                                                            onClick={() => setPaymentMode("original")}
+                                                            className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${paymentMode === "original"
+                                                                ? "border-black bg-white shadow-sm"
+                                                                : "border-neutral-200/90 bg-[#F9F9F9] hover:border-neutral-300"
                                                                 }`}
                                                         >
-                                                            {paymentMode === "original" && (
-                                                                <Check className="w-3 h-3 stroke-[3]" />
-                                                            )}
+                                                            <span className="text-sm font-medium text-black">
+                                                                {originalLabel}
+                                                            </span>
+                                                            <div
+                                                                className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "original"
+                                                                    ? "bg-[#101820] text-white"
+                                                                    : "border-2 border-neutral-300"
+                                                                    }`}
+                                                            >
+                                                                {paymentMode === "original" && (
+                                                                    <Check className="w-3 h-3 stroke-[3]" />
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
 
                                                 {/* Option 2 & 3: Bank Transfer & UPI (Only for COD Orders) */}
                                                 {(foundOrder?.paymentMethod === "COD" || foundOrder?.paymentStatus === "COD") && (
@@ -1508,7 +1641,7 @@ export default function ReturnAndExchangePage() {
                                                         }`}
                                                 >
                                                     <span className="text-sm font-medium text-black">
-                                                        BacStory Wallet / Store Credit
+                                                        BacStory Wallet / Store Credit (100% Instant Credit - ₹{totalRefund.toLocaleString()})
                                                     </span>
                                                     <div
                                                         className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${paymentMode === "wallet"

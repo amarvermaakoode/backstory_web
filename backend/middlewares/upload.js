@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Create uploads folder if it doesn't exist
-const uploadPath = path.join(process.cwd(), "uploads");
+const uploadPath = path.join(__dirname, "..", "uploads");
 
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
@@ -64,7 +64,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50 MB
+    fileSize: 1024 * 1024 * 1024, // 1 GB (supports high-res customer unboxing videos)
   },
 });
 

@@ -7,9 +7,11 @@ const {
   getOrderDetails,
   cancelUserOrder,
   submitReturnExchange,
-  findOrderForReturn
+  findOrderForReturn,
+  uploadReturnProofMedia
 } = require("../../controllers/frontend/orderFrntCtrl");
 const { protect } = require("../../middlewares/auth");
+const upload = require("../../middlewares/upload");
 
 // Optional auth middleware helper
 const optionalAuth = (req, res, next) => {
@@ -19,6 +21,7 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
+router.post("/upload-proof", upload.array("files", 10), uploadReturnProofMedia);
 router.post("/", optionalAuth, createOrderRecord);
 router.get("/my-orders", optionalAuth, getUserOrders);
 router.get("/find-order", findOrderForReturn);

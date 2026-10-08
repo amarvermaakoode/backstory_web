@@ -389,85 +389,6 @@ export default function OrderDetailPage({ params }) {
                 )}
             </div>
 
-            {/* 5-Step Progress Timeline Card (Interactive) */}
-            {!isCancelled && (
-                <div className="border border-neutral-200/80 rounded-3xl p-6 sm:p-7 bg-white space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <h3 className="text-sm font-semibold font-clashDisplay text-neutral-900 uppercase tracking-wider">
-                                Order Delivery Status
-                            </h3>
-                            <p className="text-xs text-neutral-500">
-                                Status updates as your order is processed, packed, and dispatched
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setIsTrackModalOpen(true)}
-                            className="text-xs font-semibold text-neutral-900 underline hover:text-neutral-600 transition-colors cursor-pointer"
-                        >
-                            View Step Details
-                        </button>
-                    </div>
-
-                    {/* Visual 5-Step Bar */}
-                    <div className="relative pt-2 pb-1">
-                        {/* Connecting Line */}
-                        <div className="absolute top-5 left-4 right-4 h-0.5 bg-neutral-200 -z-0 hidden md:block">
-                            <div
-                                className="h-full bg-black transition-all duration-500"
-                                style={{ width: `${(activeStepIdx / (ORDER_STEPS.length - 1)) * 100}%` }}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-2 relative z-10">
-                            {ORDER_STEPS.map((step, idx) => {
-                                const isPassed = idx < activeStepIdx;
-                                const isCurrent = idx === activeStepIdx;
-                                const stepDate = getStepTimelineDate(step.title, idx, order, activeStepIdx);
-
-                                return (
-                                    <div
-                                        key={step.title}
-                                        className={`flex md:flex-col items-start md:items-center text-left md:text-center gap-3 md:gap-2 p-2 rounded-2xl transition-colors ${
-                                            isCurrent ? "bg-neutral-50 md:bg-transparent" : ""
-                                        }`}
-                                    >
-                                        <div
-                                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold transition-all ${
-                                                isPassed
-                                                    ? "bg-black text-white"
-                                                    : isCurrent
-                                                    ? "bg-black text-white ring-4 ring-neutral-200"
-                                                    : "bg-white border-2 border-neutral-300 text-neutral-400"
-                                            }`}
-                                        >
-                                            {isPassed ? (
-                                                <CheckCircle2 className="w-4 h-4" />
-                                            ) : (
-                                                <span>{idx + 1}</span>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-0.5 min-w-0">
-                                            <p className={`text-xs font-bold ${isCurrent ? "text-neutral-900" : isPassed ? "text-neutral-800" : "text-neutral-400"}`}>
-                                                {step.title}
-                                            </p>
-                                            <p className="text-[10px] text-neutral-500 hidden md:block leading-tight">
-                                                {step.desc}
-                                            </p>
-                                            {stepDate && (
-                                                <p className="text-[10px] text-neutral-500 font-mono font-medium pt-0.5">
-                                                    {stepDate}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Ordered Items List */}
             <div className="border border-neutral-200/80 rounded-3xl p-6 sm:p-7 bg-white space-y-6">
@@ -762,15 +683,41 @@ export default function OrderDetailPage({ params }) {
                         </button>
                     )}
 
-                    {isDelivered && (
-                        <Link
-                            href={`/return-and-exchange?orderId=${encodeURIComponent(order.orderId || order.id)}`}
-                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer bg-white"
-                        >
-                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
-                            <span>Return or Exchange</span>
-                        </Link>
-                    )}
+                    {(() => {
+                        const allReturnReqs = (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0)
+                            ? order.returnRequestsHistory
+                            : (order.returnExchange?.isRequested ? [order.returnExchange] : []);
+
+                        if (allReturnReqs.length > 0) {
+                            const latestReq = allReturnReqs[allReturnReqs.length - 1];
+                            const isExchange = latestReq.requestType === "exchange";
+                            const status = (latestReq.status || (isExchange ? "Exchange Requested" : "Return Requested")).trim();
+                            return (
+                                <Link
+                                    href="/account/orders"
+                                    className="border border-amber-300 bg-amber-50 text-amber-900 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-amber-100/80"
+                                    title="View full tracking timeline in Order History"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>{status}</span>
+                                </Link>
+                            );
+                        }
+
+                        if (isDelivered) {
+                            return (
+                                <Link
+                                    href={`/return-and-exchange?orderId=${encodeURIComponent(order.orderId || order.id)}`}
+                                    className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer bg-white"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                    <span>Return or Exchange</span>
+                                </Link>
+                            );
+                        }
+
+                        return null;
+                    })()}
                 </div>
 
                 <Link

@@ -23,7 +23,9 @@ import {
   Calendar,
   CreditCard,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Video,
+  ExternalLink
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -233,11 +235,61 @@ export default function AdminOrdersPage() {
 
   const handleProcessReturnRefund = async (orderDbId, requestId = null) => {
     const refundMethodStr = (selectedOrder?.refundDetails?.refundMethod || selectedOrder?.returnExchange?.refundMethod || "").toLowerCase();
-    const isWalletRefund = refundMethodStr.includes("wallet");
+    const isExplicitWallet = (refundMethodStr.includes("wallet") || refundMethodStr.includes("store credit")) && !refundMethodStr.includes("original");
+
+    const orderPaidAmount = typeof selectedOrder?.totalAmount === "number"
+      ? selectedOrder.totalAmount
+      : (parseFloat(String(selectedOrder?.totalAmount ?? selectedOrder?.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
+
+    const orderWalletDeduction = typeof selectedOrder?.walletDeduction === "number"
+      ? selectedOrder.walletDeduction
+      : (parseFloat(String(selectedOrder?.walletDeduction || 0).replace(/[^0-9.]/g, "")) || 0);
+
+    const orderRazorpayPaid = Math.max(0, orderPaidAmount - orderWalletDeduction);
+    const isOrderSplit = !isExplicitWallet && orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderPaidAmount > 0;
+
+    const isZeroOrMarketing = 
+      orderPaidAmount <= 0 ||
+      (selectedOrder?.paymentMethod || "").toLowerCase().includes("marketing") ||
+      (selectedOrder?.paymentMethod || "").toLowerCase().includes("promo") ||
+      (selectedOrder?.couponCode || "").toLowerCase().startsWith("mkt") ||
+      (selectedOrder?.couponCode || "").toLowerCase().includes("promo") ||
+      String(selectedOrder?.razorpayPaymentId || "").startsWith("pay_PROMO") ||
+      String(selectedOrder?.razorpayOrderId || "").startsWith("order_FREE");
+
     let paymentIdToSend = "";
 
-    if (isWalletRefund) {
+    if (isZeroOrMarketing) {
+      const confirmed = await customConfirm(
+        "This order was placed using a marketing / promo code (₹0 paid). No Razorpay payment was made.\n\nConfirm completing the return and closing this request without monetary refund?",
+        "Complete Return (₹0 Order)"
+      );
+      if (!confirmed) return;
+    } else if (isExplicitWallet || (orderWalletDeduction > 0 && orderRazorpayPaid <= 0)) {
       const confirmed = await customConfirm("Confirm crediting refund amount directly to customer's BacStory Wallet?", "Process Wallet Refund");
+      if (!confirmed) return;
+    } else if (isOrderSplit) {
+      const reqEntry = (selectedOrder?.returnRequestsHistory || []).find(r => r.requestId === requestId || r._id === requestId) || selectedOrder?.returnExchange;
+      const netRefund = typeof reqEntry?.refundAmount === "number" ? reqEntry.refundAmount : orderPaidAmount;
+      const walletShare = Math.min(orderWalletDeduction, Math.round(netRefund * (orderWalletDeduction / orderPaidAmount)));
+      const razorpayShare = Math.max(0, netRefund - walletShare);
+
+      const existingPaymentId = selectedOrder?.razorpayPaymentId || selectedOrder?.paymentInfo?.razorpayPaymentId;
+      paymentIdToSend = existingPaymentId;
+
+      if (!paymentIdToSend) {
+        const inputId = await customPrompt("Enter Razorpay Payment ID for the online payment portion:", "", "Razorpay Payment ID Required", "e.g. pay_TMzlj6hvnzLzle");
+        if (!inputId || !inputId.trim()) {
+          showToast("Razorpay Payment ID is required to process the online payment portion.", "error");
+          return;
+        }
+        paymentIdToSend = inputId.trim();
+      }
+
+      const confirmed = await customConfirm(
+        `Confirm Split Refund for Order #${selectedOrder?.orderId}?\n\n• ₹${walletShare.toLocaleString()} will be credited to customer's BacStory Wallet\n• ₹${razorpayShare.toLocaleString()} will be refunded to original payment method via Razorpay (Payment ID: ${paymentIdToSend})`,
+        "Process Split Refund"
+      );
       if (!confirmed) return;
     } else {
       const existingPaymentId = selectedOrder?.razorpayPaymentId || selectedOrder?.paymentInfo?.razorpayPaymentId;
@@ -263,7 +315,11 @@ export default function AdminOrdersPage() {
       const res = await adminFetch(`/orders/${orderDbId}/process-refund`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ razorpayPaymentId: paymentIdToSend, requestId })
+        body: JSON.stringify({ 
+          razorpayPaymentId: paymentIdToSend, 
+          requestId,
+          isZeroRefund: isZeroOrMarketing
+        })
       });
       const data = await res.json();
 
@@ -906,22 +962,84 @@ export default function AdminOrdersPage() {
                     if (req.requestedItems?.length > 0) {
                       req.requestedItems.forEach(ritem => {
                         const origItem = selectedOrder.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
-                        const rawPrice = origItem ? origItem.price : ((selectedOrder.totalAmount || 1100) / (selectedOrder.items?.length || 1));
-                        const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
+                        const rawPrice = origItem ? (origItem.priceNum ?? origItem.price) : 0;
+                        const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice || 0).replace(/[^0-9.]/g, "")) || 0);
                         const qty = ritem.returnQuantity || 1;
                         reqItemsSubtotal += (unitPrice * qty);
                       });
                     }
+
+                    const orderPaidAmount = typeof selectedOrder.totalAmount === "number"
+                      ? selectedOrder.totalAmount
+                      : (parseFloat(String(selectedOrder.totalAmount ?? selectedOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
+
+                    const orderOriginalSubtotal = selectedOrder.subtotal > 0
+                      ? selectedOrder.subtotal
+                      : (selectedOrder.items && Array.isArray(selectedOrder.items)
+                          ? selectedOrder.items.reduce((s, it) => {
+                              const rawP = it.priceNum ?? it.price;
+                              const p = typeof rawP === "number" ? rawP : (parseFloat(String(rawP || 0).replace(/[^0-9.]/g, "")) || 0);
+                              return s + (p * (it.quantity || 1));
+                            }, 0)
+                          : orderPaidAmount);
+
+                    const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
+                    const effectivePaidForReturned = orderPaidAmount === 0
+                      ? 0
+                      : Math.min(orderPaidAmount, Math.round(reqItemsSubtotal * paidRatio));
+
+                    const isZeroOrMarketing = orderPaidAmount <= 0 ||
+                      (selectedOrder.paymentMethod || "").toLowerCase().includes("marketing") ||
+                      (selectedOrder.paymentMethod || "").toLowerCase().includes("promo") ||
+                      (selectedOrder.couponCode || "").toLowerCase().startsWith("mkt") ||
+                      (selectedOrder.couponCode || "").toLowerCase().includes("promo") ||
+                      String(selectedOrder.razorpayPaymentId || "").startsWith("pay_PROMO") ||
+                      String(selectedOrder.razorpayOrderId || "").startsWith("order_FREE");
+
                     const normalizedReqReason = (req.reason || "").toLowerCase();
                     const isFeeApplicableReason = normalizedReqReason.includes("mind") || normalizedReqReason === "other" || normalizedReqReason.startsWith("other");
                     const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : (isFeeApplicableReason ? 99 : 0);
-                    const reqNetRefund = req.refundAmount > 0 ? req.refundAmount : Math.max(0, reqItemsSubtotal - reqShippingFee);
+                    const reqNetRefund = isZeroOrMarketing 
+                      ? 0 
+                      : (typeof req.refundAmount === "number" ? req.refundAmount : Math.max(0, effectivePaidForReturned - reqShippingFee));
 
-                    const reqPayoutMethod = req.refundMethod || selectedOrder.refundDetails?.refundMethod || "Original Payment Method";
+                    const orderWalletDeduction = typeof selectedOrder.walletDeduction === "number"
+                      ? selectedOrder.walletDeduction
+                      : (parseFloat(String(selectedOrder.walletDeduction || 0).replace(/[^0-9.]/g, "")) || 0);
+                    const orderRazorpayPaid = Math.max(0, orderPaidAmount - orderWalletDeduction);
+                    const isOrderSplit = orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderPaidAmount > 0;
+                    const isExplicitWallet = (req.refundMethod || "").toLowerCase().includes("wallet") && !(req.refundMethod || "").toLowerCase().includes("original");
+
+                    let reqWalletPortion = 0;
+                    let reqRazorpayPortion = 0;
+                    if (isExplicitWallet) {
+                      reqWalletPortion = reqNetRefund;
+                      reqRazorpayPortion = 0;
+                    } else if (isOrderSplit) {
+                      reqWalletPortion = Math.min(orderWalletDeduction, Math.round(reqNetRefund * (orderWalletDeduction / orderPaidAmount)));
+                      reqRazorpayPortion = Math.max(0, reqNetRefund - reqWalletPortion);
+                    } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
+                      reqWalletPortion = reqNetRefund;
+                      reqRazorpayPortion = 0;
+                    } else {
+                      reqWalletPortion = 0;
+                      reqRazorpayPortion = reqNetRefund;
+                    }
+
+                    const reqPayoutMethod = isZeroOrMarketing 
+                      ? "None (₹0 / Marketing Order)" 
+                      : (isOrderSplit && !isExplicitWallet
+                          ? `Original Payment Method (Split: ₹${reqWalletPortion.toLocaleString()} Wallet + ₹${reqRazorpayPortion.toLocaleString()} Razorpay)`
+                          : (req.refundMethod || selectedOrder.refundDetails?.refundMethod || "Original Payment Method"));
                     const reqBankHolder = req.bankHolderName || selectedOrder.refundDetails?.bankHolderName || "";
                     const reqAccountNumber = req.accountNumber || selectedOrder.refundDetails?.accountNumber || "";
                     const reqIfscCode = req.ifscCode || selectedOrder.refundDetails?.ifscCode || "";
                     const reqUpiId = req.upiId || selectedOrder.refundDetails?.upiId || "";
+
+                    const isOrderAlreadyRefunded = selectedOrder.refundDetails?.refundStatus === "Refunded" || selectedOrder.returnExchange?.status === "Refunded" || selectedOrder.orderStatus === "Returned";
+                    const reqActualStatus = (req.status === "Product Received" && isOrderAlreadyRefunded)
+                      ? "Refunded"
+                      : (req.status || "Return Requested");
 
                     return (
                       <div key={req._id || req.requestId || reqIndex} className={`${isPendingAction ? "bg-purple-50/30 border border-purple-200/50" : "bg-neutral-50 border border-neutral-200/60"} p-4 rounded-2xl space-y-3 transition-colors`}>
@@ -986,15 +1104,15 @@ export default function AdminOrdersPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${req.status === "Approved" || req.status === "Return Approved" || req.status === "Exchange Approved" || req.status === "Exchange Completed"
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${reqActualStatus === "Approved" || reqActualStatus === "Return Approved" || reqActualStatus === "Exchange Approved" || reqActualStatus === "Exchange Completed" || reqActualStatus === "Refunded"
                               ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                              : req.status === "Product Picked Up" || req.status === "Product Received" || req.status === "Replacement Ready to Pack & Ship" || req.status === "Replacement Dispatched"
+                              : reqActualStatus === "Product Picked Up" || reqActualStatus === "Product Received" || reqActualStatus === "Replacement Ready to Pack & Ship" || reqActualStatus === "Replacement Dispatched"
                                 ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                                : req.status === "Rejected"
+                                : reqActualStatus === "Rejected"
                                   ? "bg-red-100 text-red-800 border border-red-200"
                                   : "bg-neutral-200 text-neutral-800 border border-neutral-300"
                               }`}>
-                              {req.status}
+                              {reqActualStatus}
                             </span>
                           )}
                         </div>
@@ -1038,18 +1156,41 @@ export default function AdminOrdersPage() {
                           </div>
                         )}
 
-                        {/* Mandatory Unboxing Video Link for Damaged/Wrong Item */}
+                        {/* Mandatory Unboxing Video for Damaged/Wrong Item */}
                         {req.unboxingVideo && (
-                          <div className="bg-white p-3 rounded-xl border border-neutral-200/80 space-y-1">
-                            <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">Unboxing Video Proof:</span>
-                            <a
-                              href={getImageUrl(req.unboxingVideo)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 underline font-medium break-all text-xs hover:text-indigo-800"
-                            >
-                              {req.unboxingVideo}
-                            </a>
+                          <div className="bg-white p-3.5 rounded-xl border border-neutral-200/80 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <Video className="w-3.5 h-3.5 text-neutral-600" />
+                                <span className="text-[10px] font-semibold text-neutral-400 tracking-wider uppercase block">
+                                  Unboxing Video Proof:
+                                </span>
+                              </div>
+                              <a
+                                href={getImageUrl(req.unboxingVideo)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] text-indigo-600 underline font-medium hover:text-indigo-800"
+                              >
+                                <span>Open in new tab</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+
+                            <div className="rounded-xl overflow-hidden bg-black border border-neutral-200">
+                              <video
+                                controls
+                                playsInline
+                                preload="metadata"
+                                className="w-full max-h-64 object-contain bg-black"
+                                src={getImageUrl(req.unboxingVideo)}
+                              >
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                            <p className="text-[10px] text-neutral-400 truncate">
+                              Source: {decodeURIComponent(req.unboxingVideo.split("/").pop() || "")}
+                            </p>
                           </div>
                         )}
 
@@ -1066,7 +1207,7 @@ export default function AdminOrdersPage() {
                                     className="w-14 h-14 object-cover rounded-xl border border-neutral-200/80 bg-neutral-100"
                                     onError={(e) => {
                                       e.target.onerror = null;
-                                      e.target.src = "/images/landing-page/coding-tshirt.png";
+                                      e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
                                     }}
                                   />
                                 </a>
@@ -1094,12 +1235,28 @@ export default function AdminOrdersPage() {
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between text-neutral-600 font-medium">
-                              <span>Return Shipping Fee</span>
-                              <span className="font-semibold text-neutral-900">
-                                {reqShippingFee === 0 ? "Rs 0 (Free Return)" : `- Rs ${reqShippingFee}`}
-                              </span>
-                            </div>
+                            {reqItemsSubtotal > effectivePaidForReturned && (
+                              <div className="flex items-center justify-between text-emerald-600 text-[11px] font-medium">
+                                <span>Promo / Discount Applied</span>
+                                <span className="font-semibold">- Rs {(reqItemsSubtotal - effectivePaidForReturned).toLocaleString()}</span>
+                              </div>
+                            )}
+
+                            {isZeroOrMarketing && (
+                              <div className="flex items-center justify-between text-neutral-600 font-medium">
+                                <span>Amount Paid for Items</span>
+                                <span className="font-semibold text-neutral-900">Rs 0</span>
+                              </div>
+                            )}
+
+                            {reqShippingFee > 0 && (
+                              <div className="flex items-center justify-between text-neutral-600 font-medium">
+                                <span>Return Shipping Fee</span>
+                                <span className="font-semibold text-neutral-900">
+                                  - Rs {reqShippingFee}
+                                </span>
+                              </div>
+                            )}
 
                             <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-semibold text-neutral-900 text-xs sm:text-sm">
                               <span className="font-semibold text-neutral-900">Net Refund Amount</span>
@@ -1108,8 +1265,32 @@ export default function AdminOrdersPage() {
                               </span>
                             </div>
 
+                            {/* Split Refund Distribution Details */}
+                            {isOrderSplit && !isExplicitWallet && !isZeroOrMarketing && (
+                              <div className="bg-indigo-50/80 border border-indigo-200/80 p-2.5 rounded-xl space-y-1.5 text-xs text-indigo-950 font-medium">
+                                <div className="flex items-center justify-between text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
+                                  <span>Split Refund Distribution</span>
+                                  <span className="text-indigo-600 font-mono text-[10px]">2-Way Split</span>
+                                </div>
+                                <div className="flex items-center justify-between text-neutral-700">
+                                  <span>BacStory Wallet Credit:</span>
+                                  <span className="font-bold text-emerald-700 font-mono">Rs {reqWalletPortion.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-neutral-700">
+                                  <span>Razorpay (Original Card/UPI):</span>
+                                  <span className="font-bold text-indigo-700 font-mono">Rs {reqRazorpayPortion.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {isZeroOrMarketing && (
+                              <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200/80 font-medium leading-relaxed">
+                                No Razorpay refund required as this order was placed with 100% discount via Marketing / Promo Code (₹0 paid).
+                              </div>
+                            )}
+
                             {/* Payout Credentials */}
-                            {(reqPayoutMethod === "Bank Transfer" || (reqBankHolder && reqAccountNumber)) && (
+                            {!isZeroOrMarketing && (reqPayoutMethod === "Bank Transfer" || (reqBankHolder && reqAccountNumber)) && (
                               <div className="pt-2 border-t border-neutral-200/60 text-xs text-neutral-700 space-y-1">
                                 <p className="font-semibold text-neutral-900 text-[11px] uppercase tracking-wider">Bank Details:</p>
                                 <p><strong>Account Holder:</strong> {reqBankHolder || "N/A"}</p>
@@ -1118,7 +1299,7 @@ export default function AdminOrdersPage() {
                               </div>
                             )}
 
-                            {(reqPayoutMethod === "UPI" || (reqUpiId && reqPayoutMethod !== "Bank Transfer")) && (
+                            {!isZeroOrMarketing && (reqPayoutMethod === "UPI" || (reqUpiId && reqPayoutMethod !== "Bank Transfer")) && (
                               <div className="pt-2 border-t border-neutral-200/60 text-xs text-neutral-700 space-y-1">
                                 <p className="font-semibold text-neutral-900 text-[11px] uppercase tracking-wider">UPI Details:</p>
                                 <p><strong>UPI ID:</strong> {reqUpiId || "N/A"}</p>
@@ -1129,7 +1310,7 @@ export default function AdminOrdersPage() {
 
                         {/* Admin Action Buttons matching exact 7-stage return table workflow */}
                         {(() => {
-                          const retStatus = req.status;
+                          const retStatus = reqActualStatus;
 
                           if (retStatus === "Return Approved" || retStatus === "Approved") {
                             return (
@@ -1149,41 +1330,94 @@ export default function AdminOrdersPage() {
 
                           if (retStatus === "Product Received") {
                             return (
-                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3">
-                                <span className="text-xs text-neutral-800 font-medium">Next Action: <strong>Refund Processing</strong></span>
+                              <div className="pt-3 border-t border-neutral-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <span className="text-xs text-neutral-800 font-medium">
+                                  Next Action: <strong>{isZeroOrMarketing ? "Complete Return" : (isOrderSplit && !isExplicitWallet ? "Split Refund Processing" : "Refund Processing")}</strong>
+                                </span>
                                 <button
                                   onClick={() => handleProcessReturnRefund(selectedOrder._id || selectedOrder.orderId, req.requestId || req._id)}
                                   disabled={actionLoading}
-                                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                                  className={`${isZeroOrMarketing ? "bg-neutral-900 hover:bg-black" : "bg-emerald-600 hover:bg-emerald-700"} disabled:opacity-50 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap shrink-0`}
                                 >
-                                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                                  <span>Initiate & Process Refund via Razorpay (Rs {reqNetRefund.toLocaleString()})</span>
+                                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isZeroOrMarketing ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <CreditCard className="w-4 h-4" />)}
+                                  <span>
+                                    {isZeroOrMarketing 
+                                      ? "Complete Return (₹0 Order)" 
+                                      : (isOrderSplit && !isExplicitWallet)
+                                        ? `Initiate Split Refund (₹${reqWalletPortion.toLocaleString()} Wallet + ₹${reqRazorpayPortion.toLocaleString()} Razorpay)`
+                                        : `Initiate Refund (Rs ${reqNetRefund.toLocaleString()})`}
+                                  </span>
                                 </button>
                               </div>
                             );
                           }
 
                           if (retStatus === "Refund Initiated") {
+                            const isSplit = (isOrderSplit && !isExplicitWallet) || (req.walletRefundAmount > 0 && req.razorpayRefundAmount > 0);
+                            const wPortion = req.walletRefundAmount || selectedOrder.refundDetails?.walletRefundAmount || reqWalletPortion;
+                            const rPortion = req.razorpayRefundAmount || selectedOrder.refundDetails?.razorpayRefundAmount || reqRazorpayPortion;
+
                             return (
-                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between gap-3 text-xs">
-                                <span className="w-[50%] font-semibold text-amber-800 flex items-center gap-1.5">
-                                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                                  <span>Razorpay Refund Processing (Auto-syncs upon bank settlement in 5-7 days)</span>
-                                </span>
-                                <span className="w-auto whitespace-nowrap bg-amber-100 text-amber-900 font-semibold px-3 py-1 rounded-full uppercase shrink-0">
-                                  Refund Processing
-                                </span>
+                              <div className="pt-3 border-t border-neutral-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                <div className="space-y-0.5">
+                                  <span className="font-semibold text-amber-800 flex items-center gap-1.5">
+                                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>
+                                      {isSplit
+                                        ? `Split Refund: Rs ${wPortion.toLocaleString()} Wallet Credited | Rs ${rPortion.toLocaleString()} Razorpay Processing (5-7 Days)`
+                                        : "Razorpay Refund Processing (Auto-syncs upon settlement)"}
+                                    </span>
+                                  </span>
+                                  {isSplit && (
+                                    <p className="text-[11px] text-neutral-500 pl-5.5">
+                                      Wallet portion credited instantly. Razorpay refund is in transit to customer's bank account.
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    onClick={() => handleCompleteRefund(selectedOrder._id || selectedOrder.orderId)}
+                                    disabled={actionLoading}
+                                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    title="Mark refund settled and completed once bank deposit is confirmed"
+                                  >
+                                    {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                    <span>Mark Settled</span>
+                                  </button>
+                                  <span className="w-fit whitespace-nowrap bg-amber-100 text-amber-900 font-semibold px-2.5 py-1 rounded-full uppercase text-[10px] tracking-wider border border-amber-200/60">
+                                    Refund Processing
+                                  </span>
+                                </div>
                               </div>
                             );
                           }
 
                           if (retStatus === "Refunded") {
+                            const isWallet = (req.refundMethod || selectedOrder.refundDetails?.refundMethod || selectedOrder.returnExchange?.refundMethod || "").toLowerCase().includes("wallet") ||
+                              (selectedOrder.paymentMethod || "").toLowerCase().includes("wallet");
+                            const hasSplitDetails = (selectedOrder.refundDetails?.walletRefundAmount > 0 && selectedOrder.refundDetails?.razorpayRefundAmount > 0) ||
+                              (req.walletRefundAmount > 0 && req.razorpayRefundAmount > 0) ||
+                              (isOrderSplit && !isExplicitWallet);
+                            const wPortion = req.walletRefundAmount || selectedOrder.refundDetails?.walletRefundAmount || reqWalletPortion;
+                            const rPortion = req.razorpayRefundAmount || selectedOrder.refundDetails?.razorpayRefundAmount || reqRazorpayPortion;
+
                             return (
-                              <div className="pt-3 border-t border-neutral-200/60 flex items-center justify-between text-xs">
+                              <div className="pt-3 border-t border-neutral-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                                 <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Razorpay Refund Processed & Credited to Customer
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <span>
+                                    {isZeroOrMarketing 
+                                      ? "Return Completed & Closed (₹0 Order)" 
+                                      : hasSplitDetails
+                                        ? `Split Refund Processed (₹${wPortion.toLocaleString()} Wallet + ₹${rPortion.toLocaleString()} Razorpay)`
+                                        : isWallet
+                                          ? "Wallet Refund Processed & Credited"
+                                          : "Razorpay Refund Processed & Credited"}
+                                  </span>
                                 </span>
-                                <span className="bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-full uppercase">Refunded</span>
+                                <span className="w-fit bg-emerald-100 text-emerald-800 font-semibold px-3 py-1 rounded-full uppercase shrink-0">
+                                  {isZeroOrMarketing ? "Completed" : "Refunded"}
+                                </span>
                               </div>
                             );
                           }
@@ -1223,11 +1457,30 @@ export default function AdminOrdersPage() {
                 });
               }
 
-              const refundBaseSubtotal = isCancelled
-                ? (selectedOrder.cancellation?.refundAmount || orderGrossTotal)
-                : (returnItemsSubtotal > 0 ? returnItemsSubtotal : orderGrossTotal);
+              const orderPaidAmount = typeof selectedOrder.totalAmount === "number"
+                ? selectedOrder.totalAmount
+                : (parseFloat(String(selectedOrder.totalAmount ?? selectedOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
 
-              const netRefundAmount = (typeof selectedOrder.refundDetails?.refundAmount === "number" && selectedOrder.refundDetails.refundAmount > 0)
+              const orderOriginalSubtotal = selectedOrder.subtotal > 0
+                ? selectedOrder.subtotal
+                : (selectedOrder.items && Array.isArray(selectedOrder.items)
+                    ? selectedOrder.items.reduce((s, it) => {
+                        const rawP = it.priceNum ?? it.price;
+                        const p = typeof rawP === "number" ? rawP : (parseFloat(String(rawP || 0).replace(/[^0-9.]/g, "")) || 0);
+                        return s + (p * (it.quantity || 1));
+                      }, 0)
+                    : orderPaidAmount);
+
+              const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
+              const effectivePaidForReturned = orderPaidAmount === 0
+                ? 0
+                : Math.min(orderPaidAmount, Math.round(returnItemsSubtotal * paidRatio));
+
+              const refundBaseSubtotal = isCancelled
+                ? (selectedOrder.cancellation?.refundAmount || orderPaidAmount)
+                : (returnItemsSubtotal > 0 ? effectivePaidForReturned : orderPaidAmount);
+
+              const netRefundAmount = typeof selectedOrder.refundDetails?.refundAmount === "number"
                 ? selectedOrder.refundDetails.refundAmount
                 : Math.max(0, refundBaseSubtotal - returnShippingFee);
 

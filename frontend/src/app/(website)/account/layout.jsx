@@ -85,7 +85,7 @@ export default function AccountLayout({ children }) {
             <Navbar light={true} />
 
             <div className="pt-24 pb-16 flex-1">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Dynamic Breadcrumbs */}
                     <div className="text-xs sm:text-sm text-neutral-500 font-normal mb-6 sm:mb-8 flex items-center gap-1.5">
                         <Link href="/" className="hover:text-neutral-900 transition-colors">
