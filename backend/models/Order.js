@@ -246,7 +246,8 @@ const orderSchema = new mongoose.Schema(
       initiatedAt: { type: Date },
       updatedAt: { type: Date },
       estimatedCreditWindow: { type: String, default: "5-7 Business Days" }
-    }
+    },
+    userDeleted: { type: Boolean, default: false }
   },
   {
     timestamps: true,

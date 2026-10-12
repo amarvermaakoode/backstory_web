@@ -58,6 +58,13 @@ const STATUS_BADGE_STYLES = {
   "Cancelled": "bg-red-50 text-red-700 border-red-200"
 };
 
+const formatCurrency = (val) => {
+  const num = Number(val) || 0;
+  return num % 1 === 0
+    ? num.toLocaleString("en-IN")
+    : num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 // Helper to determine display status if a return or exchange request is active
 export function getOrderDisplayStatus(order) {
   if (!order) return "Order Confirmed";
@@ -961,7 +968,7 @@ export default function AdminOrdersPage() {
                     let reqItemsSubtotal = 0;
                     if (req.requestedItems?.length > 0) {
                       req.requestedItems.forEach(ritem => {
-                        const origItem = selectedOrder.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
+                        const origItem = selectedOrder.items?.find(i => (ritem.itemId && (i._id?.toString() === ritem.itemId || i.id === ritem.itemId)) || (ritem.name && i.name === ritem.name));
                         const rawPrice = origItem ? (origItem.priceNum ?? origItem.price) : 0;
                         const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice || 0).replace(/[^0-9.]/g, "")) || 0);
                         const qty = ritem.returnQuantity || 1;
@@ -974,7 +981,7 @@ export default function AdminOrdersPage() {
                       : (parseFloat(String(selectedOrder.totalAmount ?? selectedOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0);
 
                     const orderOriginalSubtotal = selectedOrder.subtotal > 0
-                      ? selectedOrder.subtotal
+                      ? Number(selectedOrder.subtotal)
                       : (selectedOrder.items && Array.isArray(selectedOrder.items)
                           ? selectedOrder.items.reduce((s, it) => {
                               const rawP = it.priceNum ?? it.price;
@@ -983,10 +990,32 @@ export default function AdminOrdersPage() {
                             }, 0)
                           : orderPaidAmount);
 
-                    const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
+                    // Proportional discount calculation:
+                    // Exclude order shipping & tax so shipping is not refunded for partial returns.
+                    const orderShippingCost = typeof selectedOrder.shippingCost === "number" ? selectedOrder.shippingCost : (parseFloat(String(selectedOrder.shippingCost || 0).replace(/[^0-9.]/g, "")) || 0);
+                    const orderTaxAmount = typeof selectedOrder.taxAmount === "number" ? selectedOrder.taxAmount : (parseFloat(String(selectedOrder.taxAmount || 0).replace(/[^0-9.]/g, "")) || 0);
+                    const netItemsPaid = Math.max(0, orderPaidAmount - orderShippingCost - orderTaxAmount);
+
+                    const storedPrepaidDiscount = typeof selectedOrder.prepaidDiscount === "number" ? selectedOrder.prepaidDiscount : (parseFloat(String(selectedOrder.prepaidDiscount || 0).replace(/[^0-9.]/g, "")) || 0);
+                    const totalItemDiscount = orderOriginalSubtotal > 0
+                      ? Math.max(0, orderOriginalSubtotal - netItemsPaid)
+                      : 0;
+
+                    let itemDiscountRate = 0;
+                    if (orderOriginalSubtotal > 0) {
+                      if (storedPrepaidDiscount > 0 && Math.abs((storedPrepaidDiscount / orderOriginalSubtotal) - 0.05) < 0.005) {
+                        itemDiscountRate = 0.05;
+                      } else if (totalItemDiscount > 0) {
+                        itemDiscountRate = Math.min(1, Math.max(0, totalItemDiscount / orderOriginalSubtotal));
+                      } else if (storedPrepaidDiscount > 0) {
+                        itemDiscountRate = Math.min(1, Math.max(0, storedPrepaidDiscount / orderOriginalSubtotal));
+                      }
+                    }
+
+                    const discountShareForReturned = Math.round(reqItemsSubtotal * itemDiscountRate * 100) / 100;
                     const effectivePaidForReturned = orderPaidAmount === 0
                       ? 0
-                      : Math.min(orderPaidAmount, Math.round(reqItemsSubtotal * paidRatio));
+                      : Math.max(0, Math.min(netItemsPaid, Math.round((reqItemsSubtotal - discountShareForReturned) * 100) / 100));
 
                     const isZeroOrMarketing = orderPaidAmount <= 0 ||
                       (selectedOrder.paymentMethod || "").toLowerCase().includes("marketing") ||
@@ -1001,7 +1030,7 @@ export default function AdminOrdersPage() {
                     const reqShippingFee = typeof req.returnShippingFee === "number" ? req.returnShippingFee : (isFeeApplicableReason ? 99 : 0);
                     const reqNetRefund = isZeroOrMarketing 
                       ? 0 
-                      : (typeof req.refundAmount === "number" ? req.refundAmount : Math.max(0, effectivePaidForReturned - reqShippingFee));
+                      : (typeof req.refundAmount === "number" ? req.refundAmount : Math.max(0, Math.round((effectivePaidForReturned - reqShippingFee) * 100) / 100));
 
                     const orderWalletDeduction = typeof selectedOrder.walletDeduction === "number"
                       ? selectedOrder.walletDeduction
@@ -1016,8 +1045,8 @@ export default function AdminOrdersPage() {
                       reqWalletPortion = reqNetRefund;
                       reqRazorpayPortion = 0;
                     } else if (isOrderSplit) {
-                      reqWalletPortion = Math.min(orderWalletDeduction, Math.round(reqNetRefund * (orderWalletDeduction / orderPaidAmount)));
-                      reqRazorpayPortion = Math.max(0, reqNetRefund - reqWalletPortion);
+                      reqWalletPortion = Math.round(Math.min(orderWalletDeduction, reqNetRefund * (orderWalletDeduction / orderPaidAmount)) * 100) / 100;
+                      reqRazorpayPortion = Math.max(0, Math.round((reqNetRefund - reqWalletPortion) * 100) / 100);
                     } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
                       reqWalletPortion = reqNetRefund;
                       reqRazorpayPortion = 0;
@@ -1231,14 +1260,14 @@ export default function AdminOrdersPage() {
                             <div className="flex items-center justify-between text-neutral-600 font-medium">
                               <span>Returned Items Subtotal</span>
                               <span className="font-semibold text-neutral-900">
-                                Rs {reqItemsSubtotal.toLocaleString()}
+                                Rs {formatCurrency(reqItemsSubtotal)}
                               </span>
                             </div>
 
                             {reqItemsSubtotal > effectivePaidForReturned && (
                               <div className="flex items-center justify-between text-emerald-600 text-[11px] font-medium">
                                 <span>Promo / Discount Applied</span>
-                                <span className="font-semibold">- Rs {(reqItemsSubtotal - effectivePaidForReturned).toLocaleString()}</span>
+                                <span className="font-semibold">- Rs {formatCurrency(reqItemsSubtotal - effectivePaidForReturned)}</span>
                               </div>
                             )}
 
@@ -1253,7 +1282,7 @@ export default function AdminOrdersPage() {
                               <div className="flex items-center justify-between text-neutral-600 font-medium">
                                 <span>Return Shipping Fee</span>
                                 <span className="font-semibold text-neutral-900">
-                                  - Rs {reqShippingFee}
+                                  - Rs {formatCurrency(reqShippingFee)}
                                 </span>
                               </div>
                             )}
@@ -1261,7 +1290,7 @@ export default function AdminOrdersPage() {
                             <div className="border-t border-neutral-200/80 pt-2 flex items-center justify-between font-semibold text-neutral-900 text-xs sm:text-sm">
                               <span className="font-semibold text-neutral-900">Net Refund Amount</span>
                               <span className="font-semibold text-neutral-900 text-sm sm:text-base font-mono">
-                                Rs {reqNetRefund.toLocaleString()}
+                                Rs {formatCurrency(reqNetRefund)}
                               </span>
                             </div>
 

@@ -687,8 +687,8 @@ const processReturnRefund = async (req, res) => {
     let reqItemsSubtotal = 0;
     if (targetReturn?.requestedItems?.length > 0) {
       targetReturn.requestedItems.forEach(ritem => {
-        const origItem = order.items?.find(i => (i._id?.toString() === ritem.itemId || i.id === ritem.itemId || i.name === ritem.name));
-        const rawPrice = origItem ? origItem.price : ((order.totalAmount || order.subtotal || 1100) / (order.items?.length || 1));
+        const origItem = order.items?.find(i => (ritem.itemId && (i._id?.toString() === ritem.itemId || i.id === ritem.itemId)) || (ritem.name && i.name === ritem.name));
+        const rawPrice = origItem ? (origItem.priceNum ?? origItem.price) : ((order.totalAmount || order.subtotal || 1100) / (order.items?.length || 1));
         const unitPrice = typeof rawPrice === "number" ? rawPrice : (parseFloat(String(rawPrice).replace(/[^0-9.]/g, "")) || 0);
         const qty = ritem.returnQuantity || 1;
         reqItemsSubtotal += (unitPrice * qty);
@@ -704,8 +704,31 @@ const processReturnRefund = async (req, res) => {
       : (order.items && Array.isArray(order.items)
           ? order.items.reduce((s, it) => s + ((it.priceNum || parseFloat(String(it.price || 0).replace(/[^0-9.]/g, "")) || 0) * (it.quantity || 1)), 0)
           : orderPaidAmount);
-    const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
-    const effectivePaidForReturned = orderPaidAmount === 0 ? 0 : Math.min(orderPaidAmount, Math.round(reqItemsSubtotal * paidRatio));
+
+    const orderShippingCost = typeof order.shippingCost === "number" ? order.shippingCost : (parseFloat(String(order.shippingCost || 0).replace(/[^0-9.]/g, "")) || 0);
+    const orderTaxAmount = typeof order.taxAmount === "number" ? order.taxAmount : (parseFloat(String(order.taxAmount || 0).replace(/[^0-9.]/g, "")) || 0);
+    const netItemsPaid = Math.max(0, orderPaidAmount - orderShippingCost - orderTaxAmount);
+
+    const storedPrepaidDiscount = typeof order.prepaidDiscount === "number" ? order.prepaidDiscount : (parseFloat(String(order.prepaidDiscount || 0).replace(/[^0-9.]/g, "")) || 0);
+    const totalItemDiscount = orderOriginalSubtotal > 0
+      ? Math.max(0, orderOriginalSubtotal - netItemsPaid)
+      : 0;
+
+    let itemDiscountRate = 0;
+    if (orderOriginalSubtotal > 0) {
+      if (storedPrepaidDiscount > 0 && Math.abs((storedPrepaidDiscount / orderOriginalSubtotal) - 0.05) < 0.005) {
+        itemDiscountRate = 0.05;
+      } else if (totalItemDiscount > 0) {
+        itemDiscountRate = Math.min(1, Math.max(0, totalItemDiscount / orderOriginalSubtotal));
+      } else if (storedPrepaidDiscount > 0) {
+        itemDiscountRate = Math.min(1, Math.max(0, storedPrepaidDiscount / orderOriginalSubtotal));
+      }
+    }
+
+    const discountShareForReturned = Math.round(reqItemsSubtotal * itemDiscountRate * 100) / 100;
+    const effectivePaidForReturned = orderPaidAmount === 0 
+      ? 0 
+      : Math.max(0, Math.min(netItemsPaid, Math.round((reqItemsSubtotal - discountShareForReturned) * 100) / 100));
 
     // Check if this order was placed using a Marketing / Promo Code or has ₹0 paid / zero refund
     const isMarketingOrZeroOrder = orderPaidAmount <= 0 ||
@@ -796,8 +819,8 @@ const processReturnRefund = async (req, res) => {
       // Customer selected "Original Payment Method" (or default):
       // If order was a split payment (both wallet deduction and razorpay payment):
       if (orderWalletDeduction > 0 && orderRazorpayPaid > 0 && orderPaidAmount > 0) {
-        walletRefundAmount = Math.min(orderWalletDeduction, Math.round(refundAmountRs * (orderWalletDeduction / orderPaidAmount)));
-        razorpayRefundAmount = Math.max(0, refundAmountRs - walletRefundAmount);
+        walletRefundAmount = Math.round(Math.min(orderWalletDeduction, refundAmountRs * (orderWalletDeduction / orderPaidAmount)) * 100) / 100;
+        razorpayRefundAmount = Math.min(orderRazorpayPaid, Math.max(0, Math.round((refundAmountRs - walletRefundAmount) * 100) / 100));
       } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
         // 100% wallet paid order
         walletRefundAmount = refundAmountRs;
@@ -866,8 +889,21 @@ const processReturnRefund = async (req, res) => {
 
       let refundResult;
       try {
+        let paiseToRefund = Math.round(razorpayRefundAmount * 100);
+        try {
+          const paymentData = await rzp.payments.fetch(paymentId);
+          if (paymentData && typeof paymentData.amount === "number") {
+            const maxRefundablePaise = Math.max(0, paymentData.amount - (paymentData.amount_refunded || 0));
+            if (paiseToRefund > maxRefundablePaise) {
+              paiseToRefund = maxRefundablePaise;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("[Split Refund] Warning fetching payment before refund:", fetchErr?.message);
+        }
+
         refundResult = await rzp.payments.refund(paymentId, {
-          amount: Math.round(razorpayRefundAmount * 100),
+          amount: paiseToRefund,
           notes: {
             orderId: order.orderId,
             reason: targetReturn?.reason || "Return split refund post inspection",
@@ -1063,8 +1099,21 @@ const processReturnRefund = async (req, res) => {
 
     let refundResult;
     try {
+      let paiseToRefund = Math.round(razorpayRefundAmount * 100);
+      try {
+        const paymentData = await rzp.payments.fetch(paymentId);
+        if (paymentData && typeof paymentData.amount === "number") {
+          const maxRefundablePaise = Math.max(0, paymentData.amount - (paymentData.amount_refunded || 0));
+          if (paiseToRefund > maxRefundablePaise) {
+            paiseToRefund = maxRefundablePaise;
+          }
+        }
+      } catch (fetchErr) {
+        console.warn("[Razorpay Refund] Warning fetching payment before refund:", fetchErr?.message);
+      }
+
       refundResult = await rzp.payments.refund(paymentId, {
-        amount: Math.round(razorpayRefundAmount * 100),
+        amount: paiseToRefund,
         notes: {
           orderId: order.orderId,
           reason: targetReturn?.reason || "Return refund post inspection"

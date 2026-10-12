@@ -472,30 +472,60 @@ export default function ReturnAndExchangePage() {
         return sum + (item ? (item.price * qty) : 0);
     }, 0);
 
+    // Helper to format currency correctly with paise (e.g. 222.30) or whole rupees
+    const formatCurrency = (val) => {
+        const num = Number(val) || 0;
+        return num % 1 === 0
+            ? num.toLocaleString("en-IN")
+            : num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
     // Calculate actual amount paid by customer for this order:
-    // If order was zero rupees (e.g. 100% promo code, gift claim) or discounted,
-    // the customer is refunded what was actually paid, not the catalog t-shirt price!
+    // If order was zero rupees (e.g. 100% promo code, gift claim), customer is refunded ₹0.
     const orderPaidAmount = foundOrder
         ? (typeof foundOrder.totalAmount === "number"
             ? foundOrder.totalAmount
             : (parseFloat(String(foundOrder.totalAmount ?? foundOrder.orderTotal ?? 0).replace(/[^0-9.]/g, "")) || 0))
         : itemSubtotal;
 
+    // Total catalog subtotal of all items in the original order
     const orderOriginalSubtotal = foundOrder
-        ? (foundOrder.subtotal || foundOrder.items?.reduce((s, it) => {
+        ? (Number(foundOrder.subtotal) || foundOrder.items?.reduce((s, it) => {
             const rawP = it.priceNum ?? it.price;
             const p = typeof rawP === "number" ? rawP : (parseFloat(String(rawP || 0).replace(/[^0-9.]/g, "")) || 0);
             return s + (p * (it.quantity || 1));
         }, 0) || itemSubtotal)
         : itemSubtotal;
 
-    const paidRatio = orderOriginalSubtotal > 0
-        ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal))
+    // Proportional discount calculation:
+    // Do not refund shipping for partial returns (exclude order-level shipping & tax).
+    const orderShippingCost = foundOrder ? (Number(foundOrder.shippingCost) || 0) : 0;
+    const orderTaxAmount = foundOrder ? (Number(foundOrder.taxAmount) || 0) : 0;
+    const netItemsPaid = Math.max(0, orderPaidAmount - orderShippingCost - orderTaxAmount);
+
+    const storedPrepaidDiscount = foundOrder ? (Number(foundOrder.prepaidDiscount) || 0) : 0;
+    const totalItemDiscount = orderOriginalSubtotal > 0
+        ? Math.max(0, orderOriginalSubtotal - netItemsPaid)
         : 0;
 
+    // Determine proportional discount rate applied to items:
+    let itemDiscountRate = 0;
+    if (orderOriginalSubtotal > 0) {
+        if (storedPrepaidDiscount > 0 && Math.abs((storedPrepaidDiscount / orderOriginalSubtotal) - 0.05) < 0.005) {
+            itemDiscountRate = 0.05;
+        } else if (totalItemDiscount > 0) {
+            itemDiscountRate = Math.min(1, Math.max(0, totalItemDiscount / orderOriginalSubtotal));
+        } else if (storedPrepaidDiscount > 0) {
+            itemDiscountRate = Math.min(1, Math.max(0, storedPrepaidDiscount / orderOriginalSubtotal));
+        }
+    }
+
+    const discountShareForReturned = Math.round(itemSubtotal * itemDiscountRate * 100) / 100;
+
+    // Effective amount paid for the returned items:
     const effectivePaidForReturned = orderPaidAmount === 0
         ? 0
-        : Math.min(orderPaidAmount, Math.round(itemSubtotal * paidRatio));
+        : Math.max(0, Math.min(netItemsPaid, Math.round((itemSubtotal - discountShareForReturned) * 100) / 100));
 
     // Shipping cost rule for returns:
     // Only if user selects "Changed my mind" or "Other", return shipping fee (₹99) will be applicable.
@@ -503,7 +533,7 @@ export default function ReturnAndExchangePage() {
     const normalizedReason = (selectedReason || "").trim().toLowerCase();
     const isFeeApplicableReason = normalizedReason.includes("mind") || normalizedReason === "other" || normalizedReason.startsWith("other");
     const returnShippingFee = (requestType === "return" && isFeeApplicableReason) ? 99 : 0;
-    const totalRefund = Math.max(0, effectivePaidForReturned - (requestType === "return" ? returnShippingFee : 0));
+    const totalRefund = Math.max(0, Math.round((effectivePaidForReturned - (requestType === "return" ? returnShippingFee : 0)) * 100) / 100);
 
     return (
         <div className="min-h-screen bg-[#F9F9F9] text-black flex flex-col font-sans">
@@ -1448,23 +1478,23 @@ export default function ReturnAndExchangePage() {
                                         <div className="space-y-2 pb-4 border-b border-neutral-100">
                                             <div className="flex items-center justify-between text-xs text-neutral-500">
                                                 <span>Item Subtotal</span>
-                                                <span className="font-semibold text-neutral-800">Rs {itemSubtotal.toLocaleString()}</span>
+                                                <span className="font-semibold text-neutral-800">Rs {formatCurrency(itemSubtotal)}</span>
                                             </div>
                                             {itemSubtotal > effectivePaidForReturned && (
                                                 <div className="flex items-center justify-between text-xs text-emerald-600">
                                                     <span>Promo / Discount Applied</span>
-                                                    <span className="font-semibold">- Rs {(itemSubtotal - effectivePaidForReturned).toLocaleString()}</span>
+                                                    <span className="font-semibold">- Rs {formatCurrency(itemSubtotal - effectivePaidForReturned)}</span>
                                                 </div>
                                             )}
                                             <div className="flex items-center justify-between text-xs text-neutral-600 font-medium">
                                                 <span>Amount Paid for Items</span>
-                                                <span className="font-semibold text-neutral-900">Rs {effectivePaidForReturned.toLocaleString()}</span>
+                                                <span className="font-semibold text-neutral-900">Rs {formatCurrency(effectivePaidForReturned)}</span>
                                             </div>
                                             {requestType === "return" && returnShippingFee > 0 && (
                                                 <div className="flex items-center justify-between text-xs text-neutral-500">
                                                     <span>Return Shipping Fee</span>
                                                     <span className="font-semibold text-neutral-800">
-                                                        - Rs {returnShippingFee}
+                                                        - Rs {formatCurrency(returnShippingFee)}
                                                     </span>
                                                 </div>
                                             )}
@@ -1477,7 +1507,7 @@ export default function ReturnAndExchangePage() {
                                                 </div>
                                                 <span className="font-semibold text-base text-black">
                                                     {requestType === "return"
-                                                        ? `Rs ${totalRefund.toLocaleString()}`
+                                                        ? `Rs ${formatCurrency(totalRefund)}`
                                                         : `Size: ${requestedSize}${requestedColor ? ` | Color: ${requestedColor}` : ""}`
                                                     }
                                                 </span>
@@ -1507,9 +1537,9 @@ export default function ReturnAndExchangePage() {
 
                                                     let originalLabel = "Original Payment Method (Prepaid Orders)";
                                                     if (isSplit) {
-                                                        const walletShare = Math.min(orderWalletDeduction, Math.round(totalRefund * (orderWalletDeduction / orderTotalPaid)));
-                                                        const rzpShare = Math.max(0, totalRefund - walletShare);
-                                                        originalLabel = `Original Payment Method (Split: ₹${walletShare.toLocaleString()} to Wallet + ₹${rzpShare.toLocaleString()} via Razorpay)`;
+                                                        const walletShare = Math.round(Math.min(orderWalletDeduction, totalRefund * (orderWalletDeduction / orderTotalPaid)) * 100) / 100;
+                                                        const rzpShare = Math.max(0, Math.round((totalRefund - walletShare) * 100) / 100);
+                                                        originalLabel = `Original Payment Method (Split: ₹${formatCurrency(walletShare)} to Wallet + ₹${formatCurrency(rzpShare)} via Razorpay)`;
                                                     } else if (isPureWallet) {
                                                         originalLabel = "Original Payment Method (BacStory Wallet - Instant Credit)";
                                                     } else {

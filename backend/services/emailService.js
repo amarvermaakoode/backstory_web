@@ -522,11 +522,15 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
     "Estimated Delivery: 3-5 Business Days";
 
   const subtotal = Number(order.subtotal || 0);
-  const discountAmount = Number(order.discountAmount || 0);
+  const rawDiscount = Number(order.discountAmount || 0);
   const prepaidDiscount = Number(order.prepaidDiscount || 0);
   const walletDeduction = Number(order.walletDeduction || 0);
   const shippingCost = Number(order.shippingCost || 0);
   const totalAmount = Number(order.totalAmount || 0);
+  const totalDiscountGiven = Math.max(0, subtotal + shippingCost - totalAmount);
+  const discountAmount = prepaidDiscount > 0
+    ? Math.max(0, totalDiscountGiven - prepaidDiscount)
+    : rawDiscount;
 
   const addressLines = [
     addr.streetAddress,
@@ -979,8 +983,11 @@ const getStatusDetails = (status, type = "orderStatus", order = {}, notes = "", 
     badgeBorder = "#BFDBFE";
     badgeColor = "#1D4ED8";
     const refAmt = meta.refundAmount || order.refundDetails?.refundAmount || order.totalAmount || 0;
+    const formattedRefAmt = Number(refAmt) % 1 === 0
+      ? Number(refAmt).toLocaleString("en-IN")
+      : Number(refAmt).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     title = "Refund Processing Initiated";
-    headline = `A refund of ₹${Number(refAmt).toLocaleString("en-IN")} has been initiated. Estimated credit window: ${order.refundDetails?.estimatedCreditWindow || notes || "5-7 Business Days"}.`;
+    headline = `A refund of ₹${formattedRefAmt} has been initiated. Estimated credit window: ${order.refundDetails?.estimatedCreditWindow || notes || "5-7 Business Days"}.`;
     subject = `Refund Initiated for Order #${order.orderId} - BACSTORY`;
   } else if (norm === "refunded" || (type === "refund" && norm.includes("refunded"))) {
     badgeText = "REFUND COMPLETED";
@@ -988,9 +995,12 @@ const getStatusDetails = (status, type = "orderStatus", order = {}, notes = "", 
     badgeBorder = "#A7F3D0";
     badgeColor = "#065F46";
     const refAmt = meta.refundAmount || order.refundDetails?.refundAmount || order.totalAmount || 0;
+    const formattedRefAmt = Number(refAmt) % 1 === 0
+      ? Number(refAmt).toLocaleString("en-IN")
+      : Number(refAmt).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const refMethod = meta.refundMethod || order.refundDetails?.refundMethod || "Original Payment Method";
     title = "Refund Completed";
-    headline = `Your refund of ₹${Number(refAmt).toLocaleString("en-IN")} has been processed and credited to your ${refMethod}.`;
+    headline = `Your refund of ₹${formattedRefAmt} has been processed and credited to your ${refMethod}.`;
     subject = `Refund Completed for Order #${order.orderId} - BACSTORY`;
   } else if (norm.includes("exchange request") || (norm.includes("request") && type === "exchange")) {
     badgeText = "EXCHANGE REQUESTED";

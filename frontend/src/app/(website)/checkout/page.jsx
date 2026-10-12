@@ -12,6 +12,26 @@ import { getImageUrl, API_BASE_URL } from "@/lib/api";
 import CountrySelect from "@/components/ui/CountrySelect";
 import { getCountryByNameOrCode, getCountryName, validatePhoneNumber, getPostalRule, validatePostalCode, validatePostalCodeFormat, verifyPostalCode, fetchPostalCodeDetails } from "@/lib/countryPhoneValidation";
 
+// Subtle confetti particles for payment/order success celebration
+const SUCCESS_CONFETTI_PARTICLES = [
+    { dx: 0, dy: -46, size: 5, color: '#10b981', shape: 'circle', delay: 280 },
+    { dx: 25, dy: -40, size: 4, color: '#f59e0b', shape: 'circle', delay: 310 },
+    { dx: 44, dy: -22, size: 5, color: '#34d399', shape: 'rect', delay: 260 },
+    { dx: 48, dy: 0, size: 4, color: '#10b981', shape: 'circle', delay: 330 },
+    { dx: 42, dy: 24, size: 5, color: '#6ee7b7', shape: 'circle', delay: 290 },
+    { dx: 24, dy: 42, size: 4, color: '#f59e0b', shape: 'rect', delay: 320 },
+    { dx: 0, dy: 46, size: 5, color: '#34d399', shape: 'circle', delay: 270 },
+    { dx: -24, dy: 42, size: 4, color: '#10b981', shape: 'circle', delay: 300 },
+    { dx: -42, dy: 24, size: 5, color: '#6ee7b7', shape: 'rect', delay: 280 },
+    { dx: -48, dy: 0, size: 4, color: '#34d399', shape: 'circle', delay: 340 },
+    { dx: -44, dy: -22, size: 5, color: '#f59e0b', shape: 'circle', delay: 310 },
+    { dx: -25, dy: -40, size: 4, color: '#10b981', shape: 'rect', delay: 290 },
+    { dx: 18, dy: -26, size: 3, color: '#a7f3d0', shape: 'circle', delay: 350 },
+    { dx: 26, dy: 16, size: 3, color: '#fcd34d', shape: 'circle', delay: 360 },
+    { dx: -18, dy: 26, size: 3, color: '#a7f3d0', shape: 'circle', delay: 350 },
+    { dx: -26, dy: -16, size: 3, color: '#fcd34d', shape: 'circle', delay: 370 },
+];
+
 export default function CheckoutPage() {
     const { cartItems, cartSubtotal, cartCount, selectedCartItems, selectedSubtotal, selectedCount, removeFromCart, openCart, clearCart } = useCart();
     const { user, userFetch, refreshUser } = useUserAuth();
@@ -994,7 +1014,8 @@ export default function CheckoutPage() {
                                 image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
                             })),
                             subtotal: activeSubtotal,
-                            discountAmount,
+                            discountAmount: promoDiscountAmount,
+                            prepaidDiscount: 0,
                             shippingCost,
                             taxAmount,
                             totalAmount,
@@ -1310,7 +1331,7 @@ export default function CheckoutPage() {
                                             image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
                                         })),
                                         subtotal: activeSubtotal,
-                                        discountAmount,
+                                        discountAmount: promoDiscountAmount,
                                         prepaidDiscount: prepaidDiscountAmount,
                                         shippingCost,
                                         taxAmount,
@@ -2199,21 +2220,84 @@ export default function CheckoutPage() {
 
             {/* Success Confirmation Modal Overlay */}
             {isOrderComplete && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl animate-fade-in flex flex-col items-center">
-                        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 border border-green-100">
-                            <CheckCircle2 className="w-9 h-9 stroke-[1.5]" />
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-successModalBackdrop">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl flex flex-col items-center animate-successModalCard">
+                        {/* Green circular checkmark with ripple and subtle confetti particles */}
+                        <div className="relative mb-6 flex items-center justify-center">
+                            {/* Subtle radiant ripple behind circular badge */}
+                            <div className="absolute w-16 h-16 rounded-full bg-green-400/25 animate-successRipplePulse pointer-events-none" />
+
+                            {/* Minimal Confetti Particles */}
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center" aria-hidden="true">
+                                {SUCCESS_CONFETTI_PARTICLES.map((p, idx) => (
+                                    <span
+                                        key={idx}
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            width: `${p.size}px`,
+                                            height: p.shape === 'rect' ? `${p.size * 1.5}px` : `${p.size}px`,
+                                            backgroundColor: p.color,
+                                            borderRadius: p.shape === 'rect' ? '2px' : '9999px',
+                                            '--dx': `${p.dx}px`,
+                                            '--dy': `${p.dy}px`,
+                                            animation: `successParticleBurst 750ms cubic-bezier(0.16, 1, 0.3, 1) ${p.delay}ms forwards`,
+                                            transform: 'translate(-50%, -50%) scale(0)',
+                                            opacity: 0,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Green Circle Badge with Animated Checkmark */}
+                            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 border border-green-100 animate-successCirclePop relative z-10">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.75"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="w-9 h-9 text-green-500"
+                                    aria-hidden="true"
+                                >
+                                    <circle
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        className="animate-successCircleDraw origin-center"
+                                        style={{
+                                            strokeDasharray: 63,
+                                            strokeDashoffset: 63,
+                                        }}
+                                    />
+                                    <path
+                                        d="m9 12 2 2 4-4"
+                                        className="animate-successCheckDraw"
+                                        style={{
+                                            strokeDasharray: 20,
+                                            strokeDashoffset: 20,
+                                        }}
+                                    />
+                                </svg>
+                            </div>
                         </div>
 
-                        <h2 className="heading-sub text-black">
-                            Order Placed Successfully!
-                        </h2>
+                        {/* Heading & Subtitle */}
+                        <div className="animate-successContentFadeUp flex flex-col items-center" style={{ animationDelay: '360ms' }}>
+                            <h2 className="heading-sub text-black">
+                                Order Placed Successfully!
+                            </h2>
 
-                        <p className="text-sm text-neutral-400 mt-2 font-medium">
-                            Thank you for shopping with us, {completedOrderSummary?.recipientName || formData.firstName}.
-                        </p>
+                            <p className="text-sm text-neutral-400 mt-2 font-medium">
+                                Thank you for shopping with us, {completedOrderSummary?.recipientName || formData.firstName}.
+                            </p>
+                        </div>
 
-                        <div className="my-6 py-4 px-6 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-left space-y-2.5">
+                        {/* Order Details Card */}
+                        <div
+                            className="my-6 py-4 px-6 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-left space-y-2.5 animate-successContentFadeUp"
+                            style={{ animationDelay: '500ms' }}
+                        >
                             <div className="flex justify-between text-xs sm:text-sm font-medium">
                                 <span className="text-neutral-400">Order Number:</span>
                                 <span className="font-bold text-black">{completedOrderSummary?.orderNum || generatedOrderNum}</span>
@@ -2265,18 +2349,23 @@ export default function CheckoutPage() {
                             </div>
                         </div>
 
-                        <p className="text-xs text-neutral-400 leading-relaxed px-4">
+                        {/* Confirmation Email Notice */}
+                        <p
+                            className="text-xs text-neutral-400 leading-relaxed px-4 animate-successContentFadeUp"
+                            style={{ animationDelay: '640ms' }}
+                        >
                             A confirmation email and order receipt have been sent to <span className="font-semibold text-neutral-600">{completedOrderSummary?.email || formData.deliveryEmail || formData.contactEmail}</span>.
                         </p>
 
-
+                        {/* Back to Homepage Button */}
                         <Link
                             href="/"
                             onClick={() => {
                                 setIsOrderComplete(false);
                                 setCompletedOrderSummary(null);
                             }}
-                            className="w-full py-3.5 bg-black hover:bg-neutral-800 text-white rounded-full font-bold text-sm tracking-wide transition-colors mt-8 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                            className="w-full py-3.5 bg-black hover:bg-neutral-800 text-white rounded-full font-bold text-sm tracking-wide transition-colors mt-8 flex items-center justify-center gap-2 cursor-pointer shadow-md animate-successContentFadeUp"
+                            style={{ animationDelay: '760ms' }}
                         >
                             <span>Back to Homepage</span>
                         </Link>

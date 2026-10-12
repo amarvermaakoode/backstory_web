@@ -225,7 +225,10 @@ const getUserOrders = async (req, res) => {
       });
     }
 
-    const orders = await Order.find({ $or: queryConditions })
+    const orders = await Order.find({
+      $or: queryConditions,
+      userDeleted: { $ne: true }
+    })
       .populate("items.product", "title slug _id price colors")
       .sort({ createdAt: -1 });
 
@@ -312,7 +315,7 @@ const getOrderDetails = async (req, res) => {
       ]
     }).populate("items.product", "title slug _id price colors");
 
-    if (!order) {
+    if (!order || order.userDeleted) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
@@ -344,7 +347,7 @@ const cancelUserOrder = async (req, res) => {
       $or: [{ _id: isMongoId ? orderId : null }, { orderId: orderId.trim() }]
     });
 
-    if (!order) {
+    if (!order || order.userDeleted) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
@@ -437,6 +440,14 @@ const cancelUserOrder = async (req, res) => {
         updatedAt: new Date(),
         estimatedCreditWindow: "5-7 Business Days"
       };
+
+      if (finalPayStatus === "Refunded") {
+        order.statusTimeline.push({
+          status: "Refunded",
+          timestamp: new Date(),
+          note: `Refund of Rs ${fullRefundAmount} credited via Original Payment Method`
+        });
+      }
     } else {
       order.paymentStatus = "Cancelled (Unpaid)";
       if (order.items && Array.isArray(order.items)) {
@@ -600,7 +611,7 @@ const findOrderForReturn = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    if (!order) {
+    if (!order || order.userDeleted) {
       return res.status(404).json({ success: false, message: "No matching order found. Please check your order number and email." });
     }
 
@@ -804,19 +815,16 @@ const submitReturnExchange = async (req, res) => {
 
       const orderPaidAmount = parseNumericPrice(order.totalAmount !== undefined ? order.totalAmount : order.orderTotal, 0);
 
-      // Total catalog subtotal of all items in the order
+      // Total catalog subtotal of all items in the original order
       const orderOriginalSubtotal = order.subtotal > 0
-        ? order.subtotal
+        ? parseNumericPrice(order.subtotal, 0)
         : (order.items && Array.isArray(order.items)
             ? order.items.reduce((s, it) => s + (parseNumericPrice(it.priceNum ?? it.price, 0) * (it.quantity || 1)), 0)
             : orderPaidAmount);
 
-      // Ratio of actual amount paid to total catalog subtotal
-      const paidRatio = orderOriginalSubtotal > 0 ? Math.min(1, Math.max(0, orderPaidAmount / orderOriginalSubtotal)) : 0;
-
       if (Array.isArray(items) && items.length > 0) {
         items.forEach(reqItem => {
-          const origItem = order.items?.find(i => (i._id?.toString() === reqItem.itemId || i.id === reqItem.itemId || i.name === reqItem.name));
+          const origItem = order.items?.find(i => (reqItem.itemId && (i._id?.toString() === reqItem.itemId || i.id === reqItem.itemId)) || (reqItem.name && i.name === reqItem.name));
           const unitPrice = origItem
             ? parseNumericPrice(origItem.priceNum ?? origItem.price, 0)
             : 0;
@@ -827,13 +835,38 @@ const submitReturnExchange = async (req, res) => {
         itemsSubtotal = orderOriginalSubtotal;
       }
 
+      // Proportional discount calculation:
+      // Exclude order-level shipping and tax so shipping is NOT refunded for partial returns.
+      const orderShippingCost = parseNumericPrice(order.shippingCost, 0);
+      const orderTaxAmount = parseNumericPrice(order.taxAmount, 0);
+      const netItemsPaid = Math.max(0, orderPaidAmount - orderShippingCost - orderTaxAmount);
+
+      const storedPrepaidDiscount = parseNumericPrice(order.prepaidDiscount, 0);
+      const totalItemDiscount = orderOriginalSubtotal > 0
+        ? Math.max(0, orderOriginalSubtotal - netItemsPaid)
+        : 0;
+
+      // Determine proportional discount rate applied to items:
+      let itemDiscountRate = 0;
+      if (orderOriginalSubtotal > 0) {
+        if (storedPrepaidDiscount > 0 && Math.abs((storedPrepaidDiscount / orderOriginalSubtotal) - 0.05) < 0.005) {
+          itemDiscountRate = 0.05;
+        } else if (totalItemDiscount > 0) {
+          itemDiscountRate = Math.min(1, Math.max(0, totalItemDiscount / orderOriginalSubtotal));
+        } else if (storedPrepaidDiscount > 0) {
+          itemDiscountRate = Math.min(1, Math.max(0, storedPrepaidDiscount / orderOriginalSubtotal));
+        }
+      }
+
+      const discountShareForReturned = Math.round(itemsSubtotal * itemDiscountRate * 100) / 100;
+
       // If customer paid ₹0 (e.g. promo code, marketing giveaway, gift), refund is ₹0.
-      // Otherwise, refund the proportional amount actually paid for the returned items, capped at orderPaidAmount.
+      // Otherwise, refund the proportional amount actually paid for the returned items.
       const effectivePaidForReturned = orderPaidAmount === 0 
         ? 0 
-        : Math.min(orderPaidAmount, Math.round(itemsSubtotal * paidRatio));
+        : Math.max(0, Math.min(netItemsPaid, Math.round((itemsSubtotal - discountShareForReturned) * 100) / 100));
 
-      const calculatedRefund = Math.max(0, effectivePaidForReturned - returnShippingFee);
+      const calculatedRefund = Math.max(0, Math.round((effectivePaidForReturned - returnShippingFee) * 100) / 100);
       refundAmount = parseNumericPrice(calculatedRefund, 0);
 
       order.refundDetails = {

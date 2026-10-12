@@ -14,8 +14,8 @@ const syncUserWalletBalance = async (userId, userEmail, userPhone) => {
 
     if (orderConditions.length === 0) return 0;
 
-    // Find all matching orders for this user
-    const userOrders = await Order.find({ $or: orderConditions });
+    // Find all matching orders for this user (excluding orders from deleted accounts)
+    const userOrders = await Order.find({ $or: orderConditions, userDeleted: { $ne: true } });
 
     let totalWalletRefunds = 0;
     let totalWalletDebits = 0;
@@ -80,7 +80,7 @@ const syncUserWalletBalance = async (userId, userEmail, userPhone) => {
               if (orderWalletDeduction > 0 && orderRazorpayPaid > 0 && totalAmount > 0) {
                 // Split payment order: only the wallet portion is refunded to wallet
                 isSplit = true;
-                orderWalletRefund = Math.min(orderWalletDeduction, Math.round(refundAmt * (orderWalletDeduction / totalAmount)));
+                orderWalletRefund = Math.round(Math.min(orderWalletDeduction, refundAmt * (orderWalletDeduction / totalAmount)) * 100) / 100;
               } else if (orderWalletDeduction > 0 && orderRazorpayPaid <= 0) {
                 // 100% wallet payment
                 orderWalletRefund = refundAmt;

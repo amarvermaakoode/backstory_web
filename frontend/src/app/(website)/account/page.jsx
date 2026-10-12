@@ -397,17 +397,27 @@ export default function AccountProfilePage() {
             message: "Are you sure you want to deactivate your account? You can reactivate it anytime by logging back in.",
             confirmText: "Deactivate",
             type: "warning",
+            loading: false,
             onConfirm: async () => {
-                setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-                showToast("Account deactivated successfully.", "info");
+                setConfirmModal((prev) => ({ ...prev, loading: true }));
                 try {
                     if (userFetch) {
-                        await userFetch("/auth/deactivate", { method: "POST" });
+                        const res = await userFetch("/auth/deactivate", { method: "POST" });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.success) {
+                            showToast("Account deactivated successfully.", "info");
+                            setConfirmModal((prev) => ({ ...prev, isOpen: false, loading: false }));
+                            logout();
+                            return;
+                        } else {
+                            showToast(data.message || "Failed to deactivate account.", "error");
+                        }
                     }
                 } catch (err) {
                     console.log("Deactivate error:", err);
+                    showToast("Failed to deactivate account. Please try again.", "error");
                 }
-                logout();
+                setConfirmModal((prev) => ({ ...prev, loading: false }));
             },
         });
     };
@@ -416,20 +426,30 @@ export default function AccountProfilePage() {
         setConfirmModal({
             isOpen: true,
             title: "Delete Account Permanently",
-            message: "Are you sure you want to permanently delete your account? All your order history and saved data will be lost. This action cannot be undone.",
+            message: "Are you sure you want to permanently delete your account? All your personal profile data will be permanently removed. This action cannot be undone.",
             confirmText: "Delete Account",
             type: "danger",
+            loading: false,
             onConfirm: async () => {
-                setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-                showToast("Your account has been deleted.", "error");
+                setConfirmModal((prev) => ({ ...prev, loading: true }));
                 try {
                     if (userFetch) {
-                        await userFetch("/auth/account", { method: "DELETE" });
+                        const res = await userFetch("/auth/account", { method: "DELETE" });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.success) {
+                            showToast("Your account has been deleted permanently.", "info");
+                            setConfirmModal((prev) => ({ ...prev, isOpen: false, loading: false }));
+                            logout();
+                            return;
+                        } else {
+                            showToast(data.message || "Failed to delete account.", "error");
+                        }
                     }
                 } catch (err) {
                     console.log("Delete account error:", err);
+                    showToast("Failed to delete account. Please try again.", "error");
                 }
-                logout();
+                setConfirmModal((prev) => ({ ...prev, loading: false }));
             },
         });
     };

@@ -43,13 +43,6 @@ const sendOtp = async (req, res) => {
             : "This account doesn't exist. Please sign up.",
         });
       }
-      if (existingUser.isDeactivated) {
-        return res.status(403).json({
-          success: false,
-          isDeactivated: true,
-          message: "Your account is deactivated. Please contact support.",
-        });
-      }
     }
 
     if (authType === "signup") {
@@ -192,6 +185,7 @@ const verifyOtp = async (req, res) => {
       user = await User.findOne({ phoneNumber: formattedPhone });
     }
 
+    let accountReactivated = false;
     if (authType === "login") {
       if (!user) {
         return res.status(404).json({
@@ -201,11 +195,9 @@ const verifyOtp = async (req, res) => {
         });
       }
       if (user.isDeactivated) {
-        return res.status(403).json({
-          success: false,
-          isDeactivated: true,
-          message: "Your account is deactivated. Please contact support.",
-        });
+        user.isDeactivated = false;
+        await user.save();
+        accountReactivated = true;
       }
     }
 
@@ -235,8 +227,13 @@ const verifyOtp = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: isNewUser ? "User registered and logged in successfully" : "Logged in successfully",
+      message: accountReactivated
+        ? "Welcome back! Your account has been reactivated."
+        : isNewUser
+          ? "User registered and logged in successfully"
+          : "Logged in successfully",
       isNewUser,
+      accountReactivated,
       token,
       user: {
         id: user._id,
@@ -247,7 +244,7 @@ const verifyOtp = async (req, res) => {
         dateOfBirth: user.dateOfBirth || "",
         role: user.role,
         addresses: user.addresses || [],
-        isDeactivated: user.isDeactivated || false,
+        isDeactivated: false,
         walletBalance: user.walletBalance || 0,
         walletTransactions: user.walletTransactions || [],
       },
@@ -570,17 +567,78 @@ const deactivateAccount = async (req, res) => {
   }
 };
 
-// Delete account
+// Delete account (Completely wipe all user-end data)
 const deleteAccount = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.user.id || req.user._id);
+    const userId = req.user.id || req.user._id;
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    const cleanEmail = (user.email || "").toLowerCase().trim();
+    const cleanPhone = (user.phoneNumber || "").trim();
+
+    // 1. Mark orders as userDeleted: true and unlink user reference so they never appear on the user end
+    try {
+      const Order = require("../../models/Order");
+      const orderFilters = [];
+      if (userId) orderFilters.push({ user: userId });
+      if (cleanEmail) orderFilters.push({ "shippingAddress.email": cleanEmail });
+      if (cleanPhone) orderFilters.push({ "shippingAddress.phoneNumber": cleanPhone });
+
+      if (orderFilters.length > 0) {
+        await Order.updateMany(
+          { $or: orderFilters },
+          { $set: { userDeleted: true, user: null } }
+        );
+      }
+    } catch (orderErr) {
+      console.error("Error disassociating orders on user delete:", orderErr.message);
+    }
+
+    // 2. Unlink any claimed QR codes and reset public profile data
+    try {
+      const QRCode = require("../../models/QRCode");
+      await QRCode.updateMany(
+        { linkedUser: userId },
+        {
+          $set: {
+            status: "unlinked",
+            linkedUser: null,
+            linkedAt: null,
+            profileData: {
+              title: "",
+              bio: "",
+              socialLinks: {},
+              avatarUrl: "",
+              coverUrl: "",
+              themeColor: "#000000",
+              customText: "",
+            },
+          },
+        }
+      );
+    } catch (qrErr) {
+      console.error("Error unlinking QR codes on user delete:", qrErr.message);
+    }
+
+    // 3. Clean up user support tickets
+    try {
+      const SupportTicket = require("../../models/supportTicket");
+      const ticketFilters = [{ user: userId }];
+      if (cleanEmail) ticketFilters.push({ email: cleanEmail });
+      await SupportTicket.deleteMany({ $or: ticketFilters });
+    } catch (ticketErr) {
+      console.error("Error deleting support tickets on user delete:", ticketErr.message);
+    }
+
+    // 4. Permanently delete user document from database
+    await User.findByIdAndDelete(userId);
+
     return res.status(200).json({
       success: true,
-      message: "Account deleted successfully",
+      message: "Account and all associated user data have been completely deleted.",
     });
   } catch (error) {
     console.error("Delete account error:", error.message);

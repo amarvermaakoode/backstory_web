@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { getImageUrl, API_BASE_URL } from "@/lib/api";
+import TrackOrderModal from "@/components/ui/TrackOrderModal";
 
 const ORDER_STEPS = [
     {
@@ -304,12 +305,18 @@ export default function OrderDetailPage({ params }) {
         const p = Number(it.priceNum) || Number(String(it.price || "").replace(/[^0-9.]/g, "")) || 0;
         return sum + p * (it.quantity || 1);
     }, 0);
-    const discountAmount = Number(order.discountAmount) || 0;
+    const rawDiscountAmount = Number(order.discountAmount) || 0;
     const prepaidDiscount = Number(order.prepaidDiscount) || 0;
     const shippingCost = Number(order.shippingCost) || 0;
     const taxAmount = Number(order.taxAmount) || 0;
     const walletDeduction = Number(order.walletDeduction) || 0;
-    const totalAmount = Number(order.totalAmount) || Math.max(0, subtotal - discountAmount - prepaidDiscount - walletDeduction + shippingCost + taxAmount);
+    const totalAmount = Number(order.totalAmount) || Math.max(0, subtotal - rawDiscountAmount - walletDeduction + shippingCost + taxAmount);
+
+    // Differentiate between standalone promo code discount and prepaid offer discount
+    const totalDiscountGiven = Math.max(0, subtotal + shippingCost + taxAmount - totalAmount);
+    const promoDiscountAmount = prepaidDiscount > 0
+        ? Math.max(0, totalDiscountGiven - prepaidDiscount)
+        : rawDiscountAmount;
 
     return (
         <div className="space-y-8">
@@ -602,7 +609,7 @@ export default function OrderDetailPage({ params }) {
                                 <span className="font-semibold text-neutral-900">₹{subtotal.toLocaleString("en-IN")}</span>
                             </div>
 
-                            {discountAmount > 0 && (
+                            {promoDiscountAmount > 0 && (
                                 <div className="flex items-center justify-between text-emerald-700">
                                     <span className="flex items-center gap-1">
                                         <span>Promo Discount</span>
@@ -612,7 +619,7 @@ export default function OrderDetailPage({ params }) {
                                             </span>
                                         )}
                                     </span>
-                                    <span className="font-bold">-₹{discountAmount.toLocaleString("en-IN")}</span>
+                                    <span className="font-bold">-₹{promoDiscountAmount.toLocaleString("en-IN")}</span>
                                 </div>
                             )}
 
@@ -729,78 +736,12 @@ export default function OrderDetailPage({ params }) {
                 </Link>
             </div>
 
-            {/* Track Order Dynamic 5-Step Timeline Modal */}
+            {/* Track Order Modal (Shared Reusable Component) */}
             {isTrackModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200"
-                    onClick={() => setIsTrackModalOpen(false)}
-                >
-                    <div
-                        className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
-                            <div>
-                                <h3 className="text-lg font-semibold font-clashDisplay text-neutral-900">
-                                    Tracking Order #{order.orderId || order.id}
-                                </h3>
-                                <p className="text-xs text-neutral-500">
-                                    Status: <span className="font-bold text-neutral-900">{currentStatus}</span>
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setIsTrackModalOpen(false)}
-                                className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        {/* Timeline */}
-                        <div className="space-y-6 relative pl-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-neutral-200">
-                            {ORDER_STEPS.map((step, idx) => {
-                                const isPassed = idx < activeStepIdx;
-                                const isCurrent = idx === activeStepIdx;
-                                const stepDate = getStepTimelineDate(step.title, idx, order, activeStepIdx);
-
-                                return (
-                                    <div key={step.title} className="relative space-y-1">
-                                        <div
-                                            className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                                                isPassed
-                                                    ? "bg-black text-white"
-                                                    : isCurrent
-                                                    ? "bg-black text-white ring-4 ring-neutral-200"
-                                                    : "bg-white border-2 border-neutral-300 text-neutral-400"
-                                            }`}
-                                        >
-                                            {isPassed ? <Check className="w-3 h-3" /> : idx + 1}
-                                        </div>
-
-                                        <p className={`text-xs font-bold ${isCurrent ? "text-neutral-900" : isPassed ? "text-neutral-800" : "text-neutral-400"}`}>
-                                            {step.title}
-                                        </p>
-                                        <p className="text-xs text-neutral-500 leading-relaxed">
-                                            {step.desc}
-                                        </p>
-                                        {stepDate && (
-                                            <p className="text-[11px] text-neutral-400 font-mono pt-0.5">
-                                                {stepDate}
-                                            </p>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <button
-                            onClick={() => setIsTrackModalOpen(false)}
-                            className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-2xl py-2.5 text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
+                <TrackOrderModal
+                    order={order}
+                    onClose={() => setIsTrackModalOpen(false)}
+                />
             )}
 
             {/* Cancel Order Modal */}
