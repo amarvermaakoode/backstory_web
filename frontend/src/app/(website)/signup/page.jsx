@@ -82,7 +82,12 @@ export default function SignupPage() {
 
   // Handle phone input formatting
   const handlePhoneChange = (e) => {
-    const value = e.target.value.replace(/\D/g, "");
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length === 12 && value.startsWith("91")) {
+      value = value.slice(2);
+    } else if (value.length === 11 && value.startsWith("0")) {
+      value = value.slice(1);
+    }
     if (value.length <= 10) {
       setPhoneNumber(value);
     }
@@ -139,9 +144,20 @@ export default function SignupPage() {
 
   // Handle OTP digit inputs
   const handleOtpInput = (index, value) => {
-    const cleanVal = value.replace(/\D/g, "").slice(-1);
+    const cleanVal = value.replace(/\D/g, "");
+    if (cleanVal.length > 1) {
+      const digits = cleanVal.slice(0, 6).split("");
+      const newOtp = [...otpCode];
+      digits.forEach((d, i) => {
+        if (index + i < 6) newOtp[index + i] = d;
+      });
+      setOtpCode(newOtp);
+      const nextIndex = Math.min(index + digits.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+      return;
+    }
     const newOtp = [...otpCode];
-    newOtp[index] = cleanVal;
+    newOtp[index] = cleanVal.slice(-1);
     setOtpCode(newOtp);
 
     // Auto-focus next input
@@ -275,30 +291,17 @@ export default function SignupPage() {
                     </h1>
                     <p className="text-xs sm:text-sm text-neutral-400 font-medium">
                       {otpSent
-                        ? `We've sent an OTP to ${email}`
-                        : "Your story starts here"
+                        ? `We've sent an OTP to ${activeTab === "mobile" ? `+91 ${phoneNumber}` : email}`
+                        : activeTab === "mobile"
+                          ? "Enter your mobile number to create your account"
+                          : "Your story starts here"
                       }
                     </p>
                   </div>
 
-                  {/* Mobile number signup tab commented out for now - Email only */}
-                  {/* {!otpSent && (
+                  {/* Signup Tabs: Email vs Mobile */}
+                  {!otpSent && (
                     <div className="bg-neutral-100 p-1.5 rounded-2xl flex gap-1 mb-8">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveTab("mobile");
-                          setAuthError("");
-                          setIsAccountExists(false);
-                          setOtpError("");
-                        }}
-                        className={`flex-1 text-center py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === "mobile"
-                          ? "bg-white text-black shadow-xs"
-                          : "text-neutral-400 hover:text-black"
-                          }`}
-                      >
-                        Mobile Number
-                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -314,13 +317,33 @@ export default function SignupPage() {
                       >
                         Email Address
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab("mobile");
+                          setAuthError("");
+                          setIsAccountExists(false);
+                          setOtpError("");
+                        }}
+                        className={`flex-1 text-center py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer ${activeTab === "mobile"
+                          ? "bg-white text-black shadow-xs"
+                          : "text-neutral-400 hover:text-black"
+                          }`}
+                      >
+                        Mobile Number
+                      </button>
                     </div>
-                  )} */}
+                  )}
 
                   {/* Form Block */}
                   {otpSent ? (
                     /* OTP Verification Form */
                     <form onSubmit={handleVerifyOtp} className="space-y-6">
+                      {mockOtpCode && (
+                        <div className="bg-amber-50 border border-amber-200/80 text-amber-900 text-xs rounded-xl p-3 text-center font-medium">
+                          Demo OTP: <strong className="font-mono text-sm tracking-wider font-bold">{mockOtpCode}</strong>
+                        </div>
+                      )}
                       {otpError && (
                         <p className="text-xs font-semibold text-red-500 bg-red-50 border border-red-100 rounded-xl p-3 text-center">
                           {otpError}
@@ -370,11 +393,21 @@ export default function SignupPage() {
                       {authError && (
                         <div className="bg-red-50 border border-red-200/80 rounded-xl p-3.5 text-center text-xs text-red-600 font-semibold animate-fadeIn">
                           {authError}
+                          {isAccountExists && (
+                            <div className="mt-2">
+                              <Link
+                                href="/login"
+                                className="text-black underline font-bold"
+                              >
+                                Log in instead
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* Mobile Phone Input commented out for now */}
-                      {/* {activeTab === "mobile" && (
+                      {/* Mobile Phone Input */}
+                      {activeTab === "mobile" && (
                         <div>
                           <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
                             Mobile Number
@@ -402,39 +435,45 @@ export default function SignupPage() {
                             We&apos;ll send an OTP to verify your number
                           </p>
                         </div>
-                      )} */}
+                      )}
 
                       {/* Email Address Input (Passwordless) */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value);
-                            if (authError) {
-                              setAuthError("");
-                              setIsAccountExists(false);
-                            }
-                          }}
-                          placeholder="johndoe@gmail.com"
-                          className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
-                        />
-                        <p className="text-[11px] text-neutral-400 mt-2 font-medium">
-                          We&apos;ll send a 6-digit OTP to verify your email
-                        </p>
-                      </div>
+                      {activeTab === "email" && (
+                        <div>
+                          <label className="block text-[10px] font-bold text-neutral-400 tracking-wider mb-2 uppercase">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              if (authError) {
+                                setAuthError("");
+                                setIsAccountExists(false);
+                              }
+                            }}
+                            placeholder="johndoe@gmail.com"
+                            className="w-full h-14 border border-neutral-200 focus:outline-none focus:border-black rounded-xl px-4 outline-none text-sm font-medium transition-colors bg-white text-black"
+                          />
+                          <p className="text-[11px] text-neutral-400 mt-2 font-medium">
+                            We&apos;ll send a 6-digit OTP to verify your email
+                          </p>
+                        </div>
+                      )}
 
                       <button
                         type="submit"
-                        disabled={!email.includes("@") || loading}
-                        className={`w-full h-14 rounded-full font-bold text-sm transition-all duration-300 active:scale-[0.99] cursor-pointer flex items-center justify-center ${email.includes("@") && !loading
-                          ? "bg-black text-white hover:bg-neutral-800 hover:shadow-md"
-                          : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                          }`}
+                        disabled={
+                          (activeTab === "mobile" ? phoneNumber.length !== 10 : !email.includes("@")) ||
+                          loading
+                        }
+                        className={`w-full h-14 rounded-full font-bold text-sm transition-all duration-300 active:scale-[0.99] cursor-pointer flex items-center justify-center ${
+                          (activeTab === "mobile" ? phoneNumber.length === 10 : email.includes("@")) && !loading
+                            ? "bg-black text-white hover:bg-neutral-800 hover:shadow-md"
+                            : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                        }`}
                       >
                         {loading ? "Sending..." : "Continue"}
                       </button>

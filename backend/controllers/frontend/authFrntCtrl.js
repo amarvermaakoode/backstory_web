@@ -2,6 +2,7 @@ const User = require("../../models/user");
 const Otp = require("../../models/otp");
 const { generateToken } = require("../../config/jwt");
 const { sendOtpEmail } = require("../../services/emailService");
+const { sendWidgetOtp, verifyWidgetOtp } = require("../../services/msg91Service");
 
 // Send OTP
 const sendOtp = async (req, res) => {
@@ -9,29 +10,30 @@ const sendOtp = async (req, res) => {
     const { email, phoneNumber, type, mode } = req.body;
     const authType = type || mode; // "login" | "signup"
 
-    // Mobile authentication commented out for now - Email only
-    if (!email) {
+    if (!email && !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: "Please provide your email address. Mobile login/signup is temporarily disabled.",
+        message: "Please provide either an email address or mobile number.",
       });
     }
 
     const formattedEmail = email ? email.toLowerCase().trim() : undefined;
-    // Mobile authentication is disabled for now:
-    // const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
-    const formattedPhone = undefined;
+    const formattedPhone = phoneNumber ? phoneNumber.replace(/\D/g, "").trim() : undefined;
+
+    if (formattedPhone && formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid 10-digit mobile number.",
+      });
+    }
 
     // Check existing user for login / signup validation
     let existingUser = null;
     if (formattedEmail) {
       existingUser = await User.findOne({ email: formattedEmail });
-    }
-    /*
-    else if (formattedPhone) {
+    } else if (formattedPhone) {
       existingUser = await User.findOne({ phoneNumber: formattedPhone });
     }
-    */
 
     if (authType === "login") {
       if (!existingUser || existingUser.role === "admin") {
@@ -57,24 +59,17 @@ const sendOtp = async (req, res) => {
       }
     }
 
-    // Generate a 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Clean up any existing OTPs for this email/phone number
-    const query = {};
-    if (formattedEmail) query.email = formattedEmail;
-    if (formattedPhone) query.phoneNumber = formattedPhone;
-
-    await Otp.deleteMany(query);
-
-    // Save new OTP
-    await Otp.create({
-      ...query,
-      otp,
-    });
-
-    // If email is provided, send real OTP email via SendGrid
+    // Pathway 1: If email is provided, send real OTP email via SendGrid
     if (formattedEmail) {
+      // Generate a 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      await Otp.deleteMany({ email: formattedEmail });
+      await Otp.create({
+        email: formattedEmail,
+        otp,
+      });
+
       console.log(`[Auth] Dispatching ${authType} OTP email via SendGrid to ${formattedEmail}...`);
       const emailResult = await sendOtpEmail({
         to: formattedEmail,
@@ -100,19 +95,59 @@ const sendOtp = async (req, res) => {
       });
     }
 
-    /*
-    // Mobile pathway (mock OTP returned while SMS service is pending) - Commented out for now
-    console.log(`[Auth] Mock OTP generated for phone ${formattedPhone}: ${otp}`);
-    return res.status(200).json({
-      success: true,
-      message: `OTP sent successfully to +91 ${formattedPhone}.`,
-      mockOtp: otp,
-    });
-    */
-    return res.status(400).json({
-      success: false,
-      message: "Please provide a valid email address.",
-    });
+    // Pathway 2: If phone number is provided, dispatch OTP via MSG91 Widget
+    if (formattedPhone) {
+      const authKey = (process.env.MSG91_AUTHKEY || process.env.MSG91_AUTH_KEY || "").trim();
+
+      // If MSG91 auth key is configured, call MSG91 Widget sendOtp API
+      if (authKey) {
+        console.log(`[Auth] Dispatching ${authType} mobile OTP via MSG91 to +91 ${formattedPhone}...`);
+        const msg91Res = await sendWidgetOtp(formattedPhone);
+
+        if (msg91Res.success) {
+          // Clean up existing OTPs for this phone number
+          await Otp.deleteMany({ phoneNumber: formattedPhone });
+
+          // Save OTP record with MSG91 reqId
+          await Otp.create({
+            phoneNumber: formattedPhone,
+            reqId: msg91Res.reqId,
+          });
+
+          return res.status(200).json({
+            success: true,
+            message: `OTP sent successfully to +91 ${formattedPhone}. Please check your mobile phone.`,
+            isMsg91: true,
+          });
+        }
+
+        console.error(`[Auth] MSG91 failed to send OTP to ${formattedPhone}:`, msg91Res.error);
+        const isCaptchaError = typeof msg91Res.error === "string" && msg91Res.error.toLowerCase().includes("captcha");
+        return res.status(400).json({
+          success: false,
+          message: isCaptchaError
+            ? "Captcha verification is enabled on your MSG91 widget. Please turn OFF 're-Captcha validation' in your MSG91 Dashboard > OTP Widget (366a6d67716a333633383431) > Settings."
+            : (msg91Res.error || "Failed to send mobile verification code via MSG91. Please try again."),
+        });
+      }
+
+      // Fallback simulation when MSG91_AUTHKEY is not yet populated in .env
+      console.warn(`[Auth] MSG91_AUTHKEY is not configured in backend/.env. Using simulation/mock OTP.`);
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      await Otp.deleteMany({ phoneNumber: formattedPhone });
+      await Otp.create({
+        phoneNumber: formattedPhone,
+        otp,
+      });
+
+      console.log(`[Auth] Mock OTP generated for phone +91 ${formattedPhone}: ${otp}`);
+      return res.status(200).json({
+        success: true,
+        message: `OTP sent successfully to +91 ${formattedPhone}.`,
+        mockOtp: otp,
+      });
+    }
   } catch (error) {
     console.error("Send OTP error:", error.message);
     return res.status(500).json({
@@ -135,18 +170,15 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Mobile authentication commented out for now - Email only
-    if (!email) {
+    if (!email && !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: "Please provide your email address. Mobile login/signup is temporarily disabled.",
+        message: "Please provide your email address or mobile number.",
       });
     }
 
     const formattedEmail = email ? email.toLowerCase().trim() : undefined;
-    // Mobile authentication is disabled for now:
-    // const formattedPhone = phoneNumber ? phoneNumber.trim() : undefined;
-    const formattedPhone = undefined;
+    const formattedPhone = phoneNumber ? phoneNumber.replace(/\D/g, "").trim() : undefined;
 
     // Clean OTP string
     const cleanOtp = String(otp).trim();
@@ -157,15 +189,35 @@ const verifyOtp = async (req, res) => {
     // Support static universal mock OTP for testing
     if (cleanOtp === "123456") {
       isValid = true;
-    } else {
-      const query = { otp: cleanOtp };
-      if (formattedEmail) query.email = formattedEmail;
-      if (formattedPhone) query.phoneNumber = formattedPhone;
+    } else if (formattedPhone) {
+      const otpRecord = await Otp.findOne({ phoneNumber: formattedPhone });
 
-      const otpRecord = await Otp.findOne(query);
+      if (otpRecord) {
+        // If this OTP was sent via MSG91 widget, verify with MSG91 API
+        if (otpRecord.reqId) {
+          console.log(`[Auth] Verifying OTP with MSG91 for +91 ${formattedPhone} (reqId: ${otpRecord.reqId})...`);
+          const msg91Verify = await verifyWidgetOtp(otpRecord.reqId, cleanOtp);
+
+          if (msg91Verify.success) {
+            isValid = true;
+            await Otp.deleteOne({ _id: otpRecord._id });
+          } else {
+            console.warn(`[Auth] MSG91 OTP verification failed:`, msg91Verify.error);
+            return res.status(400).json({
+              success: false,
+              message: msg91Verify.error || "Invalid or expired OTP",
+            });
+          }
+        } else if (otpRecord.otp && otpRecord.otp === cleanOtp) {
+          // Fallback local OTP match
+          isValid = true;
+          await Otp.deleteOne({ _id: otpRecord._id });
+        }
+      }
+    } else if (formattedEmail) {
+      const otpRecord = await Otp.findOne({ email: formattedEmail, otp: cleanOtp });
       if (otpRecord) {
         isValid = true;
-        // Delete OTP after successful verification to prevent reuse
         await Otp.deleteOne({ _id: otpRecord._id });
       }
     }
@@ -215,11 +267,11 @@ const verifyOtp = async (req, res) => {
       // User doesn't exist, create a new user (Signup)
       isNewUser = true;
 
-      user = await User.create({
-        email: formattedEmail,
-        phoneNumber: formattedPhone,
-        role: "user",
-      });
+      const newUserData = { role: "user" };
+      if (formattedEmail) newUserData.email = formattedEmail;
+      if (formattedPhone) newUserData.phoneNumber = formattedPhone;
+
+      user = await User.create(newUserData);
     }
 
     // Generate JWT
