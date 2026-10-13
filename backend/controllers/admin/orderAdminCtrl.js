@@ -2,36 +2,96 @@ const Order = require("../../models/Order");
 const QRCode = require("../../models/QRCode");
 const { sendOrderStatusUpdateEmail } = require("../../services/emailService");
 
-// Helper to unclaim QR codes & delete story/profile data when a product return/exchange is completed
-const unclaimOrderQRCodes = async (orderId) => {
+// Helper to unclaim QR codes & delete all profile/story data when a product return/exchange is marked as returned, exchanged, or received back
+const unclaimOrderQRCodes = async (orderOrId, targetReturn = null) => {
   try {
-    if (!orderId) return;
-    const orderIdStr = orderId.toString().trim();
-    const qrs = await QRCode.find({
+    if (!orderOrId) return;
+    let orderIdStr = "";
+    let orderDoc = null;
+
+    if (typeof orderOrId === "object" && orderOrId.orderId) {
+      orderIdStr = orderOrId.orderId.toString().trim();
+      orderDoc = orderOrId;
+    } else {
+      orderIdStr = orderOrId.toString().trim();
+      const isMongoId = orderIdStr.length === 24 && /^[0-9a-fA-F]{24}$/.test(orderIdStr);
+      orderDoc = await Order.findOne({
+        $or: [{ _id: isMongoId ? orderIdStr : null }, { orderId: orderIdStr }]
+      });
+      if (orderDoc?.orderId) {
+        orderIdStr = orderDoc.orderId;
+      }
+    }
+
+    const query = {
       $or: [
         { orderId: orderIdStr },
-        { orderId: orderIdStr.toUpperCase() }
+        { orderId: { $regex: new RegExp(`^${orderIdStr}$`, "i") } }
       ]
-    });
+    };
+    if (orderDoc?._id) {
+      query.$or.push({ orderId: orderDoc._id.toString() });
+    }
+
+    const qrs = await QRCode.find(query);
+    if (!qrs || qrs.length === 0) return;
+
+    // Check if targetReturn specifies certain requestedItems (e.g. partial return of 1 item in a multi-item order)
+    const returnedItems = Array.isArray(targetReturn?.requestedItems) && targetReturn.requestedItems.length > 0
+      ? targetReturn.requestedItems
+      : null;
 
     for (const qrDoc of qrs) {
+      // If specific items were returned and there are multiple QRs, check if this QR corresponds to a returned item
+      if (returnedItems && qrs.length > 1) {
+        const qrTitle = (qrDoc.profileData?.title || "").toLowerCase().trim();
+        const matchesReturnedItem = returnedItems.some(item => {
+          const itemName = (item.name || "").toLowerCase().trim();
+          return qrTitle.includes(itemName) || (itemName && itemName.includes(qrTitle));
+        });
+
+        // If this QR doesn't match the returned item(s), skip unlinking it
+        if (!matchesReturnedItem) {
+          continue;
+        }
+      }
+
+      // Automatically unlink the QR code and delete all data associated with that QR
       qrDoc.status = "unlinked";
       qrDoc.orderId = null;
       qrDoc.linkedUser = null;
       qrDoc.linkedAt = null;
       qrDoc.profileData = {
         title: "",
+        storyType: "",
+        signature: "",
+        customText: "",
         bio: "",
-        socialLinks: {},
         avatarUrl: "",
         coverUrl: "",
         themeColor: "#000000",
-        customText: ""
+        askMeAbout: "",
+        rightNow: {
+          building: "",
+          learning: "",
+          obsessedWith: "",
+          chasing: "",
+          dreamingAbout: "",
+        },
+        storyPrompts: {
+          whoAmI: "",
+          unexpectedPart: "",
+          nextChapter: "",
+        },
+        socialLinks: {},
+        isPublic: false,
       };
+
       await qrDoc.save();
+      console.log(`[QR Unlink] Successfully unlinked QR ${qrDoc.code} and deleted all associated data (Order ${orderIdStr} returned/exchanged/received back).`);
     }
   } catch (err) {
-    console.error(`Error unclaiming QR codes for order ${orderId}:`, err);
+    console.error(`Error unclaiming QR codes for order ${orderOrId}:`, err);
   }
 };
 
@@ -372,8 +432,8 @@ const updateOrderStatus = async (req, res) => {
       newStatus: status,
     }).catch((err) => console.error("[Order Email] Admin status update email error:", err));
 
-    if (status === "Returned" || status === "Exchanged") {
-      await unclaimOrderQRCodes(order.orderId || order._id);
+    if (status === "Returned" || status === "Exchanged" || (status === "Return In Progress" && order.returnExchange?.status === "Product Received")) {
+      await unclaimOrderQRCodes(order);
     }
 
     // Sync wallet balance if payout method was BacStory Wallet
@@ -588,6 +648,7 @@ const markProductReceived = async (req, res) => {
         });
       }
       await order.save();
+      await unclaimOrderQRCodes(order, targetReturn);
       sendOrderStatusUpdateEmail({
         order,
         statusType: "exchange",
@@ -611,6 +672,7 @@ const markProductReceived = async (req, res) => {
     }
 
     await order.save();
+    await unclaimOrderQRCodes(order, targetReturn);
     sendOrderStatusUpdateEmail({
       order,
       statusType: "return",
@@ -1165,6 +1227,7 @@ const processReturnRefund = async (req, res) => {
     }
 
     await order.save();
+    await unclaimOrderQRCodes(order, targetReturn);
 
     sendOrderStatusUpdateEmail({
       order,
@@ -1269,6 +1332,8 @@ const deleteOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
+    await unclaimOrderQRCodes(order);
+
     return res.status(200).json({
       success: true,
       message: "Order deleted successfully."
@@ -1332,8 +1397,8 @@ const updateExchangeStatus = async (req, res) => {
       newStatus: status,
     }).catch((err) => console.error("[Order Email] Update exchange status email error:", err));
 
-    if (status === "Exchange Completed") {
-      await unclaimOrderQRCodes(order.orderId || order._id);
+    if (status === "Exchange Completed" || status === "Product Picked Up") {
+      await unclaimOrderQRCodes(order, order.returnExchange);
     }
 
     return res.status(200).json({

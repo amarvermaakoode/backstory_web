@@ -48,7 +48,29 @@ const deleteReview = async (req, res) => {
       });
     }
 
+    const productId = review.product;
     await Review.findByIdAndDelete(id);
+
+    // Update Product average rating & count
+    try {
+      const Product = require("../../models/product");
+      const activeReviews = await Review.find({ product: productId, status: true });
+      if (activeReviews.length > 0) {
+        const totalRating = activeReviews.reduce((sum, r) => sum + r.rating, 0);
+        const avg = (totalRating / activeReviews.length).toFixed(1);
+        await Product.findByIdAndUpdate(productId, {
+          rating: Number(avg),
+          reviewsCount: activeReviews.length,
+        });
+      } else {
+        await Product.findByIdAndUpdate(productId, {
+          rating: 0,
+          reviewsCount: 0,
+        });
+      }
+    } catch (prodErr) {
+      console.error("Error updating product rating summary after admin review deletion:", prodErr);
+    }
 
     return res.status(200).json({
       success: true,

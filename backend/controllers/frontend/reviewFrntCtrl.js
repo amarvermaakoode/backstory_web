@@ -250,9 +250,78 @@ const getReviewsByProduct = async (req, res) => {
   }
 };
 
+// Delete My Review (Frontend User)
+const deleteMyReview = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid review ID.",
+      });
+    }
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found.",
+      });
+    }
+
+    const currentUserId = (req.user?._id || req.user?.id || "").toString();
+    const isOwner = review.user && review.user.toString() === currentUserId;
+    const isAdmin = req.user?.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this review.",
+      });
+    }
+
+    const productId = review.product;
+    await Review.findByIdAndDelete(id);
+
+    // Update Product average rating & count
+    try {
+      const activeReviews = await Review.find({ product: productId, status: true });
+      if (activeReviews.length > 0) {
+        const totalRating = activeReviews.reduce((sum, r) => sum + r.rating, 0);
+        const avg = (totalRating / activeReviews.length).toFixed(1);
+        await Product.findByIdAndUpdate(productId, {
+          rating: Number(avg),
+          reviewsCount: activeReviews.length,
+        });
+      } else {
+        await Product.findByIdAndUpdate(productId, {
+          rating: 0,
+          reviewsCount: 0,
+        });
+      }
+    } catch (prodErr) {
+      console.error("Error updating product rating summary after deletion:", prodErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Review deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Error deleting review:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createReview,
   getReviewsByProduct,
   checkReviewEligibility,
   uploadReviewMedia,
+  deleteMyReview,
 };
+

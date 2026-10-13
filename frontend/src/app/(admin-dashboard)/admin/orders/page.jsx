@@ -610,20 +610,20 @@ export default function AdminOrdersPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-semibold uppercase text-[10px] tracking-wider">
+          <div className="overflow-x-auto w-full scrollbar-thin">
+            <table className="w-max min-w-full text-left text-xs sm:text-sm whitespace-nowrap">
+              <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-semibold uppercase text-[10px] tracking-wider whitespace-nowrap">
                 <tr>
-                  <th className="py-3.5 px-4 sm:px-6">Order ID & Date</th>
-                  <th className="py-3.5 px-4">Customer Details</th>
-                  <th className="py-3.5 px-4">Items</th>
-                  <th className="py-3.5 px-4">Shipping Method</th>
-                  <th className="py-3.5 px-4">Amount</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-center">Actions</th>
+                  <th className="py-3.5 px-4 sm:px-6 whitespace-nowrap">Order ID & Date</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Customer Details</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Items</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Shipping Method</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Amount</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
+                  <th className="py-3.5 px-4 sm:px-6 text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-100">
+              <tbody className="divide-y divide-neutral-100 whitespace-nowrap">
                 {paginatedOrders.map((order) => {
                   const currentStatus = getOrderDisplayStatus(order);
                   const addr = order.shippingAddress || {};
@@ -632,41 +632,40 @@ export default function AdminOrdersPage() {
                   return (
                     <tr key={order._id} className="hover:bg-neutral-50/60 transition-colors">
                       {/* Order ID & Date */}
-                      <td className="py-4 px-4 sm:px-6 align-top">
-                        <span className="font-semibold text-neutral-900 block font-mono text-sm">
+                      <td className="py-4 px-4 sm:px-6 align-middle whitespace-nowrap">
+                        <span className="font-semibold text-neutral-900 block font-mono text-sm whitespace-nowrap">
                           {order.orderId}
                         </span>
-                        <span className="text-[11px] text-neutral-400 flex items-center gap-1 mt-1 font-medium">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric"
-                          })}
+                        <span className="text-[11px] text-neutral-400 flex items-center gap-1 mt-1 font-medium whitespace-nowrap">
+                          <Calendar className="w-3 h-3 shrink-0" />
+                          <span>
+                            {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric"
+                            })}
+                          </span>
                         </span>
-
                       </td>
 
                       {/* Customer & Shipping Address */}
-                      <td className="py-4 px-4 align-top max-w-xs">
-                        <p className="font-semibold text-neutral-900">
+                      <td className="py-4 px-4 align-middle whitespace-nowrap">
+                        <p className="font-semibold text-neutral-900 whitespace-nowrap">
                           {addr.firstName} {addr.lastName}
                         </p>
-                        <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1 mt-0.5" title={addr.email || "No email"}>
+                        <p className="text-[11px] text-neutral-500 font-medium flex items-center gap-1 mt-0.5 whitespace-nowrap" title={addr.email || "No email"}>
                           <Mail className="w-3 h-3 text-neutral-400 shrink-0" />
-                          <span>
-                            {addr.email
-                              ? (addr.email.length > 20 ? `${addr.email.slice(0, 20)}...` : addr.email)
-                              : "No email"}
+                          <span className="whitespace-nowrap">
+                            {addr.email || "No email"}
                           </span>
                         </p>
                       </td>
 
                       {/* Items Summary */}
-                      <td className="py-4 px-4 align-top max-w-xs">
-                        <div className="space-y-2">
+                      <td className="py-4 px-4 align-middle whitespace-nowrap">
+                        <div className="space-y-2 whitespace-nowrap">
                           {order.items.slice(0, 1).map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-2.5">
+                            <div key={idx} className="flex items-center gap-2.5 whitespace-nowrap">
                               <div className="relative w-9 h-9 bg-neutral-100 rounded-lg overflow-hidden shrink-0 border border-neutral-200/60">
                                 <img
                                   src={getImageUrl(item.image)}
@@ -678,18 +677,18 @@ export default function AdminOrdersPage() {
                                   }}
                                 />
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-neutral-900 truncate">
+                              <div className="whitespace-nowrap">
+                                <p className="text-xs font-semibold text-neutral-900 whitespace-nowrap">
                                   {item.name}
                                 </p>
-                                <p className="text-[10px] text-neutral-500 font-medium">
+                                <p className="text-[10px] text-neutral-500 font-medium whitespace-nowrap">
                                   Qty: {item.quantity} • {item.size} • {item.color}
                                 </p>
                               </div>
                             </div>
                           ))}
                           {order.items.length > 1 && (
-                            <span className="text-[10px] text-neutral-400 font-semibold block">
+                            <span className="text-[10px] text-neutral-400 font-semibold block whitespace-nowrap">
                               +{order.items.length - 1} more item(s)
                             </span>
                           )}
@@ -697,19 +696,19 @@ export default function AdminOrdersPage() {
                       </td>
 
                       {/* Shipping Method */}
-                      <td className="py-4 px-4 align-top">
+                      <td className="py-4 px-4 align-middle whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border bg-white border-neutral-200 text-neutral-800 whitespace-nowrap shadow-2xs">
                           <Truck className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
-                          <span>{order.shippingMethod || "Standard Delivery"}</span>
+                          <span className="whitespace-nowrap">{order.shippingMethod || "Standard Delivery"}</span>
                         </span>
                       </td>
 
                       {/* Amount & Payment */}
-                      <td className="py-4 px-4 align-top">
-                        <span className="font-clashDisplay text-base font-semibold text-neutral-900 block">
+                      <td className="py-4 px-4 align-middle whitespace-nowrap">
+                        <span className="font-clashDisplay text-base font-semibold text-neutral-900 block whitespace-nowrap">
                           Rs {order.totalAmount ? order.totalAmount.toLocaleString() : 0}
                         </span>
-                        <span className={`inline-block text-[10px] font-semibold mt-1 px-2 py-0.5 rounded-md border ${
+                        <span className={`inline-block text-[10px] font-semibold mt-1 px-2 py-0.5 rounded-md border whitespace-nowrap ${
                           (order.paymentMethod?.toLowerCase().includes("cod") || order.paymentStatus === "COD")
                             ? "bg-amber-50 text-amber-800 border-amber-200"
                             : "bg-emerald-50 text-emerald-800 border-emerald-200"
@@ -719,15 +718,15 @@ export default function AdminOrdersPage() {
                       </td>
 
                       {/* Fulfillment Status Display Badge */}
-                      <td className="py-4 px-4 align-top">
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border ${STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"}`}>
+                      <td className="py-4 px-4 align-middle whitespace-nowrap">
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border whitespace-nowrap ${STATUS_BADGE_STYLES[currentStatus] || "bg-neutral-50 text-neutral-800 border-neutral-200"}`}>
                           {currentStatus}
                         </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-4 px-4 sm:px-6 align-top text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="py-4 px-4 sm:px-6 align-middle text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
                           <button
                             onClick={() => setSelectedOrder(order)}
                             title="Edit Order"

@@ -25,6 +25,10 @@ import {
   ChevronRight,
   ChevronLeft,
   Check,
+  Eye,
+  EyeOff,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 
 const ALL_PLATFORMS = [
@@ -77,6 +81,7 @@ export default function AccountQrIdentityPage() {
   const [activeStep, setActiveStep] = useState(1);
   const [previewPassQR, setPreviewPassQR] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [togglingCode, setTogglingCode] = useState(null);
 
   const [editForm, setEditForm] = useState({
     title: "",
@@ -87,6 +92,7 @@ export default function AccountQrIdentityPage() {
     avatarUrl: "",
     coverUrl: "",
     askMeAbout: "",
+    isPublic: false,
     rightNow: {
       building: "",
       learning: "",
@@ -139,6 +145,7 @@ export default function AccountQrIdentityPage() {
       avatarUrl: pd.avatarUrl || "",
       coverUrl: pd.coverUrl || "",
       askMeAbout: pd.askMeAbout || "",
+      isPublic: pd.isPublic === true,
       rightNow: {
         building: pd.rightNow?.building || "",
         learning: pd.rightNow?.learning || "",
@@ -155,6 +162,50 @@ export default function AccountQrIdentityPage() {
         ? { ...pd.socialLinks }
         : { instagram: "", facebook: "", twitter: "" },
     });
+  };
+
+  // Quick 1-click toggle for visibility right from card
+  const handleToggleVisibility = async (qr) => {
+    const currentIsPublic = qr.profileData?.isPublic === true;
+    const newIsPublic = !currentIsPublic;
+    setTogglingCode(qr.code);
+
+    try {
+      const res = await updateQRProfile(userFetch, {
+        code: qr.code,
+        isPublic: newIsPublic,
+      });
+
+      if (res.success) {
+        showToast(
+          newIsPublic
+            ? "Detail visibility is ON. Anyone scanning your QR code can now view your story."
+            : "Detail visibility is OFF. Your story is private; scanners will now see the Bacstory brand showcase instead.",
+          "success"
+        );
+        setMyQRs((prev) =>
+          prev.map((item) => {
+            if (item.code === qr.code) {
+              return {
+                ...item,
+                profileData: {
+                  ...(item.profileData || {}),
+                  isPublic: newIsPublic,
+                },
+              };
+            }
+            return item;
+          })
+        );
+      } else {
+        showToast(res.message || "Failed to update visibility setting.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error updating visibility setting.", "error");
+    } finally {
+      setTogglingCode(null);
+    }
   };
 
   const handleSaveProfile = async (e) => {
@@ -181,7 +232,7 @@ export default function AccountQrIdentityPage() {
   };
 
   return (
-    <div className="py-6 max-w-3xl mx-auto space-y-8">
+    <div className="py-6 max-w-full mx-auto space-y-8">
       {/* Header */}
       <div className="text-center space-y-2">
         <Scan className="w-10 h-10 stroke-[1.5] text-neutral-800 mx-auto" />
@@ -248,15 +299,39 @@ export default function AccountQrIdentityPage() {
                           </span>
                         </div>
                       </div>
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                          qr.status === "active"
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${qr.status === "active"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : "bg-amber-50 text-amber-800 border border-amber-200"
-                        }`}
-                      >
-                        {qr.status === "active" ? "Active Story" : "Claimed"}
-                      </span>
+                            }`}
+                        >
+                          {qr.status === "active" ? "Active Story" : "Claimed"}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider flex items-center gap-1 border ${qr.profileData?.isPublic !== false
+                            ? "bg-sky-50 text-sky-800 border-sky-200"
+                            : "bg-neutral-100 text-neutral-600 border-neutral-300"
+                            }`}
+                          title={
+                            qr.profileData?.isPublic !== false
+                              ? "Your story details are visible to anyone scanning"
+                              : "Details are hidden; scanners see the Bacstory brand showcase"
+                          }
+                        >
+                          {qr.profileData?.isPublic !== false ? (
+                            <>
+                              <Eye className="w-3 h-3 text-sky-600" />
+                              <span>Public</span>
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="w-3 h-3 text-neutral-500" />
+                              <span>Private</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
                     </div>
 
                     {title || archetype || signature ? (
@@ -288,6 +363,54 @@ export default function AccountQrIdentityPage() {
                         No story added yet. Click &quot;Write Bacstory&quot; to begin.
                       </p>
                     )}
+
+                    {/* Quick Visibility Toggle Bar */}
+                    <div className="bg-neutral-50/80 border border-neutral-100 rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${qr.profileData?.isPublic === true
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-neutral-200 text-neutral-600"
+                            }`}
+                        >
+                          {qr.profileData?.isPublic === true ? (
+                            <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                          ) : (
+                            <EyeOff className="w-3.5 h-3.5 text-neutral-600" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-neutral-900 block text-[11px]">
+                            {qr.profileData?.isPublic === true
+                              ? "Detail Visibility: ON"
+                              : "Detail Visibility: OFF (Private)"}
+                          </span>
+                          <span className="text-[10px] text-neutral-500 block leading-tight">
+                            {qr.profileData?.isPublic === true
+                              ? "Your story is visible on scan"
+                              : "Details hidden; shows Bacstory brand"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleVisibility(qr)}
+                        disabled={togglingCode === qr.code}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${qr.profileData?.isPublic === true ? "bg-black" : "bg-neutral-300"
+                          }`}
+                        title={
+                          qr.profileData?.isPublic === true
+                            ? "Turn off detail visibility"
+                            : "Turn on detail visibility"
+                        }
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${qr.profileData?.isPublic === true ? "translate-x-4" : "translate-x-0"
+                            }`}
+                        />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-neutral-100 flex items-center gap-2">
@@ -358,11 +481,10 @@ export default function AccountQrIdentityPage() {
                     key={step.id}
                     type="button"
                     onClick={() => setActiveStep(step.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-neutral-900 text-white shadow-xs"
-                        : "bg-neutral-50 hover:bg-neutral-100 text-neutral-600"
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive
+                      ? "bg-neutral-900 text-white shadow-xs"
+                      : "bg-neutral-50 hover:bg-neutral-100 text-neutral-600"
+                      }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span>{step.label}</span>
@@ -383,6 +505,63 @@ export default function AccountQrIdentityPage() {
                     <p className="text-[11px] text-neutral-500">
                       Choose your name, identity archetype, and profile photo.
                     </p>
+                  </div>
+
+                  {/* Privacy & Detail Visibility Setting */}
+                  <div className="bg-[#FAF8F5] border border-neutral-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${editForm.isPublic
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-neutral-200 text-neutral-700"
+                          }`}
+                      >
+                        {editForm.isPublic ? (
+                          <Eye className="w-3.5 h-3.5 text-emerald-700" />
+                        ) : (
+                          <EyeOff className="w-3.5 h-3.5 text-neutral-600" />
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                            Detail Visibility
+                          </span>
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.2 rounded-full border ${editForm.isPublic
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-neutral-100 text-neutral-600 border-neutral-300"
+                              }`}
+                          >
+                            {editForm.isPublic ? "PUBLIC" : "PRIVATE"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 leading-relaxed">
+                          {editForm.isPublic
+                            ? "Your details will be visible when your garment QR is scanned."
+                            : "Details hidden. Scanners will see the curated Bacstory brand showcase instead."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditForm((prev) => ({ ...prev, isPublic: !prev.isPublic }))
+                      }
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${editForm.isPublic ? "bg-black" : "bg-neutral-300"
+                        }`}
+                      title={
+                        editForm.isPublic
+                          ? "Turn off detail visibility"
+                          : "Turn on detail visibility"
+                      }
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${editForm.isPublic ? "translate-x-4" : "translate-x-0"
+                          }`}
+                      />
+                    </button>
                   </div>
 
                   {/* Name / Title */}
@@ -417,11 +596,10 @@ export default function AccountQrIdentityPage() {
                                 storyType: isSelected ? "" : arch,
                               })
                             }
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider uppercase transition-all cursor-pointer border ${
-                              isSelected
-                                ? "bg-neutral-900 text-white border-neutral-900 shadow-xs"
-                                : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
-                            }`}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider uppercase transition-all cursor-pointer border ${isSelected
+                              ? "bg-neutral-900 text-white border-neutral-900 shadow-xs"
+                              : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100"
+                              }`}
                           >
                             {arch}
                           </button>

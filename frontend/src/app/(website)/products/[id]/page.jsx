@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Plus, Minus, Star, ChevronDown, X, AlertCircle, CheckCircle2, XCircle, Camera, Video, Trash2, Play } from "lucide-react";
+import { Heart, Plus, Minus, Star, ChevronDown, X, AlertCircle, CheckCircle2, XCircle, Camera, Video, Trash2, Play, ChevronLeft, ChevronRight, ZoomIn, Loader } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -67,6 +67,7 @@ const mapProductDetail = (dbProd) => ({
     sizes: dbProd.sizeGuide?.chart?.map(sz => sz.size) || [],
     reviews: (dbProd.reviews || []).map(r => ({
         id: r.id || r._id,
+        userId: (r.userId || r.user?._id || r.user || "")?.toString(),
         author: r.author,
         rating: r.rating,
         text: r.text,
@@ -155,6 +156,19 @@ export default function ProductDetailPage({ params }) {
     const [quantity, setQuantity] = useState(1);
     const [expandedFaq, setExpandedFaq] = useState(null);
     const [activeMobileSlide, setActiveMobileSlide] = useState(0);
+    const [lightboxIndex, setLightboxIndex] = useState(null);
+
+    // Image gallery resolution based on selected color and product
+    const productImages = (selectedColor && selectedColor.images && selectedColor.images.length > 0)
+        ? selectedColor.images
+        : ((product?.colors || []).flatMap(c => c.images || []).length > 0
+            ? (product.colors || []).flatMap(c => c.images || [])
+            : [
+                "/images/placeholder.png",
+                "/images/landing-page/first.png",
+                "/images/landing-page/second.png",
+                "/images/landing-page/third.png"
+            ]);
 
     const handleMobileScroll = (e) => {
         const scrollPosition = e.target.scrollLeft;
@@ -164,6 +178,32 @@ export default function ProductDetailPage({ params }) {
             setActiveMobileSlide(index);
         }
     };
+
+    const handlePrevLightbox = (e) => {
+        e?.stopPropagation?.();
+        setLightboxIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+    };
+
+    const handleNextLightbox = (e) => {
+        e?.stopPropagation?.();
+        setLightboxIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
+    };
+
+    useEffect(() => {
+        if (lightboxIndex === null) return;
+        const handleKeyDown = (e) => {
+            if (e.key === "Escape") setLightboxIndex(null);
+            if (e.key === "ArrowLeft") setLightboxIndex((prev) => (prev > 0 ? prev - 1 : productImages.length - 1));
+            if (e.key === "ArrowRight") setLightboxIndex((prev) => (prev < productImages.length - 1 ? prev + 1 : 0));
+        };
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [lightboxIndex, productImages.length]);
 
     // States for size guide
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -192,6 +232,104 @@ export default function ProductDetailPage({ params }) {
     const [reviewSubmitting, setReviewSubmitting] = useState(false);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [hasPurchased, setHasPurchased] = useState(false);
+
+    // Review photo lightbox state
+    const [reviewLightbox, setReviewLightbox] = useState({
+        isOpen: false,
+        photos: [],
+        activeIndex: 0,
+        author: ""
+    });
+
+    // Delete review state
+    const [deleteReviewModal, setDeleteReviewModal] = useState({
+        isOpen: false,
+        reviewId: null,
+        isDeleting: false
+    });
+
+    // Keyboard navigation for review lightbox
+    useEffect(() => {
+        if (!reviewLightbox.isOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === "Escape") {
+                setReviewLightbox(prev => ({ ...prev, isOpen: false }));
+            } else if (e.key === "ArrowLeft") {
+                setReviewLightbox(prev => ({
+                    ...prev,
+                    activeIndex: prev.activeIndex > 0 ? prev.activeIndex - 1 : prev.photos.length - 1
+                }));
+            } else if (e.key === "ArrowRight") {
+                setReviewLightbox(prev => ({
+                    ...prev,
+                    activeIndex: prev.activeIndex < prev.photos.length - 1 ? prev.activeIndex + 1 : 0
+                }));
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [reviewLightbox.isOpen, reviewLightbox.photos.length]);
+
+    // Handler to confirm review deletion
+    const handleConfirmDeleteReview = async () => {
+        if (!deleteReviewModal.reviewId) return;
+
+        try {
+            setDeleteReviewModal(prev => ({ ...prev, isDeleting: true }));
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                showPopup("Please log in to delete your review.", "error");
+                setDeleteReviewModal({ isOpen: false, reviewId: null, isDeleting: false });
+                return;
+            }
+
+            const res = await fetch(`${API_BASE_URL}/frontend/reviews/${deleteReviewModal.reviewId}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            const json = await res.json();
+            if (res.ok && json.success) {
+                showPopup("Your review has been successfully deleted.", "success", "Review Deleted");
+                setDeleteReviewModal({ isOpen: false, reviewId: null, isDeleting: false });
+
+                // Refresh product data
+                try {
+                    const prodRes = await fetch(`${API_BASE_URL}/frontend/products/${id}`);
+                    const prodJson = await prodRes.json();
+                    if (prodJson.success && prodJson.data) {
+                        setProduct(mapProductDetail(prodJson.data));
+                    }
+                } catch (prodErr) {
+                    console.error("Error refreshing product:", prodErr);
+                }
+
+                // Refresh purchase / review eligibility
+                try {
+                    const checkRes = await fetch(`${API_BASE_URL}/frontend/products/${product?.id || id}/check-purchase`, {
+                        headers: {
+                            ...(token && { "Authorization": `Bearer ${token}` }),
+                        }
+                    });
+                    const checkJson = await checkRes.json();
+                    if (checkJson.success && (checkJson.hasPurchased || checkJson.canReview)) {
+                        setHasPurchased(true);
+                    }
+                } catch (checkErr) {
+                    console.error("Error checking review eligibility:", checkErr);
+                }
+            } else {
+                showPopup(json.message || "Failed to delete review.", "error");
+                setDeleteReviewModal(prev => ({ ...prev, isDeleting: false }));
+            }
+        } catch (err) {
+            console.error("Error deleting review:", err);
+            showPopup("Failed to delete review. Please try again.", "error");
+            setDeleteReviewModal(prev => ({ ...prev, isDeleting: false }));
+        }
+    };
 
     useEffect(() => {
         if (user && !reviewAuthor) {
@@ -492,22 +630,6 @@ export default function ProductDetailPage({ params }) {
         );
     }
 
-    // Image gallery resolution
-    let productImages = [];
-    if (selectedColor && selectedColor.images && selectedColor.images.length > 0) {
-        productImages = selectedColor.images;
-    } else {
-        productImages = (product.colors || []).flatMap(c => c.images || []);
-    }
-
-    if (productImages.length === 0) {
-        productImages = [
-            "/images/placeholder.png",
-            "/images/landing-page/first.png",
-            "/images/landing-page/second.png",
-            "/images/landing-page/third.png"
-        ];
-    }
 
     // FAQ items
     const faqItems = product && product.faqs && product.faqs.length > 0 ? product.faqs : [
@@ -568,17 +690,21 @@ export default function ProductDetailPage({ params }) {
                                     {productImages.map((img, index) => (
                                         <div
                                             key={index}
-                                            className="w-full shrink-0 snap-center aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden relative"
+                                            onClick={() => setLightboxIndex(index)}
+                                            className="w-full shrink-0 snap-center aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden relative cursor-zoom-in group"
                                         >
                                             <Image
                                                 src={getImageUrl(img)}
                                                 alt={`${product.name} detail ${index + 1}`}
                                                 fill
                                                 sizes="100vw"
-                                                className="object-contain select-none"
+                                                className="object-contain select-none transition-transform duration-300 group-hover:scale-105"
                                                 priority={index === 0}
                                                 unoptimized
                                             />
+                                            <div className="absolute top-3 right-3 bg-black/40 text-white p-2 rounded-full opacity-80 backdrop-blur-xs pointer-events-none">
+                                                <ZoomIn className="w-3.5 h-3.5" />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -598,7 +724,8 @@ export default function ProductDetailPage({ params }) {
                                         return (
                                             <div
                                                 key={rowIdx}
-                                                className="w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden"
+                                                onClick={() => setLightboxIndex(row.startIndex)}
+                                                className="w-full aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden cursor-zoom-in relative group"
                                             >
                                                 <div className="relative w-full h-full">
                                                     <Image
@@ -606,33 +733,43 @@ export default function ProductDetailPage({ params }) {
                                                         alt={`${product.name} detail ${row.startIndex + 1}`}
                                                         fill
                                                         sizes="(max-width: 1024px) 100vw, 60vw"
-                                                        className="object-contain select-none"
+                                                        className="object-contain select-none transition-transform duration-300 group-hover:scale-[1.02]"
                                                         priority={row.startIndex === 0}
                                                         unoptimized
                                                     />
+                                                </div>
+                                                <div className="absolute top-4 right-4 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                                    <ZoomIn className="w-4 h-4" />
                                                 </div>
                                             </div>
                                         );
                                     } else {
                                         return (
                                             <div key={rowIdx} className="grid grid-cols-2 gap-4 w-full">
-                                                {row.images.map((img, imgIdx) => (
-                                                    <div
-                                                        key={imgIdx}
-                                                        className="aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden"
-                                                    >
-                                                        <div className="relative w-full h-full">
-                                                            <Image
-                                                                src={getImageUrl(img)}
-                                                                alt={`${product.name} detail ${row.startIndex + imgIdx + 1}`}
-                                                                fill
-                                                                sizes="(max-width: 1024px) 50vw, 30vw"
-                                                                className="object-contain select-none"
-                                                                unoptimized
-                                                            />
+                                                {row.images.map((img, imgIdx) => {
+                                                    const actualIdx = row.startIndex + imgIdx;
+                                                    return (
+                                                        <div
+                                                            key={imgIdx}
+                                                            onClick={() => setLightboxIndex(actualIdx)}
+                                                            className="aspect-square bg-[#F4F0EA] flex items-center justify-center overflow-hidden cursor-zoom-in relative group"
+                                                        >
+                                                            <div className="relative w-full h-full">
+                                                                <Image
+                                                                    src={getImageUrl(img)}
+                                                                    alt={`${product.name} detail ${actualIdx + 1}`}
+                                                                    fill
+                                                                    sizes="(max-width: 1024px) 50vw, 30vw"
+                                                                    className="object-contain select-none transition-transform duration-300 group-hover:scale-[1.02]"
+                                                                    unoptimized
+                                                                />
+                                                            </div>
+                                                            <div className="absolute top-3 right-3 bg-white/80 text-black p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                                                                <ZoomIn className="w-3.5 h-3.5" />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         );
                                     }
@@ -853,34 +990,59 @@ export default function ProductDetailPage({ params }) {
                             })()}
 
                             {/* Product Details Specs */}
-                            <div className="space-y-4 pt-6 border-t border-neutral-200">
-                                <p className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">
-                                    Product Details
-                                </p>
-                                <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">
-                                    {product.description}
-                                </p>
+                            {(() => {
+                                const hasDescription = Boolean(product.description && product.description.trim());
+                                const material = product.details?.material?.trim?.() || "";
+                                const fit = product.details?.fit?.trim?.() || "";
+                                const weight = product.details?.weight?.trim?.() || "";
+                                const care = product.details?.care?.trim?.() || "";
+                                const hasSpecs = Boolean(material || fit || weight || care);
 
-                                {/* Bullet details */}
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 text-xs md:text-sm">
-                                    <div>
-                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Material</span>
-                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.material}</p>
+                                if (!hasDescription && !hasSpecs) return null;
+
+                                return (
+                                    <div className="space-y-4 pt-6 border-t border-neutral-200">
+                                        <p className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">
+                                            Product Details
+                                        </p>
+                                        {hasDescription && (
+                                            <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">
+                                                {product.description}
+                                            </p>
+                                        )}
+
+                                        {/* Bullet details */}
+                                        {hasSpecs && (
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-2 text-xs md:text-sm">
+                                                {material && (
+                                                    <div>
+                                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Material</span>
+                                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{material}</p>
+                                                    </div>
+                                                )}
+                                                {fit && (
+                                                    <div>
+                                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Fit</span>
+                                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{fit}</p>
+                                                    </div>
+                                                )}
+                                                {weight && (
+                                                    <div>
+                                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Weight</span>
+                                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{weight}</p>
+                                                    </div>
+                                                )}
+                                                {care && (
+                                                    <div>
+                                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Care</span>
+                                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{care}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div>
-                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Fit</span>
-                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.fit}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Weight</span>
-                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.weight}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-xs md:text-[0.8vw] font-semibold uppercase tracking-widest text-black">Care</span>
-                                        <p className="text-sm md:text-[1vw] font-normal text-neutral-600 leading-relaxed font-sans">{product.details.care}</p>
-                                    </div>
-                                </div>
-                            </div>
+                                );
+                            })()}
 
                         </div>
                     </div>
@@ -947,63 +1109,99 @@ export default function ProductDetailPage({ params }) {
 
                                     {/* Right: Individual review posts */}
                                     <div className="lg:col-span-8 flex flex-col divide-y divide-neutral-100">
-                                        {product.reviews.map((rev, index) => (
-                                            <div key={index} className="py-6 first:pt-0 last:pb-0 space-y-2.5">
-                                                <div className="flex items-center justify-between text-xs md:text-sm">
+                                        {product.reviews.map((rev, index) => {
+                                            const currentUserId = (user?._id || user?.id || "").toString();
+                                            const canDelete = Boolean(currentUserId && rev.userId && String(rev.userId) === currentUserId);
+
+                                            return (
+                                                <div key={rev.id || index} className="py-6 first:pt-0 last:pb-0 space-y-2.5">
+                                                    <div className="flex items-center justify-between text-xs md:text-sm">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-black">{rev.author}</span>
+                                                            {canDelete && (
+                                                                <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-medium">You</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-neutral-400">{rev.date}</span>
+                                                            {canDelete && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setDeleteReviewModal({ isOpen: true, reviewId: rev.id, isDeleting: false })}
+                                                                    className="inline-flex items-center gap-1 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer p-1 rounded-md hover:bg-red-50"
+                                                                    title="Delete your review"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                    <span className="hidden sm:inline text-xs font-medium">Delete</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-bold text-black">{rev.author}</span>
-                                                    </div>
-                                                    <span className="text-neutral-400">{rev.date}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex text-[#FFB800] space-x-0.5">
-                                                        {Array.from({ length: 5 }).map((_, i) => (
-                                                            <Star
-                                                                key={i}
-                                                                className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
-                                                                    }`}
-                                                            />
-                                                        ))}
-                                                    </div>
-
-                                                </div>
-
-                                                <p className="text-sm md:text-base font-normal text-neutral-700 leading-snug font-sans pt-1">
-                                                    {rev.text}
-                                                </p>
-
-                                                {/* Photos & Videos attachments */}
-                                                {((rev.photos && rev.photos.length > 0) || (rev.videos && rev.videos.length > 0)) && (
-                                                    <div className="flex flex-wrap gap-3 pt-2">
-                                                        {/* Photos */}
-                                                        {rev.photos && rev.photos.map((imgUrl, imgIdx) => (
-                                                            <div key={`photo-${imgIdx}`} className="relative w-24 h-24 rounded-xl overflow-hidden bg-neutral-50 border border-neutral-200 group">
-                                                                <Image
-                                                                    src={getImageUrl(imgUrl)}
-                                                                    alt={`Review photo ${imgIdx + 1}`}
-                                                                    fill
-                                                                    sizes="96px"
-                                                                    className="object-cover select-none transition-transform duration-300 group-hover:scale-105"
-                                                                    unoptimized
+                                                        <div className="flex text-[#FFB800] space-x-0.5">
+                                                            {Array.from({ length: 5 }).map((_, i) => (
+                                                                <Star
+                                                                    key={i}
+                                                                    className={`w-3.5 h-3.5 fill-current ${i < rev.rating ? "text-[#FFB800] stroke-none" : "text-neutral-200 stroke-none"
+                                                                        }`}
                                                                 />
-                                                            </div>
-                                                        ))}
-
-                                                        {/* Videos */}
-                                                        {rev.videos && rev.videos.map((vidUrl, vidIdx) => (
-                                                            <div key={`video-${vidIdx}`} className="relative h-24 rounded-xl overflow-hidden bg-black border border-neutral-200">
-                                                                <video
-                                                                    src={getImageUrl(vidUrl)}
-                                                                    controls
-                                                                    preload="metadata"
-                                                                    className="h-24 w-auto max-w-[200px] object-cover rounded-xl"
-                                                                />
-                                                            </div>
-                                                        ))}
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        ))}
+
+                                                    <p className="text-sm md:text-base font-normal text-neutral-700 leading-snug font-sans pt-1">
+                                                        {rev.text}
+                                                    </p>
+
+                                                    {/* Photos & Videos attachments */}
+                                                    {((rev.photos && rev.photos.length > 0) || (rev.videos && rev.videos.length > 0)) && (
+                                                        <div className="flex flex-wrap gap-3 pt-2">
+                                                            {/* Photos */}
+                                                            {rev.photos && rev.photos.map((imgUrl, imgIdx) => (
+                                                                <button
+                                                                    key={`photo-${imgIdx}`}
+                                                                    type="button"
+                                                                    onClick={() => setReviewLightbox({
+                                                                        isOpen: true,
+                                                                        photos: rev.photos,
+                                                                        activeIndex: imgIdx,
+                                                                        author: rev.author
+                                                                    })}
+                                                                    className="relative w-24 h-24 rounded-xl overflow-hidden bg-neutral-50 border border-neutral-200 group cursor-zoom-in text-left focus:outline-none focus:ring-2 focus:ring-black"
+                                                                    title="Click to view photo"
+                                                                >
+                                                                    <Image
+                                                                        src={getImageUrl(imgUrl)}
+                                                                        alt={`Review photo ${imgIdx + 1}`}
+                                                                        fill
+                                                                        sizes="96px"
+                                                                        className="object-cover select-none transition-transform duration-300 group-hover:scale-105"
+                                                                        unoptimized
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                                        <div className="bg-black/60 text-white p-1.5 rounded-full backdrop-blur-xs">
+                                                                            <ZoomIn className="w-3.5 h-3.5" />
+                                                                        </div>
+                                                                    </div>
+                                                                </button>
+                                                            ))}
+
+                                                            {/* Videos */}
+                                                            {rev.videos && rev.videos.map((vidUrl, vidIdx) => (
+                                                                <div key={`video-${vidIdx}`} className="relative h-24 rounded-xl overflow-hidden bg-black border border-neutral-200">
+                                                                    <video
+                                                                        src={getImageUrl(vidUrl)}
+                                                                        controls
+                                                                        preload="metadata"
+                                                                        className="h-24 w-auto max-w-[200px] object-cover rounded-xl"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </>
@@ -1315,6 +1513,273 @@ export default function ProductDetailPage({ params }) {
                         >
                             OK
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Product Image Lightbox Modal */}
+            {lightboxIndex !== null && productImages[lightboxIndex] && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/92 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200 select-none"
+                    onClick={() => setLightboxIndex(null)}
+                >
+                    {/* Top Header Bar */}
+                    <div className="w-full max-w-7xl mx-auto flex items-center justify-between z-10 py-1">
+                        <div className="flex items-center gap-3">
+                            <span className="text-white/90 font-semibold text-xs sm:text-sm font-sans truncate max-w-[200px] sm:max-w-md">
+                                {product.name}
+                            </span>
+                            {productImages.length > 1 && (
+                                <span className="bg-white/10 text-white/80 text-[11px] font-mono px-2.5 py-0.5 rounded-full border border-white/10">
+                                    {lightboxIndex + 1} / {productImages.length}
+                                </span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setLightboxIndex(null);
+                            }}
+                            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10 shadow-sm"
+                            aria-label="Close image viewer"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Center Image Viewing Area with Next/Prev Controls */}
+                    <div className="relative flex-1 w-full max-w-7xl mx-auto flex items-center justify-center my-auto py-2">
+                        {/* Previous Button */}
+                        {productImages.length > 1 && (
+                            <button
+                                onClick={handlePrevLightbox}
+                                className="absolute left-1 sm:left-4 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 backdrop-blur-md transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                                aria-label="Previous image"
+                            >
+                                <ChevronLeft className="w-6 h-6 stroke-[2]" />
+                            </button>
+                        )}
+
+                        {/* Main Active Image Container */}
+                        <div
+                            className="relative w-full h-[65vh] sm:h-[75vh] max-h-[850px] flex items-center justify-center cursor-default"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Image
+                                src={getImageUrl(productImages[lightboxIndex])}
+                                alt={`${product.name} enlarged view`}
+                                fill
+                                className="object-contain"
+                                priority
+                                unoptimized
+                            />
+                        </div>
+
+                        {/* Next Button */}
+                        {productImages.length > 1 && (
+                            <button
+                                onClick={handleNextLightbox}
+                                className="absolute right-1 sm:right-4 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 backdrop-blur-md transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                                aria-label="Next image"
+                            >
+                                <ChevronRight className="w-6 h-6 stroke-[2]" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Bottom Thumbnail Strip */}
+                    {productImages.length > 1 ? (
+                        <div
+                            className="w-full max-w-xl mx-auto z-10 flex items-center justify-center pt-2"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-2 sm:gap-2.5 p-1.5 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 max-w-full overflow-x-auto scrollbar-none">
+                                {productImages.map((img, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setLightboxIndex(idx)}
+                                        className={`relative w-11 h-11 sm:w-13 sm:h-13 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-[#F4F0EA] ${
+                                            lightboxIndex === idx
+                                                ? "border-white scale-105 shadow-md opacity-100"
+                                                : "border-transparent opacity-50 hover:opacity-90"
+                                        }`}
+                                    >
+                                        <Image
+                                            src={getImageUrl(img)}
+                                            alt=""
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-6" />
+                    )}
+                </div>
+            )}
+
+            {/* Review Photo Lightbox Modal */}
+            {reviewLightbox.isOpen && reviewLightbox.photos.length > 0 && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/92 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200 select-none"
+                    onClick={() => setReviewLightbox(prev => ({ ...prev, isOpen: false }))}
+                >
+                    {/* Top Header Bar */}
+                    <div className="w-full max-w-7xl mx-auto flex items-center justify-between z-10 py-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <span className="text-white/90 font-semibold text-xs sm:text-sm font-sans truncate max-w-[200px] sm:max-w-md">
+                                {reviewLightbox.author ? `Photo from ${reviewLightbox.author}'s review` : "Review Photo"}
+                            </span>
+                            {reviewLightbox.photos.length > 1 && (
+                                <span className="bg-white/10 text-white/80 text-[11px] font-mono px-2.5 py-0.5 rounded-full border border-white/10">
+                                    {reviewLightbox.activeIndex + 1} / {reviewLightbox.photos.length}
+                                </span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => setReviewLightbox(prev => ({ ...prev, isOpen: false }))}
+                            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10 shadow-sm"
+                            aria-label="Close photo viewer"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Center Image Viewing Area with Next/Prev Controls */}
+                    <div className="relative flex-1 w-full max-w-7xl mx-auto flex items-center justify-center my-auto py-2">
+                        {/* Previous Button */}
+                        {reviewLightbox.photos.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReviewLightbox(prev => ({
+                                        ...prev,
+                                        activeIndex: prev.activeIndex > 0 ? prev.activeIndex - 1 : prev.photos.length - 1
+                                    }));
+                                }}
+                                className="absolute left-1 sm:left-4 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 backdrop-blur-md transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                                aria-label="Previous photo"
+                            >
+                                <ChevronLeft className="w-6 h-6 stroke-[2]" />
+                            </button>
+                        )}
+
+                        {/* Enlarged Photo Container */}
+                        <div
+                            className="relative max-w-4xl max-h-[75vh] w-full h-[70vh] flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Image
+                                src={getImageUrl(reviewLightbox.photos[reviewLightbox.activeIndex])}
+                                alt={`Review photo ${reviewLightbox.activeIndex + 1}`}
+                                fill
+                                className="object-contain"
+                                sizes="90vw"
+                                priority
+                                unoptimized
+                            />
+                        </div>
+
+                        {/* Next Button */}
+                        {reviewLightbox.photos.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReviewLightbox(prev => ({
+                                        ...prev,
+                                        activeIndex: prev.activeIndex < prev.photos.length - 1 ? prev.activeIndex + 1 : 0
+                                    }));
+                                }}
+                                className="absolute right-1 sm:right-4 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center border border-white/15 backdrop-blur-md transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                                aria-label="Next photo"
+                            >
+                                <ChevronRight className="w-6 h-6 stroke-[2]" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Bottom Thumbnail Strip */}
+                    {reviewLightbox.photos.length > 1 ? (
+                        <div
+                            className="w-full max-w-xl mx-auto z-10 flex items-center justify-center pt-2"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-2 sm:gap-2.5 p-1.5 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 max-w-full overflow-x-auto scrollbar-none">
+                                {reviewLightbox.photos.map((item, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setReviewLightbox(prev => ({ ...prev, activeIndex: idx }))}
+                                        className={`relative w-11 h-11 sm:w-13 sm:h-13 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer bg-neutral-900 ${
+                                            reviewLightbox.activeIndex === idx
+                                                ? "border-white scale-105 shadow-md opacity-100"
+                                                : "border-transparent opacity-50 hover:opacity-90"
+                                        }`}
+                                    >
+                                        <Image
+                                            src={getImageUrl(item)}
+                                            alt={`Thumbnail ${idx + 1}`}
+                                            fill
+                                            sizes="48px"
+                                            className="object-cover"
+                                            unoptimized
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-6" />
+                    )}
+                </div>
+            )}
+
+            {/* Delete Review Confirmation Modal */}
+            {deleteReviewModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
+                    <div className="bg-white text-black w-full max-w-sm rounded-3xl p-6 border border-neutral-100 shadow-2xl relative animate-scaleUp text-center space-y-4">
+                        <div className="w-14 h-14 rounded-full mx-auto flex items-center justify-center bg-red-50 text-red-600 border border-red-200">
+                            <Trash2 className="w-6 h-6" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <h3 className="font-clashDisplay text-lg font-semibold text-black">
+                                Delete Your Review?
+                            </h3>
+                            <p className="text-sm text-neutral-500 leading-relaxed font-sans">
+                                Are you sure you want to delete this review? This action cannot be undone.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-2">
+                            <button
+                                type="button"
+                                disabled={deleteReviewModal.isDeleting}
+                                onClick={() => setDeleteReviewModal({ isOpen: false, reviewId: null, isDeleting: false })}
+                                className="flex-1 h-11 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition-colors rounded-full font-medium text-xs tracking-wider uppercase cursor-pointer disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deleteReviewModal.isDeleting}
+                                onClick={handleConfirmDeleteReview}
+                                className="flex-1 h-11 bg-red-600 hover:bg-red-700 text-white transition-colors rounded-full font-medium text-xs tracking-wider uppercase cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >
+                                {deleteReviewModal.isDeleting ? (
+                                    <>
+                                        <Loader className="w-4 h-4 animate-spin" />
+                                        <span>Deleting...</span>
+                                    </>
+                                ) : (
+                                    <span>Delete</span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

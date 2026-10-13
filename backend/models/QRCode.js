@@ -57,6 +57,7 @@ const qrCodeSchema = new mongoose.Schema(
         nextChapter: { type: String, default: "" },
       },
       socialLinks: { type: mongoose.Schema.Types.Mixed, default: {} },
+      isPublic: { type: Boolean, default: false },
     },
   },
   {

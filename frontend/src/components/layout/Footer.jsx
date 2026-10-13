@@ -61,11 +61,12 @@ export default function Footer() {
             className={`relative items-center gap-1 group hover:text-white transition-colors shrink-0 font-light text-white ${className}`}
         >
             <span>Made with</span>
-            <Heart className="text-white fill-white w-3.5 h-3.5" aria-hidden="true" />
+            <Heart className="text-white fill-white w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" aria-hidden="true" />
             <span className="sr-only">Akoode Technology</span>
 
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mb-2.5 hidden group-hover:block bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 mb-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-1 group-hover:translate-y-0 transition-all duration-200 ease-out bg-[#474972] text-white text-xs px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
                 AI & Software company in India | USA
+                <span className="absolute top-full left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 border-4 border-transparent border-t-[#474972]" />
             </span>
         </a>
     );

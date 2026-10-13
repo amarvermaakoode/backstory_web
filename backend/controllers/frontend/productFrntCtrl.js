@@ -206,6 +206,7 @@ const getProductById = async (req, res) => {
     const productObj = product.toObject();
     productObj.reviews = reviews.map(r => ({
       id: r._id,
+      userId: r.user ? r.user.toString() : "",
       author: r.author,
       rating: r.rating,
       text: r.text,

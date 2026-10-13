@@ -17,6 +17,7 @@ const STATUS_FILTER_OPTIONS = [
     { label: "Out for Delivery", value: "Out for Delivery" },
     { label: "Delivered", value: "Delivered" },
     { label: "Cancelled", value: "Cancelled" },
+    { label: "Returned", value: "Returned" },
 ];
 
 const ORDER_STEPS = [
@@ -219,6 +220,78 @@ const getReturnProcessBadge = (req, order, onTrackClick) => {
     );
 };
 
+const getOrderStatusBadge = (order) => {
+    const isCancelled = order?.cancellation?.isCancelled || (order?.orderStatus || "").toLowerCase() === "cancelled";
+    if (isCancelled) {
+        return {
+            label: "Cancelled",
+            className: "border-rose-200 bg-rose-50 text-rose-700",
+            icon: <X className="w-3 h-3 text-rose-600 stroke-[2.5]" />
+        };
+    }
+
+    const allReturnReqs = (Array.isArray(order?.returnRequestsHistory) && order?.returnRequestsHistory.length > 0)
+        ? order.returnRequestsHistory
+        : (order?.returnExchange?.isRequested ? [order.returnExchange] : []);
+    const isReturned = (order?.orderStatus || "").toLowerCase() === "returned" ||
+        order?.returnExchange?.status === "Returned" ||
+        order?.returnExchange?.status === "Refunded" ||
+        (allReturnReqs.length > 0 && allReturnReqs.some(r => r.status === "Refunded" || r.status === "Product Received" || r.status === "Returned"));
+
+    if (isReturned) {
+        return {
+            label: "Returned",
+            className: "border-purple-200 bg-purple-50 text-purple-700",
+            icon: <RotateCcw className="w-3 h-3 text-purple-600 stroke-[2.5]" />
+        };
+    }
+
+    const hasReturnRequested = allReturnReqs.length > 0 && allReturnReqs.some(r => (r.status || "").toLowerCase().includes("request"));
+    if (hasReturnRequested) {
+        const isExchange = allReturnReqs.some(r => r.requestType === "exchange");
+        return {
+            label: isExchange ? "Exchange Requested" : "Return Requested",
+            className: "border-amber-200 bg-amber-50 text-amber-900",
+            icon: <RotateCcw className="w-3 h-3 text-amber-600 stroke-[2.5]" />
+        };
+    }
+
+    const s = (order?.orderStatus || "").toLowerCase().trim();
+    if (s.includes("delivered")) {
+        return {
+            label: "Delivered",
+            className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+            icon: <CheckCircle2 className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
+        };
+    }
+    if (s.includes("out")) {
+        return {
+            label: "Out for Delivery",
+            className: "border-sky-200 bg-sky-50 text-sky-800",
+            icon: <Package className="w-3 h-3 text-sky-600 stroke-[2.5]" />
+        };
+    }
+    if (s.includes("transit") || s.includes("dispatched")) {
+        return {
+            label: "In Transit",
+            className: "border-sky-200 bg-sky-50 text-sky-800",
+            icon: <Package className="w-3 h-3 text-sky-600 stroke-[2.5]" />
+        };
+    }
+    if (s.includes("pack") || s.includes("ready")) {
+        return {
+            label: "Preparing",
+            className: "border-amber-200 bg-amber-50 text-amber-900",
+            icon: <Clock className="w-3 h-3 text-amber-600 stroke-[2.5]" />
+        };
+    }
+    return {
+        label: "Order Confirmed",
+        className: "border-neutral-200 bg-neutral-100 text-neutral-800",
+        icon: <Check className="w-3 h-3 text-neutral-600 stroke-[2.5]" />
+    };
+};
+
 export default function AccountOrdersPage() {
     const router = useRouter();
     const { showToast } = useToast();
@@ -333,7 +406,7 @@ export default function AccountOrdersPage() {
                             walletDeduction: o.walletDeduction || 0,
                             shippingMethod: o.shippingMethod || "Standard Delivery",
                             estimatedDelivery: o.estimatedDelivery || "",
-                            orderStatus: o.orderStatus || "Order Confirmed",
+                            orderStatus: (o.cancellation?.isCancelled ? "Cancelled" : (o.orderStatus || "Order Confirmed")),
                             paymentStatus: o.paymentStatus || "Confirmed",
                             totalAmount: o.totalAmount || 0,
                             shippingAddress: o.shippingAddress || {},
@@ -352,7 +425,7 @@ export default function AccountOrdersPage() {
                                 colorHex: i.colorHex,
                                 price: i.price,
                                 quantity: i.quantity,
-                                orderStatus: o.orderStatus || i.orderStatus || "Order Confirmed",
+                                orderStatus: (o.cancellation?.isCancelled ? "Cancelled" : (o.orderStatus || i.orderStatus || "Order Confirmed")),
                                 paymentStatus: i.paymentStatus || o.paymentStatus || "Confirmed",
                                 deliveryDate: resolveDeliveryEstimate(i.deliveryDate, o.estimatedDelivery, o.shippingMethod),
                                 image: i.image
@@ -382,6 +455,29 @@ export default function AccountOrdersPage() {
 
         const mainStatus = (order.orderStatus || "").toLowerCase();
         const filterVal = selectedStatusFilter.toLowerCase();
+        const isCancelled = order.cancellation?.isCancelled || mainStatus === "cancelled";
+
+        if (filterVal === "cancelled") {
+            return isCancelled;
+        }
+
+        if (filterVal === "returned") {
+            const allReturnReqs = (Array.isArray(order?.returnRequestsHistory) && order?.returnRequestsHistory.length > 0)
+                ? order.returnRequestsHistory
+                : (order?.returnExchange?.isRequested ? [order.returnExchange] : []);
+            return mainStatus === "returned" ||
+                order.returnExchange?.status === "Returned" ||
+                order.returnExchange?.status === "Refunded" ||
+                (allReturnReqs.length > 0 && allReturnReqs.some(r => r.status === "Refunded" || r.status === "Product Received" || r.status === "Returned"));
+        }
+
+        if (filterVal === "delivered") {
+            return mainStatus === "delivered" || (order.items || []).some(item => (item.orderStatus || "").toLowerCase() === "delivered");
+        }
+
+        if (filterVal.includes("confirmed")) {
+            return (mainStatus.includes("confirmed") || mainStatus === "placed") && !isCancelled;
+        }
 
         if (mainStatus === filterVal || mainStatus.includes(filterVal)) return true;
 
@@ -432,6 +528,7 @@ export default function AccountOrdersPage() {
                 </button>
             </div>
 
+
             {/* Selected Filter Bar */}
             {selectedStatusFilter !== "All" && (
                 <div className="flex items-center justify-between bg-neutral-100/70 px-4 py-2.5 rounded-xl text-xs">
@@ -478,17 +575,29 @@ export default function AccountOrdersPage() {
                 <div className="space-y-10">
                     <div className="space-y-10">
                         {paginatedOrders.map((order) => {
-                            const currentOrderStatus = order.orderStatus || "Order Confirmed";
+                            const isOrderCancelled = order.cancellation?.isCancelled || (order.orderStatus || "").toLowerCase() === "cancelled";
+                            const currentOrderStatus = isOrderCancelled ? "Cancelled" : (order.orderStatus || "Order Confirmed");
                             return (
                                 <div
                                     key={order.id}
                                     onClick={() => router.push(`/account/orders/${encodeURIComponent(order.id)}`)}
                                     className="border border-neutral-200/80 hover:border-neutral-300 rounded-3xl p-5 sm:p-6 transition-all duration-200 hover:shadow-xs cursor-pointer bg-white group/card space-y-5"
                                 >
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-xs font-normal text-neutral-400">
-                                            Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
-                                        </p>
+                                    <div className="flex flex-wrap items-center justify-between gap-2.5">
+                                        <div className="flex items-center gap-2.5 flex-wrap">
+                                            <p className="text-xs font-normal text-neutral-400">
+                                                Order ID: <span className="text-neutral-900 font-bold font-mono">{order.id}</span>
+                                            </p>
+                                            {/* {(() => {
+                                                const badge = getOrderStatusBadge(order);
+                                                return (
+                                                    <span className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider inline-flex items-center gap-1 shadow-2xs ${badge.className}`}>
+                                                        {badge.icon}
+                                                        <span>{badge.label}</span>
+                                                    </span>
+                                                );
+                                            })()} */}
+                                        </div>
                                         <div className="flex items-center gap-2">
                                             {order.paymentMethod && (
                                                 <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 uppercase tracking-wider">
@@ -586,6 +695,16 @@ export default function AccountOrdersPage() {
                                             </button>
 
                                             {(() => {
+                                                // If order is cancelled: show Cancelled badge just like Cancel Order was shown
+                                                if (isOrderCancelled) {
+                                                    return (
+                                                        <span className="border border-red-200 text-red-700 bg-red-50 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 select-none shadow-2xs">
+                                                            <X className="w-3.5 h-3.5 text-red-600 stroke-[2.5]" />
+                                                            <span>Cancelled</span>
+                                                        </span>
+                                                    );
+                                                }
+
                                                 const allReturnReqs = (Array.isArray(order.returnRequestsHistory) && order.returnRequestsHistory.length > 0)
                                                     ? order.returnRequestsHistory
                                                     : (order.returnExchange?.isRequested ? [order.returnExchange] : []);
@@ -621,6 +740,16 @@ export default function AccountOrdersPage() {
                                                     return getReturnProcessBadge(latestReq, order, setSelectedTrackOrder);
                                                 }
 
+                                                // Direct Returned status without return request
+                                                if (currentOrderStatus === "Returned") {
+                                                    return (
+                                                        <span className="border border-purple-200 text-purple-700 bg-purple-50 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 select-none shadow-2xs">
+                                                            <RotateCcw className="w-3.5 h-3.5 text-purple-600 stroke-[2.5]" />
+                                                            <span>Returned</span>
+                                                        </span>
+                                                    );
+                                                }
+
                                                 // 2. If order has active return requests but also some returnable items remaining (partial return)
                                                 if (allReturnReqs.length > 0 && remainingReturnableQty > 0) {
                                                     const latestReq = allReturnReqs[allReturnReqs.length - 1];
@@ -641,51 +770,63 @@ export default function AccountOrdersPage() {
                                                     );
                                                 }
 
-                                                // 2. If order is delivered and 7-day window has expired, show Return Window Closed badge
+                                                // 3. If order is delivered and 7-day window has expired, show Return Window Closed badge
                                                 if (isDelivered && isReturnWindowExpired) {
                                                     return (
-                                                        <span
-                                                            className="border border-neutral-200 bg-neutral-50 text-neutral-400 rounded-full px-3.5 py-1 text-xs font-medium cursor-default select-none flex items-center gap-1.5"
-                                                            title={`The 7-day return and exchange policy window has expired for this order (${daysSinceDelivery} days since delivery)`}
-                                                        >
-                                                            <Clock className="w-3.5 h-3.5 text-neutral-400" />
-                                                            <span>Return Window Closed</span>
-                                                        </span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="border border-emerald-200 bg-emerald-50 text-emerald-800 rounded-full px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 select-none shadow-2xs">
+                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                                                                <span>Delivered</span>
+                                                            </span>
+                                                            <span
+                                                                className="border border-neutral-200 bg-neutral-50 text-neutral-400 rounded-full px-3.5 py-1 text-xs font-medium cursor-default select-none flex items-center gap-1.5"
+                                                                title={`The 7-day return and exchange policy window has expired for this order (${daysSinceDelivery} days since delivery)`}
+                                                            >
+                                                                <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                                                                <span>Return Window Closed</span>
+                                                            </span>
+                                                        </div>
                                                     );
                                                 }
 
-                                                // 3. If delivered, within 7-day window, and has returnable items
+                                                // 4. If delivered, within 7-day window, and has returnable items
                                                 if (isDelivered && remainingReturnableQty > 0 && !isReturnWindowExpired) {
                                                     return (
-                                                        <Link
-                                                            href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                                        >
-                                                            <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
-                                                            <span>Return or Exchange</span>
-                                                        </Link>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="border border-emerald-200 bg-emerald-50 text-emerald-800 rounded-full px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 select-none shadow-2xs">
+                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                                                                <span>Delivered</span>
+                                                            </span>
+                                                            <Link
+                                                                href={`/return-and-exchange?orderId=${encodeURIComponent(order.id)}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="border border-neutral-300 rounded-full px-4 py-1.5 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                            >
+                                                                <RotateCcw className="w-3.5 h-3.5 text-neutral-600" />
+                                                                <span>Return or Exchange</span>
+                                                            </Link>
+                                                        </div>
                                                     );
                                                 }
 
-                                                return null;
-                                            })()}
+                                                // 5. Cancellation Action according to Bacstory policy
+                                                if (currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing" || currentOrderStatus === "Placed") {
+                                                    return (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setCancellingOrder(order);
+                                                            }}
+                                                            className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                        >
+                                                            <X className="w-3.5 h-3.5 text-red-600" />
+                                                            Cancel Order
+                                                        </button>
+                                                    );
+                                                }
 
-                                            {/* Cancellation Action according to Bacstory policy */}
-                                            {(currentOrderStatus === "Order Confirmed" || currentOrderStatus === "Processing") ? (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setCancellingOrder(order);
-                                                    }}
-                                                    className="border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full px-4 py-1.5 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                                                >
-                                                    <X className="w-3.5 h-3.5 text-red-600" />
-                                                    Cancel Order
-                                                </button>
-                                            ) : (() => {
                                                 const stepIdx = getStepIndex(currentOrderStatus);
-                                                const isNonCancellableInTransit = stepIdx >= 1 && stepIdx <= 3 && currentOrderStatus !== "Cancelled" && currentOrderStatus !== "Returned";
+                                                const isNonCancellableInTransit = stepIdx >= 1 && stepIdx <= 3;
                                                 if (isNonCancellableInTransit) {
                                                     return (
                                                         <span
@@ -696,6 +837,7 @@ export default function AccountOrdersPage() {
                                                         </span>
                                                     );
                                                 }
+
                                                 return null;
                                             })()}
                                         </div>
@@ -756,8 +898,8 @@ export default function AccountOrdersPage() {
                                                 key={page}
                                                 onClick={() => handlePageChange(page)}
                                                 className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${activePage === page
-                                                        ? "bg-black text-white shadow-xs"
-                                                        : "text-neutral-500 hover:text-black hover:bg-neutral-100"
+                                                    ? "bg-black text-white shadow-xs"
+                                                    : "text-neutral-500 hover:text-black hover:bg-neutral-100"
                                                     }`}
                                             >
                                                 {page}

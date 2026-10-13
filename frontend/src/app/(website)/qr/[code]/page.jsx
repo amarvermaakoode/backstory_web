@@ -40,6 +40,9 @@ import {
   ChevronDown,
   Ticket,
   Shirt,
+  Lock,
+  EyeOff,
+  Heart,
 } from "lucide-react";
 
 const InstagramIcon = (props) => (
@@ -81,6 +84,25 @@ const YoutubeIcon = (props) => (
     <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
     <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
   </svg>
+);
+
+const MadeWithBadge = ({ className = "" }) => (
+  <a
+    href="https://www.akoode.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Akoode Technology - AI & Software Company"
+    className={`relative inline-flex items-center gap-1 group text-neutral-500 hover:text-neutral-900 transition-colors shrink-0 text-xs font-light ${className}`}
+  >
+    <span className=" text-[11px] font-medium text-neutral-400 hover:text-neutral-600 ">Made with</span>
+    <Heart className="text-red-500 fill-red-500 w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" aria-hidden="true" />
+    <span className="sr-only">Akoode Technology</span>
+
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-y-1 group-hover:translate-y-0 transition-all duration-200 ease-out bg-[#474972] text-white text-[11px] px-2.5 py-1 rounded-md whitespace-nowrap pointer-events-none shadow-md z-30">
+      AI & Software company in India | USA
+      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#474972]" />
+    </span>
+  </a>
 );
 
 export default function PublicQRCodePage() {
@@ -562,10 +584,10 @@ export default function PublicQRCodePage() {
                                   fetchingItems
                                     ? "Loading garments for this order..."
                                     : orderItems.length > 0
-                                    ? `-- Select Garment Product (${orderItems.length} available) --`
-                                    : itemsError
-                                    ? "Order not matched"
-                                    : "Select Garment Product*"
+                                      ? `-- Select Garment Product (${orderItems.length} available) --`
+                                      : itemsError
+                                        ? "Order not matched"
+                                        : "Select Garment Product*"
                                 }
                                 showPlaceholderInMenu={orderItems.length > 0}
                                 options={orderItems.map((item) => ({
@@ -802,6 +824,21 @@ export default function PublicQRCodePage() {
                 </div>
               </div>
             </div>
+
+            {/* Bottom Footer Signoff */}
+            <div className="w-full text-center space-y-1 pt-6 pb-6 z-20 flex flex-col items-center">
+              <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
+                Authentic Apparel. Built on Trust.
+              </p>
+              <img
+                src="/images/logo-dark.svg"
+                alt="BACSTORY"
+                className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
+              />
+              <div className="pt-0">
+                <MadeWithBadge />
+              </div>
+            </div>
           </div>
         )}
 
@@ -875,13 +912,164 @@ export default function PublicQRCodePage() {
               </div>
             </div>
 
-            {/* Bottom Spacer */}
-            <div className="h-4" />
+            {/* Bottom Footer Signoff */}
+            <div className="w-full text-center space-y-0 pt-4 pb-0 z-20 flex flex-col items-center">
+              <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
+                Authentic Apparel. Built on Trust.
+              </p>
+              {/* <img
+                src="/images/logo-dark.svg"
+                alt="BACSTORY"
+                className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
+              /> */}
+              <div className="pt-0">
+                <MadeWithBadge />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* LINKED / ACTIVATED STATE: Display Public Story Profile (Bacstory Identity Card) */}
-        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && (
+        {/* PRIVATE MODE: When owner turned off detail visibility (or by default), show Bacstory Brand Showcase */}
+        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && qrData?.profileData?.isPublic !== true && (
+          <div className="min-h-screen w-full bg-[#FAF8F5] relative overflow-y-auto flex flex-col justify-between p-4 sm:p-6 select-none animate-in fade-in duration-300">
+            {/* Top Brand Header */}
+            <div className="w-full  mx-auto z-20">
+              <Link href="/" className="inline-block cursor-pointer">
+                <img
+                  src="/images/logo-dark.svg"
+                  alt="BACSTORY"
+                  className="h-6 sm:h-7 w-auto object-contain"
+                />
+              </Link>
+
+              {/* <div className="flex items-center gap-2">
+                <span className="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-neutral-600 bg-white shadow-2xs px-3 py-1 rounded-full border border-neutral-200">
+                  BACSTORY / {qrData?.code || codeParam}
+                </span>
+              </div> */}
+            </div>
+
+
+
+            {/* Main Center Container: Bacstory Showcase Card */}
+            <div className="w-full max-w-[80%] mx-auto my-auto z-10 py-4 sm:py-8 space-y-6">
+              <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-neutral-200/90 text-center space-y-6">
+
+                {/* Verified Authentic Pill */}
+                {/* <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold tracking-wider uppercase">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Verified Authentic Bacstory Garment</span>
+                </div> */}
+
+                {/* Private Owner Notice */}
+                <div className="max-w-md mx-auto space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-neutral-100 text-neutral-800 flex items-center justify-center mx-auto">
+                    <Lock className="w-5 h-5 stroke-[1.8]" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-semibold font-clashDisplay text-neutral-900 ">
+                    Living Identity • Private
+                  </h2>
+                  <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed">
+                    This authentic BACSTORY garment belongs to a verified tribe member who has chosen to keep their personal story private.
+                  </p>
+                </div>
+
+                <div className="w-16 h-0.5 bg-neutral-200 mx-auto" />
+
+                {/* The Story of Bacstory */}
+                <div className="space-y-4 text-left bg-[#F7F4EE] rounded-2xl p-5 sm:p-7 border border-neutral-200/60">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold tracking-[0.25em] text-[#6A6E53] uppercase block">
+                      THE BRAND BEHIND THE THREADS
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-semibold font-clashDisplay text-neutral-900">
+                      Fashion Engineered For Those With A Story
+                    </h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed font-normal">
+                    BACSTORY was created for individuals who believe clothing is an extension of their character. Every piece is cut from heavy-gsm luxury cotton, built with architectural durability, and embedded with digital storytelling identity.
+                  </p>
+
+                  {/* Brand Pillars Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-neutral-200/70">
+                    <div className="space-y-1 bg-white/70 rounded-xl p-3 border border-neutral-200/50">
+                      <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center text-[#4E523A]">
+                        <Award className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-[11px] font-bold text-neutral-900 uppercase">240+ GSM Cotton</h4>
+                      <p className="text-[10px] text-neutral-500 leading-normal">
+                        Pre-shrunk, combed luxury cotton engineered for timeless drape.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 bg-white/70 rounded-xl p-3 border border-neutral-200/50">
+                      <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center text-[#4E523A]">
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-[11px] font-bold text-neutral-900 uppercase">Living QR Identity</h4>
+                      <p className="text-[10px] text-neutral-500 leading-normal">
+                        A scannable window into the thoughts, projects, and world of its owner.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 bg-white/70 rounded-xl p-3 border border-neutral-200/50">
+                      <div className="w-7 h-7 rounded-lg bg-neutral-100 flex items-center justify-center text-[#4E523A]">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-[11px] font-bold text-neutral-900 uppercase">The Tribe</h4>
+                      <p className="text-[10px] text-neutral-500 leading-normal">
+                        A global collective of thinkers, builders, rebels, and seekers.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Brand Quote */}
+                <div className="italic text-xs sm:text-sm text-neutral-600 font-medium pt-1">
+                  &quot;You see what I wear. Now discover why.&quot;
+                </div>
+
+                {/* Explore Bacstory CTAs */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3 justify-center">
+                  <Link
+                    href="/product-list"
+                    className="w-full sm:w-auto px-6 py-3 bg-neutral-900 hover:bg-black text-white font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Explore Collection</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+
+                  <Link
+                    href="/about-us"
+                    className="w-full sm:w-auto px-6 py-3 bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-800 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>About The Brand</span>
+                  </Link>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Bottom Footer Signoff */}
+            <div className="w-full text-center space-y-0 pt-4 pb-0 z-20 flex flex-col items-center">
+              <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
+                Authentic Apparel. Built on Trust.
+              </p>
+              {/* <img
+                src="/images/logo-dark.svg"
+                alt="BACSTORY"
+                className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
+              /> */}
+              <div className="pt-0">
+                <MadeWithBadge />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* LINKED / ACTIVATED STATE: Display Public Story Profile (when visibility is turned ON) */}
+        {!loading && !errorMsg && qrData?.status !== "unlinked" && !claimSuccess && qrData?.profileData?.isPublic === true && (
           <div className="min-h-screen w-full md:bg-[#E7DCD3] bg-[#E7DCD3]/40 lg:bg-[url('/images/qr-about/imageCopy.png')] bg-cover bg-no-repeat relative overflow-y-auto flex flex-col justify-between p-4 sm:p-6 select-none animate-in fade-in duration-300">
             {/* Top Brand Header */}
             <div className="w-full max-w-full mx-auto z-20 pb-4 md:pb-6 flex items-center justify-between">
@@ -893,15 +1081,15 @@ export default function PublicQRCodePage() {
                 />
               </Link>
 
-              <span className="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-neutral-600 bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-neutral-200/80">
+              {/* <span className="text-[10px] sm:text-xs font-mono font-bold tracking-widest text-neutral-600 bg-white/80 backdrop-blur-xs px-3 py-1 rounded-full border border-neutral-200/80">
                 BACSTORY / IDENTITY {qrData?.code || codeParam}
-              </span>
+              </span> */}
             </div>
 
             {/* Main Center Container: Public Garment Identity Card */}
             <div className="w-full max-w-lg mx-auto my-auto z-10 py-2 sm:py-6">
               <div className="bg-[#F8F5F2] rounded-3xl p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-neutral-200/90 text-left space-y-6">
-                
+
                 {/* Identity Header: Avatar, Name & Archetype */}
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left border-b border-neutral-200/70 pb-5">
                   <div className="relative w-20 h-20 sm:w-22 sm:h-22 shrink-0">
@@ -1125,15 +1313,18 @@ export default function PublicQRCodePage() {
             </div>
 
             {/* Bottom Footer Signoff */}
-            <div className="w-full text-center space-y-1 pt-4 z-20">
+            <div className="w-full text-center space-y-0 pt-4 pb-0 z-20 flex flex-col items-center">
               <p className="text-[11px] font-medium text-neutral-400 tracking-wide">
                 Authentic Apparel. Built on Trust.
               </p>
-              <img
+              {/* <img
                 src="/images/logo-dark.svg"
                 alt="BACSTORY"
                 className="h-4 sm:h-5 w-auto mx-auto opacity-70 object-contain"
-              />
+              /> */}
+              <div className="pt-0">
+                <MadeWithBadge />
+              </div>
             </div>
           </div>
         )}

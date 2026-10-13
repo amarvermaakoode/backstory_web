@@ -107,7 +107,8 @@ exports.getQRCodeByCode = async (req, res) => {
       });
     }
 
-    // Claimed / Active status response (Pure public story view - No forms, no editing)
+    // Claimed / Active status response (Public story view or Bacstory showcase if private)
+    const isPublic = qrDoc.profileData?.isPublic === true;
     return res.status(200).json({
       success: true,
       status: qrDoc.status,
@@ -115,9 +116,12 @@ exports.getQRCodeByCode = async (req, res) => {
       orderId: qrDoc.orderId,
       linkedUser: {
         _id: qrDoc.linkedUser?._id,
-        name: qrDoc.linkedUser?.name || "Anonymous",
+        name: isPublic ? (qrDoc.linkedUser?.name || "Anonymous") : "Bacstory Tribe Member",
       },
-      profileData: qrDoc.profileData || {},
+      profileData: {
+        ...(qrDoc.profileData || {}),
+        isPublic: isPublic,
+      },
       linkedAt: qrDoc.linkedAt,
     });
   } catch (error) {
@@ -400,6 +404,7 @@ exports.updateQRProfile = async (req, res) => {
       askMeAbout,
       rightNow,
       storyPrompts,
+      isPublic,
     } = req.body;
 
     if (!code || !code.trim()) {
@@ -429,6 +434,7 @@ exports.updateQRProfile = async (req, res) => {
     }
 
     const finalSignature = signature !== undefined ? signature : (customText !== undefined ? customText : qrDoc.profileData?.signature || qrDoc.profileData?.customText || "");
+    const finalIsPublic = isPublic !== undefined ? Boolean(isPublic) : (qrDoc.profileData?.isPublic !== undefined ? qrDoc.profileData.isPublic : false);
 
     // Update Profile Data (edited in User Account section)
     qrDoc.profileData = {
@@ -454,6 +460,7 @@ exports.updateQRProfile = async (req, res) => {
         unexpectedPart: qrDoc.profileData?.storyPrompts?.unexpectedPart || "",
         nextChapter: qrDoc.profileData?.storyPrompts?.nextChapter || "",
       },
+      isPublic: finalIsPublic,
     };
 
     qrDoc.status = "active";

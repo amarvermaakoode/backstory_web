@@ -89,6 +89,7 @@ export default function ProductsAdminPage() {
   const [selectedProductForReviews, setSelectedProductForReviews] = useState(null);
   const [productReviews, setProductReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState(null); // { type: 'image' | 'video', url: string }
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -1265,7 +1266,7 @@ export default function ProductsAdminPage() {
                 <div className="divide-y divide-neutral-100">
                   {productReviews.map((rev) => (
                     <div key={rev._id} className="py-4 first:pt-0 last:pb-0 flex justify-between items-start gap-4">
-                      <div className="space-y-1.5 flex-1 text-left">
+                      <div className="space-y-2 flex-1 text-left">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-neutral-800 text-sm font-sans">{rev.author}</span>
                           <div className="flex text-[#FFB800]">
@@ -1277,6 +1278,47 @@ export default function ProductsAdminPage() {
                           </div>
                         </div>
                         <p className="text-xs text-neutral-600 leading-relaxed font-sans">{rev.text}</p>
+
+                        {/* Review Photos & Videos */}
+                        {((rev.photos && rev.photos.length > 0) || (rev.videos && rev.videos.length > 0)) && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {/* Photos */}
+                            {rev.photos && rev.photos.map((photoUrl, pIdx) => (
+                              <button
+                                type="button"
+                                key={`admin-photo-${pIdx}`}
+                                onClick={() => setPreviewMedia({ type: "image", url: getImageUrl(photoUrl) })}
+                                className="relative w-16 h-16 rounded-xl overflow-hidden border border-neutral-200 hover:border-black transition-all cursor-pointer group shrink-0 bg-neutral-50 shadow-xs"
+                                title="Click to view photo"
+                              >
+                                <Image
+                                  src={getImageUrl(photoUrl)}
+                                  alt={`Review photo ${pIdx + 1}`}
+                                  fill
+                                  sizes="64px"
+                                  className="object-cover group-hover:scale-105 transition-transform"
+                                  unoptimized
+                                />
+                              </button>
+                            ))}
+
+                            {/* Videos */}
+                            {rev.videos && rev.videos.map((vidUrl, vIdx) => (
+                              <div
+                                key={`admin-video-${vIdx}`}
+                                className="relative h-16 w-28 rounded-xl overflow-hidden border border-neutral-200 bg-black shrink-0 shadow-xs"
+                              >
+                                <video
+                                  src={getImageUrl(vidUrl)}
+                                  controls
+                                  preload="metadata"
+                                  className="h-16 w-full object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="text-[10px] text-neutral-400 font-semibold font-sans">
                           Submitted on {new Date(rev.createdAt).toLocaleDateString()}
                         </div>
@@ -1293,6 +1335,32 @@ export default function ProductsAdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Media Preview Lightbox Modal */}
+      {previewMedia && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewMedia(null)}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors cursor-pointer p-1"
+              aria-label="Close Preview"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={previewMedia.url}
+              alt="Enlarged review photo"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            />
           </div>
         </div>
       )}
