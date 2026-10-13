@@ -39,10 +39,13 @@ const createOrder = async (req, res) => {
 
     const instance = getRazorpayInstance();
 
+    // Razorpay receipt maximum length is 40 characters
+    const cleanReceipt = String(receipt || `rcpt_${Date.now()}`).slice(0, 40);
+
     const options = {
       amount: Math.round(numericAmount),
       currency: currency || "INR",
-      receipt: receipt || `receipt_${Date.now()}`,
+      receipt: cleanReceipt,
     };
 
     const order = await instance.orders.create(options);
@@ -54,18 +57,28 @@ const createOrder = async (req, res) => {
       amount: order.amount,
       currency: order.currency,
       receipt: order.receipt,
+      key_id: process.env.RAZORPAY_KEY_ID || "",
     });
   } catch (error) {
     console.error("Error creating Razorpay order:", error);
-    if (error.statusCode === 401 || (error.error && error.error.code === "BAD_REQUEST_ERROR")) {
-      return res.status(401).json({
-        success: false,
-        message: error.description || "Authentication failure with Razorpay API",
-      });
-    }
-    return res.status(500).json({
+
+    const errorMessage =
+      error.error?.description ||
+      error.description ||
+      error.error?.message ||
+      error.message ||
+      "Failed to create Razorpay order";
+
+    const isAuthError =
+      error.statusCode === 401 ||
+      (error.error && error.error.code === "BAD_REQUEST_ERROR" && String(errorMessage).toLowerCase().includes("auth"));
+
+    const statusCode = isAuthError ? 401 : (error.statusCode || 500);
+
+    return res.status(statusCode).json({
       success: false,
-      message: error.description || error.message || "Failed to create Razorpay order",
+      message: errorMessage,
+      code: error.error?.code || error.code || "PAYMENT_ORDER_ERROR",
     });
   }
 };

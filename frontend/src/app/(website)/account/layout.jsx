@@ -25,10 +25,15 @@ export default function AccountLayout({ children }) {
     const { showToast } = useToast();
 
     useEffect(() => {
-        if (!loading && !user) {
-            router.replace("/login");
+        if (!loading) {
+            if (!user) {
+                router.replace("/login");
+            } else if (user.role === "admin") {
+                logout();
+                router.replace("/login");
+            }
         }
-    }, [loading, user, router]);
+    }, [loading, user, router, logout]);
 
     const handleLogout = () => {
         showToast("Logged out successfully.", "info");

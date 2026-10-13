@@ -34,7 +34,7 @@ const sendOtp = async (req, res) => {
     */
 
     if (authType === "login") {
-      if (!existingUser) {
+      if (!existingUser || existingUser.role === "admin") {
         return res.status(404).json({
           success: false,
           accountNotFound: true,
@@ -187,7 +187,7 @@ const verifyOtp = async (req, res) => {
 
     let accountReactivated = false;
     if (authType === "login") {
-      if (!user) {
+      if (!user || user.role === "admin") {
         return res.status(404).json({
           success: false,
           accountNotFound: true,
@@ -263,8 +263,15 @@ const getCurrentUser = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
     let user = await User.findById(userId).select("-password");
-    if (!user || user.isDeactivated) {
-      return res.status(401).json({ success: false, message: "User not found or account deactivated", accountDeleted: true });
+    if (!user || user.isDeactivated || user.role === "admin") {
+      return res.status(401).json({
+        success: false,
+        isAdminAccount: user?.role === "admin",
+        message: user?.role === "admin"
+          ? "Admin accounts cannot access customer accounts."
+          : "User not found or account deactivated",
+        accountDeleted: true,
+      });
     }
 
     // Auto-sync wallet balance from any refunded wallet orders

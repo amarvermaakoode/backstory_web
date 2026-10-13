@@ -45,8 +45,8 @@ export function UserAuthProvider({ children }) {
       });
       const data = await res.json().catch(() => ({}));
 
-      // If account was deleted, deactivated, or token is invalid: log out immediately!
-      if (!res.ok || res.status === 401 || res.status === 404 || !data.success || !data.user || data.user.isDeactivated) {
+      // If account was deleted, deactivated, token is invalid, or role is admin: log out immediately!
+      if (!res.ok || res.status === 401 || res.status === 403 || res.status === 404 || !data.success || !data.user || data.user.isDeactivated || data.user.role === "admin") {
         clearSession();
         if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
           router.replace("/login");
@@ -65,13 +65,29 @@ export function UserAuthProvider({ children }) {
     const storedToken = localStorage.getItem("userToken");
     const storedUser = localStorage.getItem("userData");
 
+    let isStoredAdmin = false;
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser);
+        if (parsed?.role === "admin") {
+          isStoredAdmin = true;
+          clearAuth();
+        } else {
+          setUser(parsed);
+        }
       } catch (error) {
         console.error("Invalid user data:", error);
         clearAuth();
       }
+    }
+
+    if (isStoredAdmin) {
+      clearSession();
+      setLoading(false);
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/account")) {
+        router.replace("/login");
+      }
+      return;
     }
 
     if (storedToken) {
@@ -122,6 +138,7 @@ export function UserAuthProvider({ children }) {
           error: data.message || "Failed to send OTP",
           accountNotFound: !!data.accountNotFound,
           accountExists: !!data.accountExists,
+          isAdminAccount: !!data.isAdminAccount,
         };
       }
       return { success: true, mockOtp: data.mockOtp, message: data.message };
@@ -147,11 +164,15 @@ export function UserAuthProvider({ children }) {
       });
 
       const data = await response.json();
-      if (!response.ok || !data.success) {
+      if (!response.ok || !data.success || data.user?.role === "admin") {
         return {
           success: false,
-          error: data.message || "OTP verification failed",
-          accountNotFound: !!data.accountNotFound,
+          error:
+            data.message ||
+            (data.user?.role === "admin"
+              ? "This account doesn't exist. Please sign up."
+              : "OTP verification failed"),
+          accountNotFound: !!data.accountNotFound || data.user?.role === "admin",
           accountExists: !!data.accountExists,
         };
       }

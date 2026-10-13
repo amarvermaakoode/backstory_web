@@ -81,6 +81,32 @@ const formatFullDate = (dateVal) => {
     }
 };
 
+const resolveDeliveryEstimate = (itemDelivery, orderEstimate, shippingMethod) => {
+    const normMethod = (shippingMethod || "").toLowerCase();
+    let defaultDays = "3–5 business days";
+    if (normMethod.includes("express")) {
+        defaultDays = "1–2 business days";
+    } else if (normMethod.includes("international") || normMethod.includes("intl")) {
+        defaultDays = "7–14 business days";
+    }
+
+    if (
+        itemDelivery &&
+        !((normMethod.includes("express") || normMethod.includes("international")) && itemDelivery.includes("3-5"))
+    ) {
+        return itemDelivery.toLowerCase().includes("estimated") ? itemDelivery : `Estimated Delivery: ${itemDelivery}`;
+    }
+
+    if (
+        orderEstimate &&
+        !((normMethod.includes("express") || normMethod.includes("international")) && orderEstimate.includes("3-5"))
+    ) {
+        return orderEstimate.toLowerCase().includes("estimated") ? orderEstimate : `Estimated Delivery: ${orderEstimate}`;
+    }
+
+    return `Estimated Delivery: ${defaultDays}`;
+};
+
 const getStepTimelineDate = (stepTitle, stepIdx, order, activeStepIdx) => {
     if (!order) return null;
     const timeline = Array.isArray(order.statusTimeline) ? order.statusTimeline : [];
@@ -493,7 +519,7 @@ export default function OrderDetailPage({ params }) {
                                     </p>
                                     {!isCancelled && !isDelivered && (
                                         <p className="text-[11px] text-neutral-500 font-normal">
-                                            {item.deliveryDate || "Estimated Delivery: 3-5 Business Days"}
+                                            {resolveDeliveryEstimate(item.deliveryDate, order.estimatedDelivery, order.shippingMethod)}
                                         </p>
                                     )}
                                 </div>
@@ -638,7 +664,7 @@ export default function OrderDetailPage({ params }) {
                             )}
 
                             <div className="flex items-center justify-between text-neutral-600">
-                                <span>Shipping Fee</span>
+                                <span>Shipping Fee {order.shippingMethod ? `(${order.shippingMethod})` : ""}</span>
                                 <span className="font-semibold text-neutral-900">
                                     {shippingCost > 0 ? `₹${shippingCost.toLocaleString("en-IN")}` : "FREE"}
                                 </span>

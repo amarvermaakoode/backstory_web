@@ -69,6 +69,32 @@ const formatTimelineDate = (dateVal) => {
     }
 };
 
+const resolveDeliveryEstimate = (itemDelivery, orderEstimate, shippingMethod) => {
+    const normMethod = (shippingMethod || "").toLowerCase();
+    let defaultDays = "3–5 business days";
+    if (normMethod.includes("express")) {
+        defaultDays = "1–2 business days";
+    } else if (normMethod.includes("international") || normMethod.includes("intl")) {
+        defaultDays = "7–14 business days";
+    }
+
+    if (
+        itemDelivery &&
+        !((normMethod.includes("express") || normMethod.includes("international")) && itemDelivery.includes("3-5"))
+    ) {
+        return itemDelivery.toLowerCase().includes("estimated") ? itemDelivery : `Estimated Delivery: ${itemDelivery}`;
+    }
+
+    if (
+        orderEstimate &&
+        !((normMethod.includes("express") || normMethod.includes("international")) && orderEstimate.includes("3-5"))
+    ) {
+        return orderEstimate.toLowerCase().includes("estimated") ? orderEstimate : `Estimated Delivery: ${orderEstimate}`;
+    }
+
+    return `Estimated Delivery: ${defaultDays}`;
+};
+
 const getStepTimelineDate = (stepTitle, stepIdx, order, activeStepIdx) => {
     if (!order) return null;
     const timeline = Array.isArray(order.statusTimeline) ? order.statusTimeline : [];
@@ -305,6 +331,8 @@ export default function AccountOrdersPage() {
                             statusTimeline: Array.isArray(o.statusTimeline) ? o.statusTimeline : [],
                             paymentMethod: o.paymentMethod || "Razorpay / Prepaid",
                             walletDeduction: o.walletDeduction || 0,
+                            shippingMethod: o.shippingMethod || "Standard Delivery",
+                            estimatedDelivery: o.estimatedDelivery || "",
                             orderStatus: o.orderStatus || "Order Confirmed",
                             paymentStatus: o.paymentStatus || "Confirmed",
                             totalAmount: o.totalAmount || 0,
@@ -326,7 +354,7 @@ export default function AccountOrdersPage() {
                                 quantity: i.quantity,
                                 orderStatus: o.orderStatus || i.orderStatus || "Order Confirmed",
                                 paymentStatus: i.paymentStatus || o.paymentStatus || "Confirmed",
-                                deliveryDate: i.deliveryDate || "Estimated Delivery: 3-5 Business Days",
+                                deliveryDate: resolveDeliveryEstimate(i.deliveryDate, o.estimatedDelivery, o.shippingMethod),
                                 image: i.image
                             }))
                         }));

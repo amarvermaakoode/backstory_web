@@ -517,9 +517,31 @@ const generateOrderEmailHtml = ({ order, recipientEmail }) => {
   const paymentMethod = order.paymentMethod || "Prepaid";
   const paymentStatus = order.paymentStatus || "Paid";
   const shippingMethod = order.shippingMethod || "Standard Delivery";
-  const estimatedDelivery =
+  const normMethod = String(shippingMethod).toLowerCase();
+
+  let dynamicDays = "3–5 business days";
+  if (normMethod.includes("express")) {
+    dynamicDays = "1–2 business days";
+  } else if (normMethod.includes("international")) {
+    dynamicDays = "7–14 business days";
+  }
+
+  let rawDelivery =
+    order.estimatedDelivery ||
     (order.items && order.items[0] && order.items[0].deliveryDate) ||
-    "Estimated Delivery: 3-5 Business Days";
+    "";
+
+  if (
+    !rawDelivery ||
+    (normMethod.includes("express") && (rawDelivery.includes("3-5") || rawDelivery.includes("3–5"))) ||
+    (normMethod.includes("international") && (rawDelivery.includes("3-5") || rawDelivery.includes("3–5")))
+  ) {
+    rawDelivery = `Estimated Delivery: ${dynamicDays}`;
+  }
+
+  const estimatedDelivery = rawDelivery.toLowerCase().startsWith("estimated")
+    ? rawDelivery
+    : `Estimated Delivery: ${rawDelivery}`;
 
   const subtotal = Number(order.subtotal || 0);
   const rawDiscount = Number(order.discountAmount || 0);
@@ -809,7 +831,30 @@ const generateOrderEmailText = ({ order }) => {
     )
     .join("\n");
 
-  return `BACSTORY - Wear Your Narrative\n\nOrder Confirmed: #${orderId}\n\nHi ${recipientName},\n\nThank you for your order! We have received your order and are preparing it for delivery.\n\nOrder Details:\nOrder Number: #${orderId}\nPayment Method: ${order.paymentMethod || "Prepaid"} (${order.paymentStatus || "Paid"})\nTotal Amount: Rs ${totalAmount.toLocaleString("en-IN")}\n\nItems Ordered:\n${itemsText}\n\nDelivery Address:\n${recipientName}\n${addr.streetAddress || ""}\n${[addr.city, addr.state, addr.pinCode].filter(Boolean).join(", ")}\nPhone: ${addr.phoneNumber || "N/A"}\n\nTrack your order at: ${getFrontendUrl()}/account/orders\n\nSupport: ceo@bacstory.com`;
+  const shippingMethod = order.shippingMethod || "Standard Delivery";
+  const normMethod = String(shippingMethod).toLowerCase();
+  let dynamicDays = "3–5 business days";
+  if (normMethod.includes("express")) {
+    dynamicDays = "1–2 business days";
+  } else if (normMethod.includes("international")) {
+    dynamicDays = "7–14 business days";
+  }
+  let rawDelivery =
+    order.estimatedDelivery ||
+    (order.items && order.items[0] && order.items[0].deliveryDate) ||
+    "";
+  if (
+    !rawDelivery ||
+    (normMethod.includes("express") && (rawDelivery.includes("3-5") || rawDelivery.includes("3–5"))) ||
+    (normMethod.includes("international") && (rawDelivery.includes("3-5") || rawDelivery.includes("3–5")))
+  ) {
+    rawDelivery = `Estimated Delivery: ${dynamicDays}`;
+  }
+  const estimatedDelivery = rawDelivery.toLowerCase().startsWith("estimated")
+    ? rawDelivery
+    : `Estimated Delivery: ${rawDelivery}`;
+
+  return `BACSTORY - Wear Your Narrative\n\nOrder Confirmed: #${orderId}\n\nHi ${recipientName},\n\nThank you for your order! We have received your order and are preparing it for delivery.\n\nOrder Details:\nOrder Number: #${orderId}\nPayment Method: ${order.paymentMethod || "Prepaid"} (${order.paymentStatus || "Paid"})\nShipping Method: ${shippingMethod}\nDelivery: ${estimatedDelivery}\nTotal Amount: Rs ${totalAmount.toLocaleString("en-IN")}\n\nItems Ordered:\n${itemsText}\n\nDelivery Address:\n${recipientName}\n${addr.streetAddress || ""}\n${[addr.city, addr.state, addr.pinCode].filter(Boolean).join(", ")}\nPhone: ${addr.phoneNumber || "N/A"}\n\nTrack your order at: ${getFrontendUrl()}/account/orders\n\nSupport: ceo@bacstory.com`;
 };
 
 /**
@@ -1341,13 +1386,190 @@ const sendOrderStatusUpdateEmail = async ({
   }
 };
 
+/**
+ * Helper to generate brand HTML template for Admin Support Inquiry notification
+ */
+const generateSupportTicketEmailHtml = ({ ticket }) => {
+  const attachments = [];
+  const logoInfo = resolveEmailLogo();
+  if (logoInfo.attachment) {
+    attachments.push(logoInfo.attachment);
+  }
+  const logoUrl = logoInfo.url;
+  const baseUrl = getFrontendUrl();
+  const customerName = ticket.name || "Customer";
+  const customerEmail = ticket.email || "Not provided";
+  const customerPhone = ticket.phone || "Not provided";
+  const subjectText = ticket.subject || "General Inquiry";
+  const messageText = ticket.message || "";
+  const ticketId = ticket._id ? String(ticket._id) : "N/A";
+  const dateFormatted = new Date().toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Support Message - BACSTORY</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f7f6f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f7f6f2; padding: 32px 12px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 18px; border: 1px solid #ebe7df; overflow: hidden; box-shadow: 0 4px 25px rgba(0,0,0,0.04);">
+          <!-- Top Accent Bar -->
+          <tr>
+            <td style="height: 4px; background: linear-gradient(90deg, #111111 0%, #7A5236 100%);"></td>
+          </tr>
+
+          <!-- Header / Brand Logo -->
+          <tr>
+            <td style="padding: 32px 32px 20px; text-align: center;">
+              <a href="${baseUrl}" target="_blank" style="text-decoration: none; display: inline-block;">
+                <img src="${logoUrl}" alt="BACSTORY" width="155" height="31" style="max-width: 155px; width: 155px; height: auto; display: block; margin: 0 auto; border: 0; outline: none; text-decoration: none;" />
+              </a>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <hr style="border: none; border-top: 1px solid #f0ece3; margin: 0;">
+            </td>
+          </tr>
+
+          <!-- Notification Hero -->
+          <tr>
+            <td style="padding: 28px 32px 20px; text-align: center;">
+              <div style="display: inline-block; background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 20px; padding: 6px 16px; font-size: 12px; font-weight: 600; color: #92400E; letter-spacing: 0.5px; margin-bottom: 14px;">
+                NEW SUPPORT MESSAGE
+              </div>
+              <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #111111;">
+                Customer Inquiry Received
+              </h2>
+              <p style="margin: 0 auto; max-width: 480px; font-size: 14px; line-height: 1.5; color: #666666;">
+                A new inquiry has been submitted through the customer support portal.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Sender Details Card -->
+          <tr>
+            <td style="padding: 0 32px 20px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #faf8f5; border: 1px solid #ede8de; border-radius: 14px; padding: 18px 20px;">
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777; width: 35%;">Customer Name</td>
+                  <td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #111111; text-align: right;">${customerName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777;">Customer Email</td>
+                  <td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #111111; text-align: right;">
+                    <a href="mailto:${customerEmail}" style="color: #111111; text-decoration: underline;">${customerEmail}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777;">Phone Number</td>
+                  <td style="padding: 6px 0; font-size: 14px; font-weight: 500; color: #111111; text-align: right;">${customerPhone}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777;">Subject / Issue</td>
+                  <td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #111111; text-align: right;">${subjectText}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777;">Date &amp; Time</td>
+                  <td style="padding: 6px 0; font-size: 13px; font-weight: 500; color: #555555; text-align: right;">${dateFormatted}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 13px; color: #777777;">Ticket ID</td>
+                  <td style="padding: 6px 0; font-size: 11px; font-family: monospace; color: #888888; text-align: right;">${ticketId}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Message Box -->
+          <tr>
+            <td style="padding: 0 32px 24px;">
+              <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #8a8277; margin-bottom: 8px;">
+                Customer Message
+              </div>
+              <div style="background-color: #ffffff; border: 1.5px solid #ebe7df; border-left: 4px solid #111111; border-radius: 10px; padding: 18px 20px; font-size: 14px; line-height: 1.6; color: #222222; white-space: pre-wrap;">${messageText}</div>
+            </td>
+          </tr>
+
+          <!-- Action Buttons -->
+          <tr>
+            <td style="padding: 0 32px 32px; text-align: center;">
+              ${ticket.email ? `
+              <a href="mailto:${ticket.email}?subject=Re:%20${encodeURIComponent(subjectText)}" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 500; letter-spacing: 1px; padding: 12px 28px; border-radius: 8px;">
+                Reply to Customer via Email
+              </a>
+              ` : ""}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px 32px; background-color: #FAFAFA; border-top: 1px solid #F0ECE3; text-align: center;">
+              <p style="margin: 0; font-size: 11px; color: #999999;">
+                This is an automated notification from BACSTORY Support.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return { html, attachments };
+};
+
+/**
+ * Send Support Ticket notification email to admin
+ */
+const sendSupportTicketEmailToAdmin = async ({ ticket, adminEmail }) => {
+  try {
+    const toEmail = String(adminEmail || process.env.ADMIN_EMAIL || "aditi@akoode.in").toLowerCase().trim();
+    const subject = `[Support Inquiry] ${ticket.subject} - from ${ticket.name || ticket.email || "Customer"}`;
+    const result = generateSupportTicketEmailHtml({ ticket });
+    const htmlContent = typeof result === "object" && result.html ? result.html : result;
+    const attachments = typeof result === "object" && result.attachments ? result.attachments : [];
+    const textContent = `BACSTORY - New Customer Support Inquiry\n\nFrom: ${ticket.name || "Customer"} (${ticket.email || "No email"})\nPhone: ${ticket.phone || "No phone"}\nSubject: ${ticket.subject}\nTicket ID: ${ticket._id || ""}\n\nMessage:\n${ticket.message}\n`;
+
+    return await dispatchEmail({
+      to: toEmail,
+      subject,
+      html: htmlContent,
+      text: textContent,
+      purpose: `Admin Support Notification (${ticket.subject})`,
+      attachments,
+    });
+  } catch (error) {
+    console.error("[EmailService] Error sending admin support ticket email:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOtpEmail,
   sendOrderConfirmationEmail,
   sendOrderStatusUpdateEmail,
+  sendSupportTicketEmailToAdmin,
   generateOrderEmailHtml,
   generateOtpEmailHtml,
   generateOrderStatusEmailHtml,
+  generateSupportTicketEmailHtml,
   generateOrderEmailText,
   generateOrderStatusEmailText,
   initSendGrid,

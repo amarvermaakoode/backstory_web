@@ -391,6 +391,20 @@ export default function CheckoutPage() {
         international: { rate: 638, deliveryDays: "7–14 business days" }
     });
 
+    const getShippingMethodTitle = (method) => {
+        if (method === "express") return "Express Delivery";
+        if (method === "international") return "International Shipping";
+        return "Standard Delivery";
+    };
+
+    const getEstimatedDeliveryText = (method, ratesConfig) => {
+        const rawDays = ratesConfig?.[method]?.deliveryDays ||
+            (method === "express" ? "1–2 business days" : method === "international" ? "7–14 business days" : "3–5 business days");
+        return rawDays.toLowerCase().startsWith("estimated")
+            ? rawDays
+            : `Estimated Delivery: ${rawDays}`;
+    };
+
     // Auto-switch payment choice to online if international shipping is selected while on COD
     useEffect(() => {
         if (shippingMethod === "international" && selectedPaymentChoice === "cod") {
@@ -894,7 +908,8 @@ export default function CheckoutPage() {
                                 price: item.price || `Rs ${item.priceNum || 0}`,
                                 priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
                                 quantity: item.quantity || 1,
-                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
+                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png",
+                                deliveryDate: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                             })),
                             subtotal: activeSubtotal,
                             discountAmount: activeSubtotal,
@@ -903,7 +918,8 @@ export default function CheckoutPage() {
                             totalAmount: 0,
                             walletDeduction: 0,
                             paymentMethod: `Marketing / Promo Code (${activePromo?.code || "100% OFF"})`,
-                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
+                            shippingMethod: getShippingMethodTitle(shippingMethod),
+                            estimatedDelivery: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                         })
                     });
                 } catch (dbErr) {
@@ -1011,7 +1027,8 @@ export default function CheckoutPage() {
                                 price: item.price || `Rs ${item.priceNum || 0}`,
                                 priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
                                 quantity: item.quantity || 1,
-                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
+                                image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png",
+                                deliveryDate: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                             })),
                             subtotal: activeSubtotal,
                             discountAmount: promoDiscountAmount,
@@ -1021,7 +1038,8 @@ export default function CheckoutPage() {
                             totalAmount,
                             walletDeduction: totalAmount,
                             paymentMethod: "BacStory Wallet",
-                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery"
+                            shippingMethod: getShippingMethodTitle(shippingMethod),
+                            estimatedDelivery: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                         })
                     });
                 } catch (dbErr) {
@@ -1114,7 +1132,8 @@ export default function CheckoutPage() {
                                 quantity: item.quantity || 1,
                                 image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png",
                                 orderStatus: "Order Confirmed",
-                                paymentStatus: "COD"
+                                paymentStatus: "COD",
+                                deliveryDate: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                             })),
                             subtotal: activeSubtotal,
                             discountAmount: promoDiscountAmount,
@@ -1124,7 +1143,8 @@ export default function CheckoutPage() {
                             totalAmount,
                             walletDeduction: 0,
                             paymentMethod: "Cash on Delivery (COD)",
-                            shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery",
+                            shippingMethod: getShippingMethodTitle(shippingMethod),
+                            estimatedDelivery: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig),
                             paymentStatus: "COD"
                         })
                     });
@@ -1227,7 +1247,7 @@ export default function CheckoutPage() {
                 throw new Error(orderData.message || "Failed to create Razorpay order on backend.");
             }
 
-            const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TMPgBtafMzjbIX";
+            const razorpayKey = orderData.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TMPgBtafMzjbIX";
 
             // STEP 2: FRONTEND - Open Razorpay Modal
             const options = {
@@ -1328,7 +1348,8 @@ export default function CheckoutPage() {
                                             price: item.price || `Rs ${item.priceNum || 0}`,
                                             priceNum: typeof item.priceNum === "number" && !isNaN(item.priceNum) ? item.priceNum : Number(String(item.price || "").replace(/[^0-9.]/g, "")) || 0,
                                             quantity: item.quantity || 1,
-                                            image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png"
+                                            image: item.image || (Array.isArray(item.images) ? item.images[0] : "") || "/images/landing-page/coding-tshirt.png",
+                                            deliveryDate: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig)
                                         })),
                                         subtotal: activeSubtotal,
                                         discountAmount: promoDiscountAmount,
@@ -1338,7 +1359,8 @@ export default function CheckoutPage() {
                                         totalAmount,
                                         walletDeduction: walletDeduction,
                                         paymentMethod: walletDeduction > 0 ? "BacStory Wallet + Razorpay" : "Pay Online (Prepaid 5% Off)",
-                                        shippingMethod: shippingMethod === "express" ? "Express Delivery" : shippingMethod === "international" ? "International Shipping" : "Standard Delivery",
+                                        shippingMethod: getShippingMethodTitle(shippingMethod),
+                                        estimatedDelivery: getEstimatedDeliveryText(shippingMethod, shippingRatesConfig),
                                         paymentStatus: "Paid"
                                     })
                                 });

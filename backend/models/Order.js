@@ -72,7 +72,7 @@ const orderSchema = new mongoose.Schema(
           default: "Placed",
         },
         paymentStatus: { type: String, default: "Paid" },
-        deliveryDate: { type: String, default: "Estimated Delivery: 3-5 Business Days" },
+        deliveryDate: { type: String, default: "" },
       },
     ],
     subtotal: { type: Number, required: true, default: 0 },
@@ -84,6 +84,7 @@ const orderSchema = new mongoose.Schema(
     walletDeduction: { type: Number, default: 0 },
     paymentMethod: { type: String, default: "Razorpay / Prepaid" },
     shippingMethod: { type: String, default: "Standard Delivery" },
+    estimatedDelivery: { type: String, default: "" },
     paymentStatus: {
       type: String,
       enum: [

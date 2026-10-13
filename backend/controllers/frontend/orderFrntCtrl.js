@@ -1,5 +1,51 @@
 const Order = require("../../models/Order");
+const ShippingSetting = require("../../models/shippingSetting");
 const { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } = require("../../services/emailService");
+
+// Dynamic resolver for delivery days based on shipping method and database settings
+const resolveOrderDeliveryEstimate = (shippingMethod, itemDeliveryDate, settings) => {
+  const normMethod = String(shippingMethod || "").toLowerCase();
+  let defaultDays = "3–5 business days";
+  if (normMethod.includes("express")) {
+    defaultDays = settings?.express?.deliveryDays || "1–2 business days";
+  } else if (normMethod.includes("international")) {
+    defaultDays = settings?.international?.deliveryDays || "7–14 business days";
+  } else {
+    defaultDays = settings?.standard?.deliveryDays || "3–5 business days";
+  }
+
+  // If itemDeliveryDate is valid and doesn't conflict with shipping method
+  if (
+    itemDeliveryDate &&
+    !((normMethod.includes("express") || normMethod.includes("international")) && (itemDeliveryDate.includes("3-5") || itemDeliveryDate.includes("3–5")))
+  ) {
+    return itemDeliveryDate.toLowerCase().startsWith("estimated")
+      ? itemDeliveryDate
+      : `Estimated Delivery: ${itemDeliveryDate}`;
+  }
+
+  return defaultDays.toLowerCase().startsWith("estimated")
+    ? defaultDays
+    : `Estimated Delivery: ${defaultDays}`;
+};
+
+const formatOrderResponse = (order, settings) => {
+  if (!order) return order;
+  const plainOrder = order.toObject ? order.toObject() : { ...order };
+  const resolvedDelivery = resolveOrderDeliveryEstimate(
+    plainOrder.shippingMethod,
+    plainOrder.estimatedDelivery || (plainOrder.items && plainOrder.items[0]?.deliveryDate),
+    settings
+  );
+  plainOrder.estimatedDelivery = resolvedDelivery;
+  if (Array.isArray(plainOrder.items)) {
+    plainOrder.items = plainOrder.items.map((i) => ({
+      ...i,
+      deliveryDate: resolveOrderDeliveryEstimate(plainOrder.shippingMethod, i.deliveryDate, settings),
+    }));
+  }
+  return plainOrder;
+};
 
 // Save new order to MongoDB
 const createOrderRecord = async (req, res) => {
@@ -21,6 +67,7 @@ const createOrderRecord = async (req, res) => {
       paymentMethod,
       shippingMethod,
       paymentStatus,
+      estimatedDelivery,
     } = req.body;
 
     const isCod = paymentMethod === "Cash on Delivery (COD)" || paymentMethod === "COD" || paymentStatus === "COD";
@@ -64,6 +111,13 @@ const createOrderRecord = async (req, res) => {
       }
     }
 
+    const shippingSettings = await ShippingSetting.findOne().catch(() => null);
+    const dynamicDeliveryDate = resolveOrderDeliveryEstimate(
+      shippingMethod,
+      estimatedDelivery || (items && items[0] && items[0].deliveryDate),
+      shippingSettings
+    );
+
     const newOrder = await Order.create({
       user: userId,
       orderId,
@@ -84,7 +138,7 @@ const createOrderRecord = async (req, res) => {
         image: item.image || "",
         orderStatus: "Order Confirmed",
         paymentStatus: finalPaymentStatus,
-        deliveryDate: "Estimated Delivery: 3-5 Business Days",
+        deliveryDate: resolveOrderDeliveryEstimate(shippingMethod, item.deliveryDate, shippingSettings),
       })),
       subtotal: subtotal || 0,
       discountAmount: discountAmount || 0,
@@ -95,6 +149,7 @@ const createOrderRecord = async (req, res) => {
       walletDeduction: Number(walletDeduction) || 0,
       paymentMethod: paymentMethod || (isCod ? "Cash on Delivery (COD)" : "Razorpay / Prepaid"),
       shippingMethod: shippingMethod || "Standard Delivery",
+      estimatedDelivery: dynamicDeliveryDate,
       paymentStatus: finalPaymentStatus,
       orderStatus: "Order Confirmed",
       statusTimeline: [
@@ -232,9 +287,12 @@ const getUserOrders = async (req, res) => {
       .populate("items.product", "title slug _id price colors")
       .sort({ createdAt: -1 });
 
+    const shippingSettings = await ShippingSetting.findOne().catch(() => null);
+    const formattedOrders = orders.map((o) => formatOrderResponse(o, shippingSettings));
+
     return res.status(200).json({
       success: true,
-      data: orders,
+      data: formattedOrders,
     });
   } catch (error) {
     console.error("Error fetching user orders:", error);
@@ -262,30 +320,34 @@ const getTrackOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
+    const shippingSettings = await ShippingSetting.findOne().catch(() => null);
+    const formattedOrder = formatOrderResponse(order, shippingSettings);
+
     return res.status(200).json({
       success: true,
       data: {
-        orderId: order.orderId,
-        orderStatus: order.orderStatus,
-        paymentStatus: order.paymentStatus,
-        paymentMethod: order.paymentMethod,
-        shippingMethod: order.shippingMethod,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        items: order.items,
-        shippingAddress: order.shippingAddress,
-        subtotal: order.subtotal,
-        discountAmount: order.discountAmount,
-        prepaidDiscount: order.prepaidDiscount,
-        shippingCost: order.shippingCost,
-        taxAmount: order.taxAmount,
-        totalAmount: order.totalAmount,
-        walletDeduction: order.walletDeduction,
-        cancellation: order.cancellation,
-        returnExchange: order.returnExchange,
-        returnRequestsHistory: order.returnRequestsHistory || [],
-        refundDetails: order.refundDetails,
-        statusTimeline: order.statusTimeline || [],
+        orderId: formattedOrder.orderId,
+        orderStatus: formattedOrder.orderStatus,
+        paymentStatus: formattedOrder.paymentStatus,
+        paymentMethod: formattedOrder.paymentMethod,
+        shippingMethod: formattedOrder.shippingMethod,
+        estimatedDelivery: formattedOrder.estimatedDelivery,
+        createdAt: formattedOrder.createdAt,
+        updatedAt: formattedOrder.updatedAt,
+        items: formattedOrder.items,
+        shippingAddress: formattedOrder.shippingAddress,
+        subtotal: formattedOrder.subtotal,
+        discountAmount: formattedOrder.discountAmount,
+        prepaidDiscount: formattedOrder.prepaidDiscount,
+        shippingCost: formattedOrder.shippingCost,
+        taxAmount: formattedOrder.taxAmount,
+        totalAmount: formattedOrder.totalAmount,
+        walletDeduction: formattedOrder.walletDeduction,
+        cancellation: formattedOrder.cancellation,
+        returnExchange: formattedOrder.returnExchange,
+        returnRequestsHistory: formattedOrder.returnRequestsHistory || [],
+        refundDetails: formattedOrder.refundDetails,
+        statusTimeline: formattedOrder.statusTimeline || [],
       },
     });
   } catch (error) {
@@ -319,9 +381,11 @@ const getOrderDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
+    const shippingSettings = await ShippingSetting.findOne().catch(() => null);
+
     return res.status(200).json({
       success: true,
-      data: order,
+      data: formatOrderResponse(order, shippingSettings),
     });
   } catch (error) {
     console.error("Error fetching order details:", error);

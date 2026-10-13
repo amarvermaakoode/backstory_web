@@ -1,4 +1,6 @@
+const User = require("../../models/user");
 const SupportTicket = require("../../models/supportTicket");
+const { sendSupportTicketEmailToAdmin } = require("../../services/emailService");
 
 // create a new support ticket
 const createSupportTicket = async (req, res) => {
@@ -32,6 +34,29 @@ const createSupportTicket = async (req, res) => {
       subject: subject.trim(),
       message: message.trim(),
     });
+
+    // Dispatch notification email to admin email(s)
+    try {
+      const adminUsers = await User.find({ role: "admin" }).select("email");
+      const adminEmailsFromDb = adminUsers.map((u) => u.email).filter(Boolean);
+
+      const targetAdminEmails = [
+        ...new Set([
+          process.env.ADMIN_EMAIL,
+          "aditi@akoode.in",
+          ...adminEmailsFromDb,
+        ].filter(Boolean)),
+      ];
+
+      for (const targetEmail of targetAdminEmails) {
+        await sendSupportTicketEmailToAdmin({
+          ticket,
+          adminEmail: targetEmail,
+        });
+      }
+    } catch (emailErr) {
+      console.error("[Support] Failed to dispatch admin notification email:", emailErr.message);
+    }
 
     return res.status(201).json({
       success: true,

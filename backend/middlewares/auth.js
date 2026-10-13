@@ -46,6 +46,17 @@ const adminOnly = (req, res, next) => {
   }
 };
 
+const userOnly = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    return res.status(403).json({
+      success: false,
+      isAdminAccount: true,
+      message: "Admin accounts are not authorized to access customer services",
+    });
+  }
+  next();
+};
+
 const optionalAuth = async (req, res, next) => {
   if (
     req.headers.authorization &&
@@ -62,5 +73,5 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-module.exports = { protect, adminOnly, optionalAuth };
+module.exports = { protect, adminOnly, userOnly, optionalAuth };
 
