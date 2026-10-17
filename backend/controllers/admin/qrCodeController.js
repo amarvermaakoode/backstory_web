@@ -18,7 +18,7 @@ const generateUniqueCodeString = (prefix = "BAC") => {
 // generate a batch of qr codes
 exports.generateBatch = async (req, res) => {
   try {
-    const { batchName, quantity, prefix = "BAC" } = req.body;
+    const { batchName, quantity, prefix = "BAC", darkColor = "#000000", lightColor = "#FFFFFF" } = req.body;
 
     if (!batchName || !batchName.trim()) {
       return res.status(400).json({
@@ -35,11 +35,16 @@ exports.generateBatch = async (req, res) => {
       });
     }
 
+    const cleanDark = (darkColor && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(darkColor)) ? darkColor : "#000000";
+    const cleanLight = (lightColor && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(lightColor)) ? lightColor : "#FFFFFF";
+
     // Create batch entry
     const batch = await QRCodeBatch.create({
       batchName: batchName.trim(),
       prefix: prefix.trim().toUpperCase() || "BAC",
       totalQuantity: qty,
+      darkColor: cleanDark,
+      lightColor: cleanLight,
       createdBy: req.user ? req.user._id : null,
     });
 
@@ -61,6 +66,8 @@ exports.generateBatch = async (req, res) => {
         code,
         batchId: batch._id,
         status: "unlinked",
+        darkColor: cleanDark,
+        lightColor: cleanLight,
       });
     }
 
@@ -257,15 +264,18 @@ exports.downloadBatchPDF = async (req, res) => {
       // Target scan URL
       const scanUrl = `${frontendUrl}/qr/${qrItem.code}`;
 
-      // Generate QR Code Buffer with Error Correction Level M (15%) for clean, spacious Version 2 (25x25) matrix grid
+      // Generate QR Code Buffer with Error Correction Level Q (25%) for clean, robust scanning with custom colors
+      const qrDark = qrItem.darkColor || batch.darkColor || "#000000";
+      const qrLight = qrItem.lightColor || batch.lightColor || "#FFFFFF";
+
       const qrBuffer = await QRCode.toBuffer(scanUrl, {
-        errorCorrectionLevel: "M",
+        errorCorrectionLevel: "Q",
         type: "png",
         margin: 4,
         width: 350,
         color: {
-          dark: "#000000",
-          light: "#FFFFFF",
+          dark: qrDark,
+          light: qrLight,
         },
       });
 
@@ -287,11 +297,11 @@ exports.downloadBatchPDF = async (req, res) => {
       const logoX = centerX - logoSize / 2;
       const logoY = centerY - logoSize / 2;
 
-      // Draw white protective background square with rounded corners
+      // Draw protective background square with rounded corners matching the base color
       doc
         .save()
         .roundedRect(bgX, bgY, bgSize, bgSize, 2.5)
-        .fill("#FFFFFF")
+        .fill(qrLight)
         .restore();
 
       // Render BACSTORY logo SVG in exact mathematical center
@@ -344,7 +354,7 @@ exports.getAllQRCodes = async (req, res) => {
 
     const total = await QRCodeModel.countDocuments(query);
     const qrCodes = await QRCodeModel.find(query)
-      .populate("batchId", "batchName prefix")
+      .populate("batchId", "batchName prefix darkColor lightColor")
       .populate("linkedUser", "name email")
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)

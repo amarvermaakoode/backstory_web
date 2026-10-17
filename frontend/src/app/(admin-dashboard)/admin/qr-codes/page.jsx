@@ -21,12 +21,17 @@ import {
   Shirt,
   RefreshCw,
   Ticket,
+  Palette,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 
 import CustomSelect from "@/components/ui/CustomSelect";
 import CustomConfirmModal from "@/components/ui/CustomConfirmModal";
 import AdminPagination from "@/components/ui/AdminPagination";
 import QRCodeCard from "@/components/qr/QRCodeCard";
+import { QR_COLOR_PRESETS, checkQRContrast } from "@/lib/qrColorThemes";
 
 export default function QRCodesAdminPage() {
   const { adminFetch } = useAdminAuth();
@@ -108,6 +113,12 @@ export default function QRCodesAdminPage() {
   const [batchName, setBatchName] = useState("");
   const [prefix, setPrefix] = useState("BAC");
   const [quantity, setQuantity] = useState("50");
+  const [darkColor, setDarkColor] = useState("#000000");
+  const [lightColor, setLightColor] = useState("#FFFFFF");
+  const [selectedPresetId, setSelectedPresetId] = useState("classic-obsidian");
+
+  // Real-time optical contrast analysis
+  const contrastAnalysis = checkQRContrast(darkColor, lightColor);
 
   // Copy state
   const [copiedCode, setCopiedCode] = useState(null);
@@ -292,6 +303,8 @@ export default function QRCodesAdminPage() {
           batchName: batchName.trim(),
           prefix: prefix.trim().toUpperCase() || "BAC",
           quantity: qty,
+          darkColor: darkColor.trim(),
+          lightColor: lightColor.trim(),
         }),
       });
 
@@ -302,6 +315,9 @@ export default function QRCodesAdminPage() {
         setBatchName("");
         setPrefix("BAC");
         setQuantity("50");
+        setDarkColor("#000000");
+        setLightColor("#FFFFFF");
+        setSelectedPresetId("classic-obsidian");
         fetchBatches();
       } else {
         setError(data.message || "Failed to generate QR batch");
@@ -630,10 +646,24 @@ export default function QRCodesAdminPage() {
                         <tr key={batch._id} className="hover:bg-neutral-50/60 transition-colors">
                           <td className="py-4 px-4">
                             <div className="font-semibold text-neutral-900">{batch.batchName}</div>
-                            <div className="text-xs text-neutral-500 flex items-center gap-1.5 mt-1">
+                            <div className="text-xs text-neutral-500 flex items-center gap-2 mt-1">
                               <span className="bg-neutral-100 px-1.5 py-0.5 rounded text-neutral-700 font-mono font-bold text-[10px]">
                                 {batch.prefix || "BAC"}
                               </span>
+                              {/* Color Palette Indicator */}
+                              <div
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-neutral-200/80 text-[10px] font-mono"
+                                title={`QR: ${batch.darkColor || "#000000"} on Base: ${batch.lightColor || "#FFFFFF"}`}
+                              >
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-2xs"
+                                  style={{ backgroundColor: batch.darkColor || "#000000" }}
+                                />
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-2xs"
+                                  style={{ backgroundColor: batch.lightColor || "#FFFFFF" }}
+                                />
+                              </div>
                             </div>
                           </td>
 
@@ -1049,8 +1079,8 @@ export default function QRCodesAdminPage() {
 
       {/* Generate Batch Modal */}
       {isGenerateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-neutral-200 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-neutral-200 animate-in fade-in zoom-in duration-200 my-8">
             <div className="flex justify-between items-center mb-5 pb-3 border-b border-neutral-100">
               <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
                 <Shirt className="w-5 h-5 text-neutral-700" />
@@ -1058,28 +1088,28 @@ export default function QRCodesAdminPage() {
               </h3>
               <button
                 onClick={() => setIsGenerateModalOpen(false)}
-                className="text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                className="text-neutral-400 hover:text-neutral-700 cursor-pointer p-1 rounded-lg hover:bg-neutral-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleGenerateSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-neutral-700 mb-1">
-                  Batch Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g., Summer Collection Batch 1"
-                  value={batchName}
-                  onChange={(e) => setBatchName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-800"
-                />
-              </div>
+            <form onSubmit={handleGenerateSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                    Batch Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., Summer Collection Batch 1"
+                    value={batchName}
+                    onChange={(e) => setBatchName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-800"
+                  />
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700 mb-1">
                     Code Prefix
@@ -1112,6 +1142,170 @@ export default function QRCodesAdminPage() {
                 </div>
               </div>
 
+              {/* QR Color & Base Customization Section */}
+              <div className="p-4 rounded-2xl bg-neutral-50/80 border border-neutral-200/90 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-neutral-800" />
+                    <span className="text-xs font-bold text-neutral-900 uppercase tracking-wider">
+                      QR Code & Base Color (Optical Contrast Verified)
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-neutral-500 font-medium flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    Zero Scan Degradation
+                  </span>
+                </div>
+
+                {/* Preset Themes */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-neutral-600 mb-2">
+                    Verified High-Contrast Presets:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {QR_COLOR_PRESETS.map((preset) => {
+                      const isSelected = selectedPresetId === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPresetId(preset.id);
+                            setDarkColor(preset.dark);
+                            setLightColor(preset.light);
+                          }}
+                          className={`p-2 rounded-xl text-left border cursor-pointer transition-all flex items-center gap-2.5 ${
+                            isSelected
+                              ? "bg-white border-neutral-900 shadow-xs ring-1 ring-neutral-900"
+                              : "bg-white/70 border-neutral-200 hover:border-neutral-300"
+                          }`}
+                        >
+                          <div className="w-7 h-7 rounded-lg border border-neutral-200 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs relative">
+                            <div
+                              className="absolute inset-0"
+                              style={{ backgroundColor: preset.light }}
+                            />
+                            <div
+                              className="w-3.5 h-3.5 rounded-sm"
+                              style={{ backgroundColor: preset.dark }}
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-neutral-800 truncate leading-tight">
+                              {preset.name}
+                            </p>
+                            <p className="text-[9px] text-neutral-400 truncate mt-0.5">
+                              {preset.badge}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Pickers & Live Preview */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                  {/* Color pickers */}
+                  <div className="sm:col-span-2 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                          QR Module Color (Dark)
+                        </label>
+                        <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-neutral-800">
+                          <input
+                            type="color"
+                            value={darkColor}
+                            onChange={(e) => {
+                              setDarkColor(e.target.value);
+                              setSelectedPresetId("custom");
+                            }}
+                            className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                          />
+                          <input
+                            type="text"
+                            maxLength={7}
+                            value={darkColor}
+                            onChange={(e) => {
+                              setDarkColor(e.target.value);
+                              setSelectedPresetId("custom");
+                            }}
+                            className="w-full text-xs font-mono font-medium text-neutral-800 focus:outline-none uppercase"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-neutral-700 mb-1">
+                          Base / Background (Light)
+                        </label>
+                        <div className="flex items-center gap-2 bg-white border border-neutral-200 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-neutral-800">
+                          <input
+                            type="color"
+                            value={lightColor}
+                            onChange={(e) => {
+                              setLightColor(e.target.value);
+                              setSelectedPresetId("custom");
+                            }}
+                            className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                          />
+                          <input
+                            type="text"
+                            maxLength={7}
+                            value={lightColor}
+                            onChange={(e) => {
+                              setLightColor(e.target.value);
+                              setSelectedPresetId("custom");
+                            }}
+                            className="w-full text-xs font-mono font-medium text-neutral-800 focus:outline-none uppercase"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contrast & Optical Safety Analysis Meter */}
+                    <div
+                      className={`p-3 rounded-xl border text-xs transition-colors ${contrastAnalysis.colorClass}`}
+                    >
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="flex items-center gap-1.5">
+                          {contrastAnalysis.isDarkOnLight && contrastAnalysis.ratio >= 4.0 ? (
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <ShieldAlert className="w-4 h-4 text-amber-600" />
+                          )}
+                          {contrastAnalysis.rating}
+                        </span>
+                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-white/70 border border-current">
+                          {contrastAnalysis.ratio}:1 Ratio
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed opacity-90">
+                        {contrastAnalysis.message}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Live Real-time Card Preview */}
+                  <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-neutral-200 shadow-2xs">
+                    <span className="text-[10px] font-semibold text-neutral-400 mb-2 uppercase tracking-wider">
+                      Live Test Preview
+                    </span>
+                    <QRCodeCard
+                      code={`${prefix || "BAC"}-DEMO-PREV`}
+                      size="compact"
+                      darkColor={darkColor}
+                      lightColor={lightColor}
+                      className="p-3! shadow-none! border-0!"
+                    />
+                    <span className="text-[9px] text-neutral-400 mt-2 text-center">
+                      Scan with your phone to verify
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-3 flex justify-end gap-3 border-t border-neutral-100">
                 <button
                   type="button"
@@ -1122,7 +1316,7 @@ export default function QRCodesAdminPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitLoading}
+                  disabled={submitLoading || !contrastAnalysis.isDarkOnLight}
                   className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-neutral-900 text-white hover:bg-neutral-800 rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   {submitLoading && <Loader className="w-4 h-4 animate-spin" />}
@@ -1244,7 +1438,13 @@ export default function QRCodesAdminPage() {
               </button>
             </div>
 
-            <QRCodeCard code={previewQR.code} size="normal" className="w-full" />
+            <QRCodeCard
+              code={previewQR.code}
+              size="normal"
+              className="w-full"
+              darkColor={previewQR.darkColor || previewQR.batchId?.darkColor || "#000000"}
+              lightColor={previewQR.lightColor || previewQR.batchId?.lightColor || "#FFFFFF"}
+            />
 
             <div className="w-full mt-5 pt-3.5 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
               <span>Status: <strong className="text-neutral-800 capitalize">{previewQR.status || "unlinked"}</strong></span>

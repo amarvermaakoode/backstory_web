@@ -13,6 +13,8 @@ export default function QRCodeCard({
   className = "",
   size = "normal", // "normal" | "compact" | "large"
   logoPath = "/images/light-theme-icon.svg",
+  darkColor = "#000000",
+  lightColor = "#FFFFFF",
 }) {
   const [dataUrl, setDataUrl] = useState("");
 
@@ -25,15 +27,15 @@ export default function QRCodeCard({
   useEffect(() => {
     let isMounted = true;
 
-    // Use Error Correction Level M (15% capacity) for clean, spacious Version 2 (25x25) matrix grid
+    // Use Error Correction Level Q (25% capacity) for resilient scanning with custom color themes & logo
     const canvas = document.createElement("canvas");
     QRCode.toCanvas(canvas, urlToEncode, {
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "Q",
       margin: 4,
       width: 400,
       color: {
-        dark: "#000000",
-        light: "#FFFFFF",
+        dark: darkColor || "#000000",
+        light: lightColor || "#FFFFFF",
       },
     })
       .then(() => {
@@ -48,8 +50,8 @@ export default function QRCodeCard({
         const centerX = w / 2;
         const centerY = h / 2;
 
-        // Draw protective white background square in exact center
-        ctx.fillStyle = "#FFFFFF";
+        // Draw protective background square in exact center matching base color
+        ctx.fillStyle = lightColor || "#FFFFFF";
         const borderRadius = 6;
         const bgX = centerX - bgSize / 2;
         const bgY = centerY - bgSize / 2;
@@ -62,7 +64,7 @@ export default function QRCodeCard({
         }
         ctx.fill();
 
-        // Load logo image and render inside protective white center area
+        // Load logo image and render inside protective center area
         const logoImg = new Image();
         logoImg.crossOrigin = "anonymous";
         logoImg.onload = () => {
@@ -84,7 +86,7 @@ export default function QRCodeCard({
     return () => {
       isMounted = false;
     };
-  }, [urlToEncode, logoPath]);
+  }, [urlToEncode, logoPath, darkColor, lightColor]);
 
   // Sizing variations
   const cardPadding =
@@ -105,7 +107,10 @@ export default function QRCodeCard({
     <div
       className={`bg-white rounded-3xl border border-neutral-200/90 shadow-sm flex items-center justify-center mx-auto select-none transition-all ${cardPadding} ${className}`}
     >
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-neutral-100 shadow-2xs flex items-center justify-center relative">
+      <div
+        className="p-3 sm:p-4 rounded-2xl border border-neutral-100 shadow-2xs flex items-center justify-center relative transition-colors"
+        style={{ backgroundColor: lightColor || "#FFFFFF" }}
+      >
         <div className="relative flex items-center justify-center select-none aspect-square">
           {dataUrl ? (
             <img
@@ -119,7 +124,13 @@ export default function QRCodeCard({
 
           {/* Centered Embedded BACSTORY Logo Overlay */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[14%] h-[14%] flex items-center justify-center pointer-events-none">
-            <div className="w-full h-full bg-white rounded-lg p-[1.5px] shadow-2xs flex items-center justify-center border border-white overflow-hidden">
+            <div
+              className="w-full h-full rounded-lg p-[1.5px] shadow-2xs flex items-center justify-center border overflow-hidden"
+              style={{
+                backgroundColor: lightColor || "#FFFFFF",
+                borderColor: lightColor || "#FFFFFF",
+              }}
+            >
               <img
                 src={logoPath}
                 alt="BACSTORY Logo"

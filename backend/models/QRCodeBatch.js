@@ -22,6 +22,16 @@ const qrCodeBatchSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    darkColor: {
+      type: String,
+      default: "#000000",
+      trim: true,
+    },
+    lightColor: {
+      type: String,
+      default: "#FFFFFF",
+      trim: true,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -1084,7 +1084,13 @@ export default function AccountQrIdentityPage() {
               </button>
             </div>
 
-            <QRCodeCard code={previewPassQR.code} size="normal" className="w-full" />
+            <QRCodeCard
+              code={previewPassQR.code}
+              size="normal"
+              className="w-full"
+              darkColor={previewPassQR.darkColor || "#000000"}
+              lightColor={previewPassQR.lightColor || "#FFFFFF"}
+            />
 
             <div className="w-full mt-5 pt-3.5 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
               <span>Status: <strong className="text-neutral-800 capitalize">{previewPassQR.status || "active"}</strong></span>

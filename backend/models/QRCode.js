@@ -34,6 +34,16 @@ const qrCodeSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    darkColor: {
+      type: String,
+      default: "#000000",
+      trim: true,
+    },
+    lightColor: {
+      type: String,
+      default: "#FFFFFF",
+      trim: true,
+    },
     profileData: {
       title: { type: String, default: "" },
       storyType: { type: String, default: "" },
